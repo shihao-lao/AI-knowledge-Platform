@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMessages, getConversationById } from '@/lib/store';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,15 +10,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '缺少 conversationId 参数' }, { status: 400 });
     }
 
-    const conv = getConversationById(conversationId);
+    const conv = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+    });
+
     if (!conv) {
       return NextResponse.json({ error: '对话不存在' }, { status: 404 });
     }
 
-    const messages = getMessages(conversationId);
+    const messages = await prisma.message.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: 'asc' },
+    });
 
     return NextResponse.json({ messages });
   } catch (error) {
+    console.error('Error fetching messages:', error);
     return NextResponse.json({ error: '服务器内部错误' }, { status: 500 });
   }
 }

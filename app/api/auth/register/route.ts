@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserByEmail, createUser } from '@/lib/store';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,15 +10,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '邮箱和密码不能为空' }, { status: 400 });
     }
 
-    const existingUser = getUserByEmail(email);
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
     if (existingUser) {
       return NextResponse.json({ error: '该邮箱已被注册' }, { status: 409 });
     }
 
-    const user = createUser({
-      name: body.name || email.split('@')[0],
-      email,
-      role: 'editor',
+    const user = await prisma.user.create({
+      data: {
+        name: body.name || email.split('@')[0],
+        email,
+        role: 'editor',
+      },
     });
 
     return NextResponse.json(
@@ -30,6 +35,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
+    console.error('Registration error:', error);
     return NextResponse.json({ error: '服务器内部错误' }, { status: 500 });
   }
 }

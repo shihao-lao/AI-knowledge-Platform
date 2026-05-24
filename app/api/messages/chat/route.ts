@@ -1,56 +1,97 @@
 import { NextRequest } from 'next/server';
-import { addMessage, getMessages, getDocuments, getKnowledgeBaseById, getUsers } from '@/lib/store';
-import type { Citation, Message } from '@/types';
+import { prisma } from '@/lib/prisma';
+import { performRAGRetrieval, type RAGResult } from '@/lib/rag';
+import { processDocumentForRAG } from '@/lib/chunker';
+import type { Message, Citation } from '@/types';
 
-const mockResponses: Record<string, string[]> = {
-  default: [
-    '根据知识库中的资料，这个问题可以从以下几个方面来理解：\n\n首先，从技术实现角度来看，这涉及到核心架构的设计理念。系统采用了模块化的设计思路，使得各个组件能够独立运行和扩展。\n\n其次，在实际应用场景中，这种方案已经被证明是有效的，能够满足大多数业务需求。\n\n最后，建议您参考相关文档获取更详细的信息。',
-    '这是一个很好的问题！基于当前知识库的内容，我可以为您提供以下解答：\n\n根据已上传的文档资料，这个问题的答案需要结合具体的使用场景来分析。不同的应用场景可能会有不同的最佳实践。\n\n如果您需要更详细的信息，可以查阅相关的技术文档或联系技术支持团队。',
-  ],
-  vite: [
-    'Vite 在开发环境启动快的主要原因有以下几点：\n\n**1. 原生 ES Modules 支持**\nVite 利用浏览器原生的 ES Modules 能力，在开发环境中无需预先打包整个应用。浏览器可以直接按需加载模块，大大减少了启动时间。\n\n**2. 依赖预构建**\n对于第三方依赖（node_modules），Vite 使用 esbuild 进行预构建。esbuild 是用 Go 编写的，比 JavaScript 编写的打包器快 10-100 倍。\n\n**3. 按需编译**\n源码只在被请求时才进行转换，而不是一次性处理所有文件。这意味着你只会编译当前页面实际需要的代码。\n\n**4. 高效的热更新（HMR）**\n当文件修改时，Vite 只更新受影响的模块，而不需要重新加载整个页面。这使得热更新非常快速。\n\n这些特性使得 Vite 的冷启动速度比传统的 Webpack 等工具快一个数量级。',
-  ],
-  rag: [
-    '检索增强生成（RAG）是一种将检索系统与大语言模型结合的技术方案。其工作流程如下：\n\n**1. 文档预处理**\n- 上传文档后进行解析、切片\n- 将文本片段转换为向量表示\n- 存入向量数据库以便后续检索\n\n**2. 检索阶段**\n- 用户提问时，将问题转换为向量\n- 在向量数据库中进行相似度搜索\n- 召回最相关的文档片段\n\n**3. 生成阶段**\n- 将检索到的文档片段作为上下文\n- 连同用户问题一起发送给大模型\n- 生成带有引用来源的回答\n\n**优势**：\n- 回答基于真实文档，减少幻觉\n- 可以追溯信息来源，便于验证\n- 知识更新只需更新文档库',
-  ],
-};
+const SYSTEM_PROMPT = `你是一个基于知识库的AI助手。你的任务是：
+1. 仔细阅读提供的知识库文档片段
+2. 基于这些文档内容回答用户的问题
+3. 回答必须准确、有据可查
+4. 如果文档中没有相关信息，明确告知用户
+5. 引用来源时使用 [文档片段 X] 的格式
 
-function generateMockResponse(question: string): { content: string; citations: Citation[] } {
-  const lowerQuestion = question.toLowerCase();
+回答格式要求：
+- 使用 Markdown 格式
+- 分点列出关键信息
+- 在相关内容后标注引用来源
+- 保持专业、友好的语气`;
 
-  let responseText: string;
-  if (lowerQuestion.includes('vite') || lowerQuestion.includes('启动')) {
-    responseText = mockResponses.vite[Math.floor(Math.random() * mockResponses.vite.length)];
-  } else if (lowerQuestion.includes('rag') || lowerQuestion.includes('检索') || lowerQuestion.includes('增强')) {
-    responseText = mockResponses.rag[Math.floor(Math.random() * mockResponses.rag.length)];
+function generateRAGResponse(query: string, ragResult: RAGResult): string {
+  if (!ragResult.context || ragResult.retrievedChunks.length === 0) {
+    return `抱歉，我在当前知识库中没有找到与「${query}」直接相关的信息。
+
+这可能是因为：
+1. 知识库中还没有上传相关的文档
+2. 您的问题超出了现有文档的覆盖范围
+
+建议您：
+- 尝试使用不同的关键词提问
+- 检查知识库中是否有相关主题的文档
+- 联系管理员添加更多相关知识资料`;
+  }
+
+  const relevantContent = ragResult.retrievedChunks
+    .map((chunk, i) => {
+      return `[来源${i + 1}: ${chunk.documentTitle} (相似度: ${(chunk.similarity * 100).toFixed(0)}%)]\n${chunk.content}`;
+    })
+    .join('\n\n');
+
+  let response = '';
+
+  if (ragResult.retrievedChunks.some((c) => c.similarity > 0.7)) {
+    response = `根据知识库中的资料，我找到了以下相关信息：\n\n`;
+
+    const mainChunk = ragResult.retrievedChunks[0];
+    response += extractKeyInformation(mainChunk.content, query);
+
+    if (ragResult.retrievedChunks.length > 1) {
+      response += `\n\n**补充信息**：\n`;
+      for (let i = 1; i < ragResult.retrievedChunks.length; i++) {
+        const chunk = ragResult.retrievedChunks[i];
+        if (chunk.similarity > 0.3) {
+          response += `- ${generatePreview(chunk.content)} [来源${i + 1}]\n`;
+        }
+      }
+    }
+
+    response += `\n\n---\n**信息来源**：\n`;
+    ragResult.citations.forEach((citation, index) => {
+      response += `${index + 1}. ${citation.documentTitle} (置信度: ${(citation.confidenceScore * 100).toFixed(0)}%)\n`;
+    });
   } else {
-    responseText = mockResponses.default[Math.floor(Math.random() * mockResponses.default.length)];
-  }
+    response = `我在知识库中搜索了相关内容，找到一些可能有关的信息，但匹配度不是很高：\n\n`;
 
-  const citations: Citation[] = [];
-  if (Math.random() > 0.3) {
-    citations.push({
-      documentId: 'doc_vite',
-      documentTitle: 'Vite 原理分析.md',
-      chunkIndex: Math.floor(Math.random() * 40),
-      preview: 'Vite 利用浏览器原生模块能力，开发环境无需先打包整个应用。',
-      confidenceScore: 0.9 + Math.random() * 0.1,
-      color: '#1677ff',
+    ragResult.retrievedChunks.forEach((chunk, index) => {
+      response += `${index + 1}. **${chunk.documentTitle}** (相似度: ${(chunk.similarity * 100).toFixed(0)}%)\n`;
+      response += `   ${generatePreview(chunk.content)}\n\n`;
     });
+
+    response += `\n建议您尝试更具体的关键词，或确认知识库中是否有更相关的文档。`;
   }
 
-  if (Math.random() > 0.5) {
-    citations.push({
-      documentId: 'doc_rag',
-      documentTitle: '检索增强生成实践.pdf',
-      chunkIndex: Math.floor(Math.random() * 100),
-      preview: '检索增强生成会把相关文档片段拼入上下文，回答需要保留来源信息。',
-      confidenceScore: 0.85 + Math.random() * 0.15,
-      color: '#faad14',
-    });
+  return response;
+}
+
+function extractKeyInformation(content: string, query: string): string {
+  const queryTerms = query.toLowerCase().split(/\s+/);
+  const sentences = content.split(/[。！？.!?]/);
+  const relevantSentences = sentences.filter((sentence) => {
+    const lowerSentence = sentence.toLowerCase();
+    return queryTerms.some((term) => lowerSentence.includes(term)) && sentence.trim().length > 10;
+  });
+
+  if (relevantSentences.length > 0) {
+    return relevantSentences.slice(0, 3).join('。\n') + '。';
   }
 
-  return { content: responseText, citations };
+  return content.slice(0, 500) + (content.length > 500 ? '...' : '');
+}
+
+function generatePreview(content: string, maxLength: number = 150): string {
+  const cleaned = content.replace(/\n+/g, ' ').trim();
+  if (cleaned.length <= maxLength) return cleaned;
+  return cleaned.slice(0, maxLength) + '...';
 }
 
 export async function POST(request: NextRequest) {
@@ -62,27 +103,69 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: '缺少必要参数' }, { status: 400 });
     }
 
-    const users = getUsers();
-    const currentUser = users[0];
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+    });
 
-    const userMessage: Message = {
-      id: `msg_${Date.now()}_user`,
-      role: 'user',
-      content,
-      createdAt: new Date().toISOString(),
-    };
+    if (!conversation) {
+      return Response.json({ error: '对话不存在' }, { status: 404 });
+    }
 
-    addMessage(conversationId, userMessage);
+    const userMessage = await prisma.message.create({
+      data: {
+        conversationId,
+        role: 'user',
+        content,
+      },
+    });
 
-    const { content: aiContent, citations } = generateMockResponse(content);
+    let chunksExist = await prisma.documentChunk.count({
+      where: { knowledgeBaseId: conversation.knowledgeBaseId },
+    });
 
-    const assistantMessage: Message = {
-      id: `msg_${Date.now()}_assistant`,
-      role: 'assistant',
-      content: aiContent,
-      citations,
-      createdAt: new Date().toISOString(),
-    };
+    if (chunksExist === 0) {
+      console.log('No chunks found, processing documents for RAG...');
+      const documents = await prisma.document.findMany({
+        where: { knowledgeBaseId: conversation.knowledgeBaseId },
+      });
+
+      for (const doc of documents) {
+        try {
+          await processDocumentForRAG(doc.id);
+          chunksExist++;
+        } catch (error) {
+          console.error(`Failed to process document ${doc.id}:`, error);
+        }
+      }
+    }
+
+    const ragResult = await performRAGRetrieval(content, conversation.knowledgeBaseId);
+    const aiResponse = generateRAGResponse(content, ragResult);
+
+    const assistantMessage = await prisma.message.create({
+      data: {
+        conversationId,
+        role: 'assistant',
+        content: aiResponse,
+        citations: JSON.stringify(ragResult.citations),
+      },
+    });
+
+    await prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        messageCount: { increment: 1 },
+        updatedAt: new Date(),
+      },
+    });
+
+    await prisma.knowledgeBase.update({
+      where: { id: conversation.knowledgeBaseId },
+      data: {
+        lastActiveAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
 
     if (stream) {
       const encoder = new TextEncoder();
@@ -95,13 +178,14 @@ export async function POST(request: NextRequest) {
 
           await new Promise((resolve) => setTimeout(resolve, 100));
 
-          const words = aiContent.split('');
+          const words = aiResponse.split('');
           let currentContent = '';
+          const chunkSize = Math.max(1, Math.floor(words.length / 50));
 
           for (let i = 0; i < words.length; i++) {
             currentContent += words[i];
 
-            if (i % 3 === 0 || i === words.length - 1) {
+            if (i % chunkSize === 0 || i === words.length - 1) {
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify({
@@ -112,7 +196,7 @@ export async function POST(request: NextRequest) {
                   })}\n\n`
                 )
               );
-              await new Promise((resolve) => setTimeout(resolve, 20));
+              await new Promise((resolve) => setTimeout(resolve, 15));
             }
           }
 
@@ -120,8 +204,8 @@ export async function POST(request: NextRequest) {
             encoder.encode(
               `data: ${JSON.stringify({
                 type: 'assistant_complete',
-                message: { ...assistantMessage, content: aiContent },
-                citations,
+                message: assistantMessage,
+                citations: ragResult.citations,
                 done: true,
               })}\n\n`
             )
@@ -129,8 +213,6 @@ export async function POST(request: NextRequest) {
 
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
-
-          addMessage(conversationId, assistantMessage);
         },
       });
 
@@ -142,11 +224,9 @@ export async function POST(request: NextRequest) {
         },
       });
     } else {
-      addMessage(conversationId, assistantMessage);
-
       return Response.json({
         message: assistantMessage,
-        citations,
+        citations: ragResult.citations,
       });
     }
   } catch (error) {

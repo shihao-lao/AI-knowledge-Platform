@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserByEmail } from '@/lib/store';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,7 +10,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '邮箱和密码不能为空' }, { status: 400 });
     }
 
-    const user = getUserByEmail(email);
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
     if (!user) {
       return NextResponse.json({ error: '用户不存在或密码错误' }, { status: 401 });
     }
@@ -21,6 +24,7 @@ export async function POST(request: NextRequest) {
       token: `mock_token_${user.id}_${Date.now()}`,
     });
   } catch (error) {
+    console.error('Login error:', error);
     return NextResponse.json({ error: '服务器内部错误' }, { status: 500 });
   }
 }

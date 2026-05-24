@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getUsers } from '@/lib/store';
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const users = getUsers();
+    const user = await prisma.user.findFirst();
     return NextResponse.json({
-      user: users[0] || null,
+      user,
     });
   } catch (error) {
+    console.error('Error fetching user:', error);
     return NextResponse.json({ error: '服务器内部错误' }, { status: 500 });
   }
 }
