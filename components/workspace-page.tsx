@@ -18,30 +18,33 @@ import {
   SendOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
-import { Avatar, Button, Empty, Input, Progress, Select, Space, Tag, Typography, Upload, message } from 'antd';
+import { App, Avatar, Button, Empty, Input, Progress, Select, Space, Tag, Typography, Upload } from 'antd';
 import type { UploadProps } from 'antd';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import CitationCard from '@/components/citation-card';
 import CreateKnowledgeBaseModal, {
-  buildKnowledgeBase,
   type ManualKbValues,
-} from '@/components/create-knowledge-base-modal';
+} from '@/components/create-kb-modal';
 import MarkdownMessage from '@/components/markdown-message';
 import { citations, currentUser } from '@/data/mock';
-import type { Citation, Conversation, DocumentStatus, FileType, KnowledgeDocument, Message, Visibility } from '@/types/domain';
-import { createWelcomeMessage } from '@/lib/chat-helpers';
+import type { Citation, Conversation, DocumentStatus, FileType, KnowledgeDocument, Message, Visibility } from '@/types';
+import { createWelcomeMessage } from '@/lib/chat';
 import { chatPath, getWorkspaceMode, knowledgePath, type WorkspaceMode } from '@/lib/paths';
-import { documentProcessingStages, fileTypeText, formatSize, parseUploadedFile } from '@/lib/document-import';
+import { documentProcessingStages, fileTypeText, formatSize, parseUploadedFile } from '@/lib/document';
+import {
+  buildKnowledgeBase,
+  useDocuments,
+  useExpandedDocId,
+  useKnowledgeBases,
+  useKnowledgeStore,
+} from '@/stores/knowledge-store';
 import {
   useConversations,
   useConversationsByKb,
   useConversationMessages,
-  useDocuments,
-  useExpandedDocId,
-  useKnowledgeBases,
-  useWorkspaceStore,
-} from '@/stores/workspace-store';
+  useChatStore,
+} from '@/stores/chat-store';
 
 const statusMeta: Record<DocumentStatus, { label: string; color: string }> = {
   uploading: { label: '上传中', color: 'processing' },
@@ -70,19 +73,22 @@ export default function WorkspacePage() {
 
   const kbList = useKnowledgeBases();
   const docRows = useDocuments();
-  const conversationList = useConversations();
   const expandedDocId = useExpandedDocId();
-  const addKnowledgeBase = useWorkspaceStore((s) => s.addKnowledgeBase);
-  const addDocument = useWorkspaceStore((s) => s.addDocument);
-  const updateDocument = useWorkspaceStore((s) => s.updateDocument);
-  const removeDocumentFromStore = useWorkspaceStore((s) => s.removeDocument);
-  const addConversation = useWorkspaceStore((s) => s.addConversation);
-  const updateConversation = useWorkspaceStore((s) => s.updateConversation);
-  const ensureConversationMessages = useWorkspaceStore((s) => s.ensureConversationMessages);
-  const setConversationMessages = useWorkspaceStore((s) => s.setConversationMessages);
-  const syncConversationMeta = useWorkspaceStore((s) => s.syncConversationMeta);
-  const setExpandedDocId = useWorkspaceStore((s) => s.setExpandedDocId);
-  const resolveExpandedDocForKb = useWorkspaceStore((s) => s.resolveExpandedDocForKb);
+  const addKnowledgeBase = useKnowledgeStore((s) => s.addKnowledgeBase);
+  const addDocument = useKnowledgeStore((s) => s.addDocument);
+  const updateDocument = useKnowledgeStore((s) => s.updateDocument);
+  const removeDocumentFromStore = useKnowledgeStore((s) => s.removeDocument);
+  const setExpandedDocId = useKnowledgeStore((s) => s.setExpandedDocId);
+  const resolveExpandedDocForKb = useKnowledgeStore((s) => s.resolveExpandedDocForKb);
+
+  const conversationList = useConversations();
+  const addConversation = useChatStore((s) => s.addConversation);
+  const updateConversation = useChatStore((s) => s.updateConversation);
+  const ensureConversationMessages = useChatStore((s) => s.ensureConversationMessages);
+  const setConversationMessages = useChatStore((s) => s.setConversationMessages);
+  const syncConversationMeta = useChatStore((s) => s.syncConversationMeta);
+
+  const { message } = App.useApp();
 
   const [input, setInput] = useState('');
   const [liveCitations, setLiveCitations] = useState<Citation[]>(citations);

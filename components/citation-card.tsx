@@ -2,7 +2,7 @@
 
 import { FileMarkdownOutlined, FilePdfOutlined, FileTextOutlined } from '@ant-design/icons';
 import { Progress, Typography } from 'antd';
-import type { Citation } from '@/types/domain';
+import type { Citation } from '@/types';
 
 interface CitationCardProps {
   citation: Citation;

@@ -4,8 +4,8 @@ import { EditOutlined, ImportOutlined, InboxOutlined } from '@ant-design/icons';
 import { Button, Form, Input, Modal, Select, Space, Typography, Upload, message } from 'antd';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useState } from 'react';
-import type { KnowledgeBase, Visibility } from '@/types/domain';
-import { uploadAccept } from '@/lib/document-import';
+import type { Visibility } from '@/types';
+import { uploadAccept } from '@/lib/document';
 
 export type CreateKbMode = 'choose' | 'manual' | 'import';
 
@@ -193,23 +193,6 @@ function CreateKnowledgeBaseModal({ open, onClose, onCreateManual, onCreateImpor
       )}
     </Modal>
   );
-}
-
-export function buildKnowledgeBase(values: {
-  name: string;
-  description: string;
-  visibility: Visibility;
-}): KnowledgeBase {
-  const now = new Date().toISOString();
-  return {
-    id: `kb_${crypto.randomUUID().slice(0, 8)}`,
-    name: values.name,
-    description: values.description || '暂无描述',
-    visibility: values.visibility,
-    stats: { documentCount: 0, conversationCount: 0, memberCount: 1, lastActiveAt: now },
-    createdAt: now,
-    updatedAt: now,
-  };
 }
 
 export default CreateKnowledgeBaseModal;

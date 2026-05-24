@@ -1,7 +1,7 @@
 import { conversations as mockConversations, initialMessages, knowledgeBases } from '@/data/mock';
-import type { Message } from '@/types/domain';
+import type { Message } from '@/types';
 
-export function buildWelcomeMessage(kbName: string, conversationId: string, createdAt: string): Message {
+function buildWelcomeMessage(kbName: string, conversationId: string, createdAt: string): Message {
   return {
     id: `welcome-${conversationId}`,
     role: 'assistant',

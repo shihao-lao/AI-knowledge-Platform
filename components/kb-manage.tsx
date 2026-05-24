@@ -6,17 +6,16 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import CreateKnowledgeBaseModal, {
-  buildKnowledgeBase,
   type ManualKbValues,
-} from '@/components/create-knowledge-base-modal';
+} from '@/components/create-kb-modal';
 import { knowledgePath } from '@/lib/paths';
-import { useKnowledgeBases, useWorkspaceStore } from '@/stores/workspace-store';
-import type { Visibility } from '@/types/domain';
+import { buildKnowledgeBase, useKnowledgeBases, useKnowledgeStore } from '@/stores/knowledge-store';
+import type { Visibility } from '@/types';
 
 export default function KnowledgeBasesPage() {
   const router = useRouter();
   const kbList = useKnowledgeBases();
-  const addKnowledgeBase = useWorkspaceStore((s) => s.addKnowledgeBase);
+  const addKnowledgeBase = useKnowledgeStore((s) => s.addKnowledgeBase);
   const [search, setSearch] = useState('');
   const [kbModalOpen, setKbModalOpen] = useState(false);
 

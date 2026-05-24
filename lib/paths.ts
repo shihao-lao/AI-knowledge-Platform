@@ -1,6 +1,6 @@
 import { conversations, knowledgeBases } from '@/data/mock';
 
-export const DEFAULT_KB_ID = knowledgeBases[0].id;
+const DEFAULT_KB_ID = knowledgeBases[0].id;
 
 const defaultConversation = conversations.find((chat) => chat.knowledgeBaseId === DEFAULT_KB_ID);
 

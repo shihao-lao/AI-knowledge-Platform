@@ -1,4 +1,4 @@
-import KnowledgeBasesPage from '@/components/knowledge-bases/knowledge-bases-page';
+import KnowledgeBasesPage from '@/components/kb-manage';
 
 export default function Page() {
   return <KnowledgeBasesPage />;

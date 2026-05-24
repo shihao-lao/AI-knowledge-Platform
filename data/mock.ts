@@ -1,4 +1,4 @@
-import type { Citation, Conversation, KnowledgeBase, KnowledgeDocument, Message, User } from '@/types/domain';
+import type { Citation, Conversation, KnowledgeBase, KnowledgeDocument, Message, User } from '@/types';
 
 export const currentUser: User = {
   id: 'u_001',

@@ -1,4 +1,4 @@
-import WorkspacePage from '@/components/workspace/workspace-page';
+import WorkspacePage from '@/components/workspace-page';
 
 export default function KnowledgeWorkspacePage() {
   return <WorkspacePage />;

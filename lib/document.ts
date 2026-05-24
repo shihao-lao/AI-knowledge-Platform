@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import mammoth from 'mammoth';
-import type { DocumentStatus, FileType } from '@/types/domain';
+import type { DocumentStatus, FileType } from '@/types';
 
 export const uploadAccept = '.pdf,.md,.markdown,.txt,.csv,.xls,.xlsx,.doc,.docx';
 
