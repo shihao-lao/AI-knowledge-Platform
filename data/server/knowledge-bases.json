@@ -1,0 +1,30 @@
+[
+  {
+    "name": "ai知识库",
+    "description": "122131",
+    "visibility": "private",
+    "id": "aizhishiku-35hu",
+    "stats": {
+      "documentCount": 1,
+      "conversationCount": 0,
+      "memberCount": 1,
+      "lastActiveAt": "2026-05-26T15:07:52.439Z"
+    },
+    "createdAt": "2026-05-26T15:07:52.393Z",
+    "updatedAt": "2026-05-26T15:07:52.439Z"
+  },
+  {
+    "name": "产品需求文档",
+    "description": "123",
+    "visibility": "private",
+    "id": "chanpinxuqiuwendang-vr8s",
+    "stats": {
+      "documentCount": 4,
+      "conversationCount": 0,
+      "memberCount": 1,
+      "lastActiveAt": "2026-05-26T15:07:34.332Z"
+    },
+    "createdAt": "2026-05-26T03:42:40.271Z",
+    "updatedAt": "2026-05-26T15:07:34.332Z"
+  }
+]

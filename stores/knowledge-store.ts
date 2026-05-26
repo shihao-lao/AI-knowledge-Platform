@@ -1,23 +1,7 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import {
-  documents as mockDocuments,
-  knowledgeBases as mockKnowledgeBases,
-} from '@/data/mock';
 import type { KnowledgeBase, KnowledgeDocument, Visibility } from '@/types';
-
-export function buildKnowledgeBase(values: { name: string; description?: string; visibility: Visibility }): KnowledgeBase {
-  const now = new Date().toISOString();
-  return {
-    id: `kb_${crypto.randomUUID().slice(0, 8)}`,
-    name: values.name,
-    description: values.description ?? '',
-    visibility: values.visibility,
-    stats: { documentCount: 0, conversationCount: 0, memberCount: 1, lastActiveAt: now },
-    createdAt: now,
-    updatedAt: now,
-  };
-}
+import { api } from '@/lib/api';
 
 function recalcDocStats(kbList: KnowledgeBase[], documents: KnowledgeDocument[]) {
   return kbList.map((kb) => ({
@@ -34,29 +18,74 @@ interface KnowledgeState {
   knowledgeBases: KnowledgeBase[];
   documents: KnowledgeDocument[];
   expandedDocId: string;
+  loading: boolean;
 
-  addKnowledgeBase: (kb: KnowledgeBase) => void;
-  updateKnowledgeBase: (kbId: string, patch: Partial<KnowledgeBase>) => void;
-  removeKnowledgeBase: (kbId: string) => void;
-  addDocument: (doc: KnowledgeDocument) => void;
+  fetchKnowledgeBases: () => Promise<void>;
+  fetchDocuments: (kbId?: string) => Promise<void>;
+  addKnowledgeBase: (kb: KnowledgeBase) => Promise<void>;
+  updateKnowledgeBase: (kbId: string, patch: Partial<KnowledgeBase>) => Promise<void>;
+  removeKnowledgeBase: (kbId: string) => Promise<void>;
+  addDocument: (doc: KnowledgeDocument) => Promise<void>;
   updateDocument: (documentId: string, patch: Partial<KnowledgeDocument>) => void;
-  removeDocument: (documentId: string, activeKbId: string) => void;
+  removeDocument: (documentId: string, activeKbId: string) => Promise<void>;
   setExpandedDocId: (documentId: string) => void;
   resolveExpandedDocForKb: (kbId: string) => void;
 }
 
-export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
-  knowledgeBases: mockKnowledgeBases,
-  documents: mockDocuments,
-  expandedDocId: mockDocuments[0]?.id ?? '',
+export function buildKnowledgeBase(values: { name: string; description?: string; visibility: Visibility }): KnowledgeBase {
+  const now = new Date().toISOString();
+  return {
+    id: `kb_${crypto.randomUUID().slice(0, 8)}`,
+    name: values.name,
+    description: values.description ?? '',
+    visibility: values.visibility,
+    stats: { documentCount: 0, conversationCount: 0, memberCount: 1, lastActiveAt: now },
+    createdAt: now,
+    updatedAt: now,
+  };
+}
 
-  addKnowledgeBase: (kb) => {
+export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
+  knowledgeBases: [],
+  documents: [],
+  expandedDocId: '',
+  loading: false,
+
+  fetchKnowledgeBases: async () => {
+    set({ loading: true });
+    try {
+      const res = await api.kb.list();
+      if (res.code === 0) {
+        set({ knowledgeBases: res.data });
+      }
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  fetchDocuments: async (kbId) => {
+    if (!kbId) return;
+    try {
+      const res = await api.documents.list(kbId);
+      if (res.code === 0) {
+        set((state) => ({
+          documents: [
+            ...state.documents.filter((d) => d.knowledgeBaseId !== kbId),
+            ...res.data,
+          ],
+        }));
+      }
+    } catch {}
+  },
+
+  addKnowledgeBase: async (kb) => {
     set((state) => ({
-      knowledgeBases: recalcDocStats([kb, ...state.knowledgeBases], state.documents),
+      knowledgeBases: [kb, ...state.knowledgeBases.filter((existing) => existing.id !== kb.id)],
     }));
   },
 
-  updateKnowledgeBase: (kbId, patch) => {
+  updateKnowledgeBase: async (kbId, patch) => {
+    await api.kb.update(kbId, patch);
     set((state) => ({
       knowledgeBases: state.knowledgeBases.map((kb) =>
         kb.id === kbId ? { ...kb, ...patch, updatedAt: new Date().toISOString() } : kb,
@@ -64,22 +93,23 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
     }));
   },
 
-  removeKnowledgeBase: (kbId) => {
+  removeKnowledgeBase: async (kbId) => {
+    await api.kb.delete(kbId);
     set((state) => ({
       knowledgeBases: state.knowledgeBases.filter((kb) => kb.id !== kbId),
       documents: state.documents.filter((doc) => doc.knowledgeBaseId !== kbId),
     }));
   },
 
-  addDocument: (doc) => {
-    set((state) => {
-      const documents = [doc, ...state.documents];
-      return {
-        documents,
-        expandedDocId: doc.id,
-        knowledgeBases: recalcDocStats(state.knowledgeBases, documents),
-      };
-    });
+  addDocument: async (doc) => {
+    set((state) => ({
+      documents: [doc, ...state.documents],
+      expandedDocId: doc.id,
+    }));
+
+    setTimeout(() => {
+      get().updateDocument(doc.id, { status: 'completed', processingProgress: 100, chunkCount: 5 });
+    }, 3000);
   },
 
   updateDocument: (documentId, patch) => {
@@ -94,7 +124,8 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
     });
   },
 
-  removeDocument: (documentId, activeKbId) => {
+  removeDocument: async (documentId, activeKbId) => {
+    await api.documents.delete(documentId);
     set((state) => {
       const documents = state.documents.filter((doc) => doc.id !== documentId);
       let expandedDocId = state.expandedDocId;

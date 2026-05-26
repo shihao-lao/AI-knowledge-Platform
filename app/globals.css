@@ -31,6 +31,34 @@ textarea {
   font-family: inherit;
 }
 
+/* 美化滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* 侧边栏滚动条 */
+.hub-sidebar ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.hub-sidebar ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
 .hub-shell {
   min-height: 100vh;
   display: grid;
@@ -109,6 +137,10 @@ textarea {
 .hub-side-section {
   padding-top: 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .hub-section-title {
@@ -168,6 +200,65 @@ textarea {
 
 .hub-chat-record small {
   color: rgba(255, 255, 255, 0.62);
+}
+
+.hub-chat-record-wrap {
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.hub-chat-record-wrap:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.hub-chat-record-wrap.is-active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.hub-chat-record-wrap .hub-chat-record {
+  flex: 1;
+  min-width: 0;
+}
+
+.hub-chat-record__delete {
+  display: none;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.hub-chat-record-wrap:hover .hub-chat-record__delete {
+  display: flex;
+}
+
+.hub-chat-record__delete:hover {
+  color: #ff4d4f;
+  background: rgba(255, 77, 79, 0.1);
+}
+
+.hub-load-more {
+  width: 100%;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  padding: 8px 12px;
+  font-size: 13px;
+  text-align: center;
+  border-radius: 6px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.hub-load-more:hover {
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .hub-sidebar__bottom {
@@ -251,9 +342,10 @@ textarea {
 
 .knowledge-workspace,
 .chat-workspace {
-  min-height: calc(100vh - 64px);
+  height: calc(100vh - 64px);
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
+  overflow: hidden;
 }
 
 .knowledge-main,
@@ -263,6 +355,9 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .knowledge-head,
@@ -466,6 +561,9 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .insight-panel__head {
@@ -528,16 +626,20 @@ textarea {
 
 .chat-main {
   padding-bottom: 0;
+  height: calc(100vh - 64px);
+  overflow: hidden;
 }
 
 .message-list {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 4px 0 16px;
   display: flex;
   flex-direction: column;
   gap: 18px;
+  scroll-behavior: smooth;
 }
 
 .message-row {
@@ -618,13 +720,15 @@ textarea {
 }
 
 .composer {
-  margin: auto -24px 0;
+  flex-shrink: 0;
+  margin: 0 -24px;
   padding: 16px 24px 20px;
-  background: rgba(245, 247, 251, 0.94);
+  background: rgba(255, 255, 255, 0.98);
   border-top: 1px solid var(--color-border);
   display: grid;
   grid-template-columns: minmax(0, 1fr) 44px;
   gap: 10px;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .composer .ant-btn {

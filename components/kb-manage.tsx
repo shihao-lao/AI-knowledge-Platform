@@ -4,20 +4,25 @@ import { BookOutlined, DeleteOutlined, EditOutlined, PlusOutlined, SearchOutline
 import { Button, Card, Col, Input, Row, Space, Statistic, Tag, Typography, message } from 'antd';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import CreateKnowledgeBaseModal, {
   type ManualKbValues,
 } from '@/components/create-kb-modal';
 import { knowledgePath } from '@/lib/paths';
-import { buildKnowledgeBase, useKnowledgeBases, useKnowledgeStore } from '@/stores/knowledge-store';
-import type { Visibility } from '@/types';
+import { useKnowledgeBases, useKnowledgeStore } from '@/stores/knowledge-store';
+import type { KnowledgeBase, Visibility } from '@/types';
 
 export default function KnowledgeBasesPage() {
   const router = useRouter();
   const kbList = useKnowledgeBases();
   const addKnowledgeBase = useKnowledgeStore((s) => s.addKnowledgeBase);
+  const loadKnowledgeBases = useKnowledgeStore((s) => s.fetchKnowledgeBases);
   const [search, setSearch] = useState('');
   const [kbModalOpen, setKbModalOpen] = useState(false);
+
+  useEffect(() => {
+    loadKnowledgeBases();
+  }, [loadKnowledgeBases]);
 
   const filteredKbs = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -27,29 +32,43 @@ export default function KnowledgeBasesPage() {
     );
   }, [kbList, search]);
 
-  const handleCreateManualKb = (values: ManualKbValues) => {
-    const kb = buildKnowledgeBase(values);
-    const docCount = values.initialContent?.trim() ? 1 : 0;
-    addKnowledgeBase({ ...kb, stats: { ...kb.stats, documentCount: docCount } });
+  const handleCreateManualKb = async (values: ManualKbValues) => {
+    const res = await fetch('/api/kb', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: values.name, description: values.description, visibility: values.visibility }),
+    });
+    if (!res.ok) {
+      message.error('创建知识库失败');
+      return;
+    }
+    const kb = (await res.json()) as KnowledgeBase;
+    addKnowledgeBase(kb);
     message.success(`知识库「${values.name}」已创建`);
     router.push(knowledgePath(kb.id));
   };
 
-  const handleCreateImportKb = (values: {
+  const handleCreateImportKb = async (values: {
     name: string;
     description: string;
     visibility: Visibility;
     files: File[];
   }) => {
-    const kb = buildKnowledgeBase({
-      name: values.name,
-      description: values.description || `通过导入 ${values.files.length} 个文件创建`,
-      visibility: values.visibility,
+    const res = await fetch('/api/kb', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: values.name,
+        description: values.description || `通过导入 ${values.files.length} 个文件创建`,
+        visibility: values.visibility,
+      }),
     });
-    addKnowledgeBase({
-      ...kb,
-      stats: { ...kb.stats, documentCount: values.files.length, lastActiveAt: new Date().toISOString() },
-    });
+    if (!res.ok) {
+      message.error('创建知识库失败');
+      return;
+    }
+    const kb = (await res.json()) as KnowledgeBase;
+    addKnowledgeBase(kb);
     message.success(`知识库「${values.name}」已创建，进入工作台后可继续导入文件`);
     router.push(knowledgePath(kb.id));
   };
