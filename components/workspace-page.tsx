@@ -93,6 +93,7 @@ export default function WorkspacePage() {
   const fetchConversations = useChatStore((s) => s.fetchConversations);
   const loadMoreConversations = useChatStore((s) => s.loadMoreConversations);
   const loadMessages = useChatStore((s) => s.loadMessages);
+  const chatLoading = useChatStore((s) => s.loading);
 
   const { message } = App.useApp();
 
@@ -147,7 +148,7 @@ export default function WorkspacePage() {
 
   // Auto-create first conversation when entering chat mode with none
   useEffect(() => {
-    if (mode !== 'chat' || !activeKbId || conversationIdParam || kbConversations.length > 0) return;
+    if (mode !== 'chat' || !activeKbId || conversationIdParam || chatLoading || kbConversations.length > 0) return;
     (async () => {
       const res = await api.conversations.create(activeKbId);
       if (res.code === 0) {
@@ -155,7 +156,7 @@ export default function WorkspacePage() {
         router.replace(chatPath(activeKbId, res.data.conversation.id));
       }
     })();
-  }, [mode, activeKbId, conversationIdParam, kbConversations.length]);
+  }, [mode, activeKbId, conversationIdParam, chatLoading, kbConversations.length]);
 
   const activeDocs = useMemo(() => {
     return docRows.filter((doc) => {

@@ -42,8 +42,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   total: 0,
   hasMore: true,
 
-  fetchConversations: async (kbId?: string, _reset = true) => {
-    set({ loading: true });
+  fetchConversations: async (kbId?: string) => {
+    set({ loading: true, conversations: [], total: 0, hasMore: true });
     try {
       const res = await api.conversations.list(kbId, PAGE_SIZE, 0);
       if (res.code === 0) {
@@ -60,11 +60,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   loadMoreConversations: async (kbId?: string) => {
-    const { conversations, loading } = get();
+    const { loading } = get();
     if (loading) return;
     set({ loading: true });
     try {
-      const res = await api.conversations.list(kbId, PAGE_SIZE, conversations.length);
+      const offset = get().conversations.filter((c) => !kbId || c.knowledgeBaseId === kbId).length;
+      const res = await api.conversations.list(kbId, PAGE_SIZE, offset);
       if (res.code === 0) {
         const { items, total } = res.data;
         set((state) => ({
