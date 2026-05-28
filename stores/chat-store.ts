@@ -1,33 +1,16 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { api } from '@/lib/api';
+import { conversations as mockConversations } from '@/data/mock';
+import { createWelcomeMessage, buildInitialMessagesMap } from '@/lib/chat';
 import type { Conversation, Message } from '@/types';
-
-const PAGE_SIZE = 20;
-
-function buildWelcomeMessage(kbName: string): Message {
-  return {
-    id: crypto.randomUUID(),
-    role: 'assistant',
-    content: `你好，我已准备好基于「${kbName}」中的资料回答问题。开始输入你的问题吧，我会尽量附上可验证的引用来源。`,
-    citations: [],
-    createdAt: new Date().toISOString(),
-  };
-}
 
 interface ChatState {
   conversations: Conversation[];
   messagesByConversation: Record<string, Message[]>;
-  loading: boolean;
-  total: number;
-  hasMore: boolean;
 
-  fetchConversations: (kbId?: string, reset?: boolean) => Promise<void>;
-  loadMoreConversations: (kbId?: string) => Promise<void>;
-  loadMessages: (conversationId: string) => Promise<void>;
-  addConversation: (conversation: Conversation) => void;
-  deleteConversation: (conversationId: string) => Promise<void>;
+  addConversation: (conversation: Conversation, welcomeMessages: Message[]) => string;
   updateConversation: (conversationId: string, patch: Partial<Conversation>) => void;
+  ensureConversationMessages: (conversationId: string, kbName: string) => void;
   setConversationMessages: (
     conversationId: string,
     updater: Message[] | ((prev: Message[]) => Message[]),
@@ -36,12 +19,10 @@ interface ChatState {
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
-  conversations: [],
-  messagesByConversation: {},
-  loading: false,
-  total: 0,
-  hasMore: true,
+  conversations: mockConversations,
+  messagesByConversation: buildInitialMessagesMap(),
 
+<<<<<<< HEAD
   fetchConversations: async (kbId?: string) => {
     set({ loading: true, conversations: [], total: 0, hasMore: true });
     try {
@@ -92,23 +73,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   addConversation: (conversation) => {
+=======
+  addConversation: (conversation, welcomeMessages) => {
+>>>>>>> parent of 590a572 (feat: 迁移至真实后端 API、优化对话布局与滚动体验)
     set((state) => ({
       conversations: [conversation, ...state.conversations],
-      total: state.total + 1,
       messagesByConversation: {
         ...state.messagesByConversation,
-        [conversation.id]: [buildWelcomeMessage('当前知识库')],
+        [conversation.id]: welcomeMessages,
       },
     }));
-  },
-
-  deleteConversation: async (conversationId: string) => {
-    await api.conversations.delete(conversationId);
-    set((state) => {
-      const conversations = state.conversations.filter((c) => c.id !== conversationId);
-      const { [conversationId]: _, ...rest } = state.messagesByConversation;
-      return { conversations, messagesByConversation: rest, total: state.total - 1 };
-    });
+    return conversation.id;
   },
 
   updateConversation: (conversationId, patch) => {
@@ -116,6 +91,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
       conversations: state.conversations.map((chat) =>
         chat.id === conversationId ? { ...chat, ...patch, updatedAt: new Date().toISOString() } : chat,
       ),
+    }));
+  },
+
+  ensureConversationMessages: (conversationId, kbName) => {
+    const { messagesByConversation } = get();
+    if (messagesByConversation[conversationId]) return;
+    set((state) => ({
+      messagesByConversation: {
+        ...state.messagesByConversation,
+        [conversationId]: [createWelcomeMessage(kbName)],
+      },
     }));
   },
 
@@ -130,11 +116,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   syncConversationMeta: (conversationId, messages) => {
-    set((state) => ({
-      conversations: state.conversations.map((chat) =>
-        chat.id === conversationId ? { ...chat, messageCount: messages.length, updatedAt: new Date().toISOString() } : chat,
-      ),
-    }));
+    get().updateConversation(conversationId, { messageCount: messages.length });
   },
 }));
 
@@ -157,8 +139,5 @@ export function useConversationMessages(conversationId: string) {
     }),
   );
 }
-
-export const useHasMore = () => useChatStore((s) => s.hasMore);
-export const useConversationTotal = () => useChatStore((s) => s.total);
 
 const EMPTY_ARRAY: never[] = [];

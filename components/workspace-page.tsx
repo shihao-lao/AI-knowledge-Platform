@@ -27,12 +27,13 @@ import CreateKnowledgeBaseModal, {
   type ManualKbValues,
 } from '@/components/create-kb-modal';
 import MarkdownMessage from '@/components/markdown-message';
-import { currentUser } from '@/data/mock';
-import { api } from '@/lib/api';
-import type { Citation, Conversation, DocumentStatus, FileType, KnowledgeBase, KnowledgeDocument, Message, Visibility } from '@/types';
+import { citations, currentUser } from '@/data/mock';
+import type { Citation, Conversation, DocumentStatus, FileType, KnowledgeDocument, Message, Visibility } from '@/types';
+import { createWelcomeMessage } from '@/lib/chat';
 import { chatPath, getWorkspaceMode, knowledgePath, type WorkspaceMode } from '@/lib/paths';
 import { documentProcessingStages, fileTypeText, formatSize, parseUploadedFile } from '@/lib/document';
 import {
+  buildKnowledgeBase,
   useDocuments,
   useExpandedDocId,
   useKnowledgeBases,
@@ -42,7 +43,6 @@ import {
   useConversations,
   useConversationsByKb,
   useConversationMessages,
-  useHasMore,
   useChatStore,
 } from '@/stores/chat-store';
 
@@ -80,25 +80,18 @@ export default function WorkspacePage() {
   const removeDocumentFromStore = useKnowledgeStore((s) => s.removeDocument);
   const setExpandedDocId = useKnowledgeStore((s) => s.setExpandedDocId);
   const resolveExpandedDocForKb = useKnowledgeStore((s) => s.resolveExpandedDocForKb);
-  const fetchKnowledgeBases = useKnowledgeStore((s) => s.fetchKnowledgeBases);
-  const fetchDocuments = useKnowledgeStore((s) => s.fetchDocuments);
 
   const conversationList = useConversations();
-  const hasMore = useHasMore();
   const addConversation = useChatStore((s) => s.addConversation);
-  const deleteConversation = useChatStore((s) => s.deleteConversation);
   const updateConversation = useChatStore((s) => s.updateConversation);
+  const ensureConversationMessages = useChatStore((s) => s.ensureConversationMessages);
   const setConversationMessages = useChatStore((s) => s.setConversationMessages);
   const syncConversationMeta = useChatStore((s) => s.syncConversationMeta);
-  const fetchConversations = useChatStore((s) => s.fetchConversations);
-  const loadMoreConversations = useChatStore((s) => s.loadMoreConversations);
-  const loadMessages = useChatStore((s) => s.loadMessages);
-  const chatLoading = useChatStore((s) => s.loading);
 
   const { message } = App.useApp();
 
   const [input, setInput] = useState('');
-  const [liveCitations, setLiveCitations] = useState<Citation[]>([]);
+  const [liveCitations, setLiveCitations] = useState<Citation[]>(citations);
   const [keyword, setKeyword] = useState('');
   const [kbModalOpen, setKbModalOpen] = useState(false);
 
@@ -111,6 +104,11 @@ export default function WorkspacePage() {
       : (kbConversations[0]?.id ?? '');
   const messages = useConversationMessages(activeConversationId);
 
+  const setMessages = (updater: Message[] | ((prev: Message[]) => Message[])) => {
+    if (!activeConversationId) return;
+    setConversationMessages(activeConversationId, updater);
+  };
+
   const goToKnowledge = (kbId: string = activeKbId) => {
     router.push(knowledgePath(kbId));
   };
@@ -120,44 +118,25 @@ export default function WorkspacePage() {
   };
 
   useEffect(() => {
-    if (kbIdParam && kbList.length && !kbList.some((kb) => kb.id === kbIdParam)) {
+    if (kbIdParam && !kbList.some((kb) => kb.id === kbIdParam)) {
       router.replace(mode === 'chat' ? chatPath(kbList[0].id) : knowledgePath(kbList[0].id));
     }
   }, [kbIdParam, kbList, mode, router]);
-
-  useEffect(() => {
-    fetchKnowledgeBases();
-  }, [fetchKnowledgeBases]);
-
-  useEffect(() => {
-    if (activeKbId) fetchDocuments(activeKbId);
-  }, [activeKbId, fetchDocuments]);
 
   useEffect(() => {
     resolveExpandedDocForKb(activeKbId);
   }, [activeKbId, resolveExpandedDocForKb]);
 
   useEffect(() => {
-    if (mode === 'chat') fetchConversations(activeKbId);
-  }, [mode, activeKbId, fetchConversations]);
-
-  useEffect(() => {
-    if (mode !== 'chat' || !conversationIdParam) return;
-    loadMessages(conversationIdParam);
-  }, [mode, conversationIdParam, loadMessages]);
-
-  // Auto-create first conversation when entering chat mode with none
-  useEffect(() => {
-    if (mode !== 'chat' || !activeKbId || conversationIdParam || chatLoading || kbConversations.length > 0) return;
-    (async () => {
-      const res = await api.conversations.create(activeKbId);
-      if (res.code === 0) {
-        addConversation(res.data.conversation as Conversation);
-        router.replace(chatPath(activeKbId, res.data.conversation.id));
-      }
-    })();
-  }, [mode, activeKbId, conversationIdParam, chatLoading, kbConversations.length]);
-
+    if (mode !== 'chat') return;
+    if (conversationIdParam && conversationList.some((chat) => chat.id === conversationIdParam)) {
+      ensureConversationMessages(conversationIdParam, activeKb?.name ?? '当前知识库');
+      return;
+    }
+    if (!conversationIdParam && kbConversations[0]) {
+      router.replace(chatPath(activeKbId, kbConversations[0].id));
+    }
+  }, [mode, conversationIdParam, conversationList, activeKbId, activeKb?.name, kbConversations, router, ensureConversationMessages]);
   const activeDocs = useMemo(() => {
     return docRows.filter((doc) => {
       const inKb = doc.knowledgeBaseId === activeKbId;
@@ -167,58 +146,36 @@ export default function WorkspacePage() {
   }, [activeKbId, docRows, keyword]);
   const expandedDoc = activeDocs.find((doc) => doc.id === expandedDocId) ?? activeDocs[0];
 
-  const selectKb = (kbId: string) => goToKnowledge(kbId);
+  const selectKb = (kbId: string) => {
+    goToKnowledge(kbId);
+  };
 
   const openConversation = (conversationId: string) => {
     setLiveCitations([]);
-    loadMessages(conversationId);
+    ensureConversationMessages(conversationId, activeKb?.name ?? '当前知识库');
     goToChat(activeKbId, conversationId);
   };
 
-  const createNewConversation = async () => {
-    if (!activeKbId) {
-      message.warning('请先创建或选择一个知识库');
-      return;
-    }
-    try {
-      const res = await api.conversations.create(activeKbId);
-      if (res.code !== 0) throw new Error(res.data?.error ?? '创建对话失败');
-      addConversation(res.data.conversation as Conversation);
-      setInput('');
-      setLiveCitations([]);
-      goToChat(activeKbId, res.data.conversation.id);
-      message.success('已开始新对话');
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : '创建对话失败，请重试');
-    }
+  const createNewConversation = () => {
+    const conversationId = `chat_${crypto.randomUUID().slice(0, 8)}`;
+    const now = new Date().toISOString();
+    const kbName = activeKb?.name ?? '当前知识库';
+    const newChat: Conversation = {
+      id: conversationId,
+      knowledgeBaseId: activeKbId,
+      title: '新对话',
+      messageCount: 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+    addConversation(newChat, [createWelcomeMessage(kbName)]);
+    setInput('');
+    setLiveCitations([]);
+    goToChat(activeKbId, conversationId);
+    message.success('已开始新对话');
   };
 
-  const sendMessage = async () => {
-    const question = input.trim();
-    if (!question) return;
-    if (!activeKbId) {
-      message.warning('请先创建或选择一个知识库');
-      return;
-    }
-    setInput('');
-
-    // Ensure we have a conversation
-    let convId = activeConversationId;
-    if (!convId) {
-      try {
-        const res = await api.conversations.create(activeKbId);
-        if (res.code !== 0) throw new Error('创建对话失败');
-        addConversation(res.data.conversation as Conversation);
-        convId = res.data.conversation.id;
-        goToChat(activeKbId, convId);
-      } catch (err) {
-        message.error(err instanceof Error ? err.message : '创建对话失败');
-        return;
-      }
-    }
-
-    if (mode !== 'chat') goToChat(activeKbId, convId);
-
+  const simulateAnswer = (question: string) => {
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -226,98 +183,100 @@ export default function WorkspacePage() {
       createdAt: new Date().toISOString(),
     };
     const assistantId = crypto.randomUUID();
+    const answer =
+      '我已经在当前知识库中检索到相关资料。根据文档内容，这个平台需要把“知识合集”和“AI 对话”拆成两个清晰入口：知识库用于查看、导入、展开资料；AI 对话用于基于当前知识库进行问答。\n\n每次回答都应该同步展示引用来源，用户点击来源后可以回到对应文档段落，从而确认回答依据。';
 
-    setConversationMessages(convId, (prev) => {
+    setMessages((prev) => {
       const next = [
         ...prev,
         userMessage,
-        { id: assistantId, role: 'assistant' as const, content: '', citations: [], createdAt: new Date().toISOString(), streaming: true },
+        {
+          id: assistantId,
+          role: 'assistant' as const,
+          content: '',
+          citations: [],
+          createdAt: new Date().toISOString(),
+          streaming: true,
+        },
       ];
-      syncConversationMeta(convId, next);
-      const chat = conversationList.find((c) => c.id === convId);
+      syncConversationMeta(activeConversationId, next);
+      const chat = conversationList.find((item) => item.id === activeConversationId);
       if (chat?.title === '新对话') {
-        updateConversation(convId, { title: question.length > 24 ? `${question.slice(0, 24)}…` : question });
+        updateConversation(activeConversationId, {
+          title: question.length > 24 ? `${question.slice(0, 24)}…` : question,
+        });
       }
       return next;
     });
+    setLiveCitations([]);
 
-    try {
-      const res = await api.chat.send(convId, question);
+    window.setTimeout(() => setLiveCitations([citations[0]]), 300);
+    window.setTimeout(() => setLiveCitations(citations), 700);
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: '请求失败' }));
-        throw new Error(err.error ?? `请求失败(${res.status})`);
-      }
-
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error('无法读取响应流');
-
-      const decoder = new TextDecoder();
-      let accumulated = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split('\n')) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith('data: ') || trimmed === 'data: [DONE]') continue;
-          try {
-            const parsed = JSON.parse(trimmed.slice(6));
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) {
-              accumulated += delta;
-              setConversationMessages(convId, (prev) =>
-                prev.map((item) => (item.id === assistantId ? { ...item, content: accumulated } : item)),
-              );
-            }
-          } catch { /* skip */ }
-        }
-      }
-
-      setConversationMessages(convId, (prev) => {
-        const next = prev.map((item) => (item.id === assistantId ? { ...item, streaming: false } : item));
-        syncConversationMeta(convId, next);
-        return next;
-      });
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : '未知错误';
-      setConversationMessages(convId, (prev) => {
+    let cursor = 0;
+    const timer = window.setInterval(() => {
+      cursor += 8;
+      setMessages((prev) => {
         const next = prev.map((item) =>
-          item.id === assistantId ? { ...item, content: `请求失败：${errorMsg}`, streaming: false } : item,
+          item.id === assistantId
+            ? {
+                ...item,
+                content: answer.slice(0, cursor),
+                citations: cursor > answer.length / 2 ? citations : [citations[0]],
+                streaming: cursor < answer.length,
+              }
+            : item,
         );
-        syncConversationMeta(convId, next);
+        if (cursor >= answer.length) {
+          syncConversationMeta(activeConversationId, next);
+        }
         return next;
       });
+      if (cursor >= answer.length) {
+        window.clearInterval(timer);
+      }
+    }, 42);
+  };
+
+  const sendMessage = () => {
+    const question = input.trim();
+    if (!question) return;
+    setInput('');
+    if (mode !== 'chat') {
+      goToChat(activeKbId, kbConversations[0]?.id ?? activeConversationId);
     }
+    simulateAnswer(question);
   };
 
   const importFileToKb = async (file: File, kbId: string) => {
     const importKey = `import-${file.name}-${file.size}`;
     message.loading({ content: `正在读取《${file.name}》并提取关键点...`, key: importKey, duration: 0 });
     const { sourceTitle, content } = await parseUploadedFile(file);
-
-    const res = await api.documents.create({
+    const newDoc: KnowledgeDocument = {
+      id: crypto.randomUUID(),
       knowledgeBaseId: kbId,
       title: `${sourceTitle}关键点文档`,
       fileName: `${sourceTitle}-关键点.md`,
       fileType: 'markdown',
       fileSize: file.size,
+      status: 'uploading',
+      processingProgress: 8,
+      chunkCount: 0,
+      uploadedBy: currentUser,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       content,
-    });
-
-    if (res.code !== 0) {
-      message.error({ content: `导入《${file.name}》失败：${res.data?.error ?? '未知错误'}`, key: importKey });
-      return undefined;
-    }
-
-    const newDoc = res.data as KnowledgeDocument;
+    };
     addDocument(newDoc);
     message.success({ content: `已生成《${sourceTitle}关键点文档》`, key: importKey });
 
     documentProcessingStages.forEach(([status, progress, delay]) => {
       window.setTimeout(() => {
-        updateDocument(newDoc.id, { status, processingProgress: progress, chunkCount: status === 'completed' ? 24 : 12 });
+        updateDocument(newDoc.id, {
+          status,
+          processingProgress: progress,
+          chunkCount: status === 'completed' ? 24 : 12,
+        });
       }, delay);
     });
     return newDoc;
@@ -333,33 +292,35 @@ export default function WorkspacePage() {
     },
   };
 
-  const addManualDocument = async (kbId: string, title: string, content: string) => {
-    const res = await api.documents.create({
+  const addManualDocument = (kbId: string, title: string, content: string) => {
+    const newDoc: KnowledgeDocument = {
+      id: crypto.randomUUID(),
       knowledgeBaseId: kbId,
       title,
       fileName: `${title}.md`,
       fileType: 'markdown',
       fileSize: new Blob([content]).size,
+      status: 'completed',
+      processingProgress: 100,
+      chunkCount: Math.max(1, Math.ceil(content.length / 500)),
+      uploadedBy: currentUser,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       content,
-    });
-    if (res.code !== 0) return undefined;
-    const newDoc = res.data as KnowledgeDocument;
+    };
     addDocument(newDoc);
     return newDoc;
   };
 
-  const activateKnowledgeBase = (kbId: string) => goToKnowledge(kbId);
+  const activateKnowledgeBase = (kbId: string) => {
+    goToKnowledge(kbId);
+  };
 
-  const handleCreateManualKb = async (values: ManualKbValues) => {
-    const res = await api.kb.create({ name: values.name, description: values.description, visibility: values.visibility });
-    if (res.code !== 0) {
-      message.error('创建知识库失败');
-      return;
-    }
-    const kb = res.data as KnowledgeBase;
+  const handleCreateManualKb = (values: ManualKbValues) => {
+    const kb = buildKnowledgeBase(values);
     const hasContent = !!values.initialContent?.trim();
     if (hasContent) {
-      await addManualDocument(kb.id, `${values.name} · 首篇知识`, values.initialContent!.trim());
+      addManualDocument(kb.id, `${values.name} · 首篇知识`, values.initialContent!.trim());
     }
     addKnowledgeBase({ ...kb, stats: { ...kb.stats, documentCount: hasContent ? 1 : 0 } });
     activateKnowledgeBase(kb.id);
@@ -372,27 +333,24 @@ export default function WorkspacePage() {
     visibility: Visibility;
     files: File[];
   }) => {
-    const res = await api.kb.create({
+    const kb = buildKnowledgeBase({
       name: values.name,
       description: values.description || `通过导入 ${values.files.length} 个文件创建`,
       visibility: values.visibility,
     });
-    if (res.code !== 0) {
-      message.error('创建知识库失败');
-      return;
-    }
-    const kb = res.data as KnowledgeBase;
     addKnowledgeBase(kb);
     activateKnowledgeBase(kb.id);
     message.loading({ content: '正在导入文件并建库...', key: 'kb-import', duration: 0 });
     for (const file of values.files) {
       await importFileToKb(file, kb.id);
     }
-    message.success({ content: `知识库「${values.name}」已创建并导入 ${values.files.length} 个文件`, key: 'kb-import' });
+    message.success({
+      content: `知识库「${values.name}」已创建并导入 ${values.files.length} 个文件`,
+      key: 'kb-import',
+    });
   };
 
-  const removeDocument = async (documentId: string) => {
-    await api.documents.delete(documentId);
+  const removeDocument = (documentId: string) => {
     removeDocumentFromStore(documentId, activeKbId);
     message.success('文档已从当前知识库移除');
   };
@@ -452,47 +410,20 @@ export default function WorkspacePage() {
                 <span>{kbConversations.length}</span>
               </div>
               {kbConversations.length ? (
-                <>
-                  {kbConversations.map((chat) => (
-                    <div key={chat.id} className={`hub-chat-record-wrap ${activeConversationId === chat.id ? 'is-active' : ''}`}>
-                      <button
-                        type="button"
-                        className="hub-chat-record"
-                        onClick={() => openConversation(chat.id)}
-                      >
-                        <MessageOutlined />
-                        <span>
-                          <strong>{chat.title}</strong>
-                          <small>{chat.messageCount} 条消息</small>
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="hub-chat-record__delete"
-                        title="删除对话"
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          await deleteConversation(chat.id);
-                          if (activeConversationId === chat.id) {
-                            const remaining = kbConversations.filter((c) => c.id !== chat.id);
-                            if (remaining.length) openConversation(remaining[0].id);
-                          }
-                        }}
-                      >
-                        <DeleteOutlined />
-                      </button>
-                    </div>
-                  ))}
-                  {hasMore && (
-                    <button
-                      type="button"
-                      className="hub-load-more"
-                      onClick={() => loadMoreConversations(activeKbId)}
-                    >
-                      加载更多
-                    </button>
-                  )}
-                </>
+                kbConversations.map((chat) => (
+                  <button
+                    type="button"
+                    key={chat.id}
+                    className={`hub-chat-record ${activeConversationId === chat.id ? 'is-active' : ''}`}
+                    onClick={() => openConversation(chat.id)}
+                  >
+                    <MessageOutlined />
+                    <span>
+                      <strong>{chat.title}</strong>
+                      <small>{chat.messageCount} 条消息 · 当前知识库</small>
+                    </span>
+                  </button>
+                ))
               ) : (
                 <Typography.Text type="secondary" className="hub-empty-hint">
                   当前知识库暂无对话
@@ -679,7 +610,9 @@ export default function WorkspacePage() {
                   </div>
                   <section className="ai-summary">
                     <div className="ai-summary__tabs">
-                      <button type="button" className="is-active">摘要</button>
+                      <button type="button" className="is-active">
+                        摘要
+                      </button>
                       <button type="button">要点</button>
                       <button type="button">相关对话</button>
                     </div>
@@ -788,3 +721,4 @@ export default function WorkspacePage() {
     </div>
   );
 }
+
