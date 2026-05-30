@@ -7,8 +7,12 @@ import type { Conversation, Message } from '@/types';
 interface ChatState {
   conversations: Conversation[];
   messagesByConversation: Record<string, Message[]>;
+  loading: boolean;
+  total: number;
+  hasMore: boolean;
 
-  addConversation: (conversation: Conversation, welcomeMessages: Message[]) => string;
+  addConversation: (conversation: Conversation, welcomeMessages?: Message[]) => string;
+  deleteConversation: (conversationId: string) => void;
   updateConversation: (conversationId: string, patch: Partial<Conversation>) => void;
   ensureConversationMessages: (conversationId: string, kbName: string) => void;
   setConversationMessages: (
@@ -21,69 +25,29 @@ interface ChatState {
 export const useChatStore = create<ChatState>((set, get) => ({
   conversations: mockConversations,
   messagesByConversation: buildInitialMessagesMap(),
+  loading: false,
+  total: 0,
+  hasMore: false,
 
-<<<<<<< HEAD
-  fetchConversations: async (kbId?: string) => {
-    set({ loading: true, conversations: [], total: 0, hasMore: true });
-    try {
-      const res = await api.conversations.list(kbId, PAGE_SIZE, 0);
-      if (res.code === 0) {
-        const { items, total } = res.data;
-        set({
-          conversations: items as Conversation[],
-          total,
-          hasMore: items.length < total,
-        });
-      }
-    } finally {
-      set({ loading: false });
-    }
-  },
-
-  loadMoreConversations: async (kbId?: string) => {
-    const { loading } = get();
-    if (loading) return;
-    set({ loading: true });
-    try {
-      const offset = get().conversations.filter((c) => !kbId || c.knowledgeBaseId === kbId).length;
-      const res = await api.conversations.list(kbId, PAGE_SIZE, offset);
-      if (res.code === 0) {
-        const { items, total } = res.data;
-        set((state) => ({
-          conversations: [...state.conversations, ...items],
-          total,
-          hasMore: state.conversations.length + items.length < total,
-        }));
-      }
-    } finally {
-      set({ loading: false });
-    }
-  },
-
-  loadMessages: async (conversationId: string) => {
-    const res = await api.conversations.get(conversationId);
-    if (res.code === 0 && res.data?.messages) {
-      set((state) => ({
-        messagesByConversation: {
-          ...state.messagesByConversation,
-          [conversationId]: res.data.messages as Message[],
-        },
-      }));
-    }
-  },
-
-  addConversation: (conversation) => {
-=======
   addConversation: (conversation, welcomeMessages) => {
->>>>>>> parent of 590a572 (feat: 迁移至真实后端 API、优化对话布局与滚动体验)
     set((state) => ({
       conversations: [conversation, ...state.conversations],
       messagesByConversation: {
         ...state.messagesByConversation,
-        [conversation.id]: welcomeMessages,
+        [conversation.id]: welcomeMessages ?? [],
       },
     }));
     return conversation.id;
+  },
+
+  deleteConversation: (conversationId) => {
+    set((state) => {
+      const { [conversationId]: _, ...rest } = state.messagesByConversation;
+      return {
+        conversations: state.conversations.filter((c) => c.id !== conversationId),
+        messagesByConversation: rest,
+      };
+    });
   },
 
   updateConversation: (conversationId, patch) => {
@@ -121,6 +85,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 }));
 
 export const useConversations = () => useChatStore((s) => s.conversations);
+export const useHasMore = () => useChatStore((s) => s.hasMore);
+export const useConversationTotal = () => useChatStore((s) => s.total);
 
 export function useConversationsByKb(kbId: string) {
   return useChatStore(
