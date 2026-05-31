@@ -78,6 +78,7 @@ export async function sendChatMessage(
       const decoder = new TextDecoder();
       let fullContent = '';
       let buffer = '';
+      let completed = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -89,77 +90,77 @@ export async function sendChatMessage(
 
         for (const line of lines) {
           const trimmed = line.trim();
-
           if (trimmed === '') continue;
+          if (!trimmed.startsWith('data:')) continue;
 
-          // Coze SSE 格式
-          if (trimmed.startsWith('data:')) {
-            const dataStr = trimmed.slice(5).trim();
-            if (dataStr === '[DONE]') continue;
+          const dataStr = trimmed.slice(5).trim();
+          if (dataStr === '[DONE]') {
+            completed = true;
+            continue;
+          }
 
-            try {
-              const data = JSON.parse(dataStr);
+          try {
+            const data = JSON.parse(dataStr);
 
-              // 处理不同类型的事件
-              if (data.event === 'conversation.message.delta') {
-                // 增量消息
-                if (data.content) {
-                  fullContent += data.content;
-                  console.log('[Coze Chat] delta, total length:', fullContent.length);
-                  if (onDelta) onDelta(fullContent);
-                }
-              } else if (data.event === 'conversation.message.completed') {
-                // 消息完成
-                if (data.content) {
-                  fullContent = data.content;
-                  console.log('[Coze Chat] completed, total length:', fullContent.length);
-                  if (onCompleted) onCompleted(fullContent);
-                }
-              } else if (data.event === 'conversation.chat.completed') {
-                // 聊天完成
-                console.log('[Coze Chat] chat completed');
-                if (onCompleted) onCompleted(fullContent);
-              } else if (data.event === 'conversation.chat.failed') {
-                // 聊天失败
-                const errorMsg = data.last_error?.msg || '聊天失败';
-                console.error('[Coze Chat] chat failed:', errorMsg);
-                if (onError) onError(errorMsg);
-                return;
-              }
-
-              // 兼容直接返回内容的格式
-              if (data.choices && data.choices.length > 0) {
-                const choice = data.choices[0];
-                if (choice.delta?.content) {
-                  fullContent += choice.delta.content;
-                  if (onDelta) onDelta(fullContent);
-                }
-                if (choice.finish_reason === 'stop') {
-                  if (onCompleted) onCompleted(fullContent);
-                }
-              }
-
-              // 处理直接返回内容的格式
-              if (data.content && !data.event) {
-                fullContent += data.content;
-                console.log('[Coze Chat] content:', fullContent.length);
-                if (onDelta) onDelta(fullContent);
-              }
-
-              // 处理完成状态
-              if (data.done || data.status === 'completed') {
-                console.log('[Coze Chat] completed, total length:', fullContent.length);
-                if (onCompleted) onCompleted(fullContent);
-              }
-            } catch (e) {
-              console.warn('[Coze Chat] parse error:', e, dataStr.slice(0, 100));
+            // 知识库召回事件：跳过，不展示
+            if (data.msg_type === 'knowledge_recall') {
+              console.log('[Coze Chat] knowledge recall');
+              continue;
             }
+
+            // 回答完成事件
+            if (data.msg_type === 'generate_answer_finish') {
+              completed = true;
+              console.log('[Coze Chat] answer finished, length:', fullContent.length);
+              if (onCompleted) onCompleted(fullContent);
+              continue;
+            }
+
+            // 错误事件
+            if (data.msg_type === 'error' || data.msg_type === 'chat_failed') {
+              const errorMsg = data.data?.msg || data.msg || '对话失败';
+              console.error('[Coze Chat] error:', errorMsg);
+              if (onError) onError(errorMsg);
+              return;
+            }
+
+            // 回答内容（type: "answer" / role: "assistant"）
+            if (data.type === 'answer' && data.role === 'assistant' && typeof data.content === 'string') {
+              // 使用替换策略：当 content 比已累积内容更长时，直接替换（支持增量+完整两种模式）
+              if (data.content.length > fullContent.length) {
+                fullContent = data.content;
+              } else {
+                fullContent += data.content;
+              }
+              if (onDelta) onDelta(fullContent);
+              continue;
+            }
+
+            // 兼容：带 msg_type 的 answer 事件
+            if (data.msg_type === 'answer' && typeof data.content === 'string') {
+              fullContent += data.content;
+              if (onDelta) onDelta(fullContent);
+              continue;
+            }
+
+            // 兼容 OpenAI / message-row  格式
+            if (data.choices?.[0]?.delta?.content) {
+              fullContent += data.choices[0].delta.content;
+              if (onDelta) onDelta(fullContent);
+              if (data.choices[0].finish_reason === 'stop') {
+                if (onCompleted) onCompleted(fullContent);
+                completed = true;
+              }
+              continue;
+            }
+          } catch {
+            // 忽略非 JSON 行
           }
         }
       }
 
       // 确保完成回调被调用
-      if (fullContent && onCompleted) {
+      if (fullContent && !completed && onCompleted) {
         onCompleted(fullContent);
       }
     } else {

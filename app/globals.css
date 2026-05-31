@@ -312,7 +312,7 @@ textarea {
 .chat-main {
   min-width: 0;
   min-height: 0;
-  padding: 24px;
+  padding: 24px 0px;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -622,6 +622,8 @@ textarea {
 .chat-main {
   padding-bottom: 0;
   overflow: hidden;
+  margin: 0 auto;
+  width: 80%;
 }
 
 .message-list {
@@ -636,13 +638,14 @@ textarea {
 
 .message-row {
   display: grid;
-  grid-template-columns: 36px minmax(0, 760px);
+  width: 100%;
+  grid-template-columns: 36px minmax(0, 680px);
   gap: 12px;
   align-items: start;
 }
 
 .message-row.is-user {
-  grid-template-columns: minmax(0, 760px) 36px;
+  grid-template-columns: minmax(0, 680px) 36px;
   justify-content: end;
 }
 

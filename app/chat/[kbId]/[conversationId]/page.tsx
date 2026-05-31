@@ -1,20 +1,20 @@
 'use client';
 
 import { App, Avatar, Select, Space, Typography } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Citation, Conversation, Message } from '@/types';
-import { citations, currentUser } from '@/data/mock';
+import { currentUser } from '@/data/mock';
 import { chatPath, knowledgePath } from '@/lib/paths';
 import { createWelcomeMessage } from '@/lib/chat';
 import { sendChatMessage } from '@/app/api/chat';
+import { listDatasets, type DatasetInfo } from '@/app/api/kb';
 import {
   useConversations,
   useConversationsByKb,
   useConversationMessages,
   useChatStore,
 } from '@/stores/chat-store';
-import { useKnowledgeBases } from '@/stores/knowledge-store';
 import ChatMessageList from './components/ChatMessageList';
 import ChatInputArea from './components/ChatInputArea';
 import ChatSidebar from './components/ChatSidebar';
@@ -27,7 +27,7 @@ export default function ChatConversationPage() {
 
   const { message } = App.useApp();
 
-  const kbList = useKnowledgeBases();
+  const [cozeDatasets, setCozeDatasets] = useState<DatasetInfo[]>([]);
   const conversationList = useConversations();
   const addConversation = useChatStore((s) => s.addConversation);
   const updateConversation = useChatStore((s) => s.updateConversation);
@@ -35,8 +35,11 @@ export default function ChatConversationPage() {
   const setConversationMessages = useChatStore((s) => s.setConversationMessages);
   const syncConversationMeta = useChatStore((s) => s.syncConversationMeta);
 
-  const activeKbId = kbIdParam && kbList.some((kb) => kb.id === kbIdParam) ? kbIdParam : kbList[0]?.id ?? '';
-  const activeKb = kbList.find((item) => item.id === activeKbId) ?? kbList[0];
+  const activeKbId =
+    kbIdParam && cozeDatasets.some((kb) => kb.dataset_id === kbIdParam)
+      ? kbIdParam
+      : cozeDatasets[0]?.dataset_id ?? '';
+  const activeKb = cozeDatasets.find((item) => item.dataset_id === activeKbId) ?? cozeDatasets[0];
   const kbConversations = useConversationsByKb(activeKbId);
   const activeConversationId =
     conversationIdParam && conversationList.some((chat) => chat.id === conversationIdParam)
@@ -45,18 +48,36 @@ export default function ChatConversationPage() {
   const messages = useConversationMessages(activeConversationId);
 
   const [input, setInput] = useState('');
-  const [liveCitations, setLiveCitations] = useState<Citation[]>(citations);
+  const [liveCitations, setLiveCitations] = useState<Citation[]>([]);
 
   const setMessages = (updater: Message[] | ((prev: Message[]) => Message[])) => {
     if (!activeConversationId) return;
     setConversationMessages(activeConversationId, updater);
   };
 
-  useEffect(() => {
-    if (kbIdParam && !kbList.some((kb) => kb.id === kbIdParam)) {
-      router.replace(chatPath(kbList[0].id));
+  // 从 Coze API 获取知识库列表
+  const fetchCozeDatasets = async () => {
+    try {
+      const result = await listDatasets();
+      if (result.code === 0 && result.data?.dataset_list) {
+        setCozeDatasets(result.data.dataset_list);
+      }
+    } catch (error) {
+      console.error('获取知识库列表失败:', error);
     }
-  }, [kbIdParam, kbList, router]);
+  };
+
+  useEffect(() => {
+    fetchCozeDatasets();
+  }, []);
+
+  useEffect(() => {
+    if (cozeDatasets.length === 0) return;
+    if (kbIdParam && cozeDatasets.some((kb) => kb.dataset_id === kbIdParam)) return;
+    if (cozeDatasets[0]) {
+      router.replace(chatPath(cozeDatasets[0].dataset_id));
+    }
+  }, [kbIdParam, cozeDatasets, router]);
 
   useEffect(() => {
     if (conversationIdParam && conversationList.some((chat) => chat.id === conversationIdParam)) {
@@ -240,14 +261,6 @@ export default function ChatConversationPage() {
       </aside>
 
       <main className="hub-main">
-        <header className="hub-topbar">
-          <input className="hub-global-search" placeholder="搜索知识、对话、文档内容..." />
-          <Space size={16}>
-            <Avatar src={currentUser.avatar}>{currentUser.name.slice(0, 1)}</Avatar>
-            <span>{currentUser.name}</span>
-          </Space>
-        </header>
-
         <section className="chat-workspace">
           <div className="chat-main">
             <div className="chat-head">
@@ -262,7 +275,7 @@ export default function ChatConversationPage() {
                   const targetChat = chatsForKb.find((chat) => chat.id === activeConversationId) ?? chatsForKb[0];
                   router.push(chatPath(kbId, targetChat?.id));
                 }}
-                options={kbList.map((kb) => ({ value: kb.id, label: kb.name }))}
+                options={cozeDatasets.map((kb) => ({ value: kb.dataset_id, label: kb.name }))}
               />
             </div>
             <ChatMessageList messages={messages} currentUser={currentUser} />

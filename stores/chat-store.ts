@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import { conversations as mockConversations } from '@/data/mock';
-import { createWelcomeMessage, buildInitialMessagesMap } from '@/lib/chat';
+import { createWelcomeMessage } from '@/lib/chat';
 import type { Conversation, Message } from '@/types';
 
 interface ChatState {
@@ -23,8 +22,8 @@ interface ChatState {
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
-  conversations: mockConversations,
-  messagesByConversation: buildInitialMessagesMap(),
+  conversations: [],
+  messagesByConversation: {},
   loading: false,
   total: 0,
   hasMore: false,

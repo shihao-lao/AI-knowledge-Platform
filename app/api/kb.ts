@@ -30,7 +30,10 @@ export interface CreateDatasetResponse {
 export interface DocumentBase {
   name: string;
   source_info: {
-    file_base64: string;
+    file_base64?: string;
+    file_type?: string;
+    document_source?: number; // 0: 本地文件上传, 1: 上传在线网页, 5: 上传图片
+    web_url?: string;
   };
 }
 
@@ -184,9 +187,14 @@ export function fileToBase64(file: File): Promise<string> {
  * @param datasetId - 知识库 ID（可选）
  * @returns 上传结果
  */
-export async function uploadFile(file: File, datasetId?: string): Promise<CreateDocumentResponse> {
+export async function uploadFile(
+  file: File,
+  datasetId?: string,
+  chunkStrategy?: { chunk_type: number; separator?: string; max_tokens?: number },
+): Promise<CreateDocumentResponse> {
   try {
     const base64 = await fileToBase64(file);
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'txt';
 
     return createDocument({
       dataset_id: datasetId,
@@ -195,9 +203,12 @@ export async function uploadFile(file: File, datasetId?: string): Promise<Create
           name: file.name,
           source_info: {
             file_base64: base64,
+            file_type: ext,
+            document_source: 0,
           },
         },
       ],
+      chunk_strategy: chunkStrategy || { chunk_type: 0 },
     });
   } catch (error) {
     console.error('[Coze KB] file conversion error:', error);
@@ -325,6 +336,64 @@ export interface ListDatasetsResponse {
     total_count: number;
     dataset_list: DatasetInfo[];
   };
+}
+
+/** 删除文档请求 */
+export interface DeleteDocumentRequest {
+  document_ids: string[];
+}
+
+/** 删除文档响应 */
+export interface DeleteDocumentResponse {
+  code: number;
+  msg: string;
+  detail?: {
+    logid: string;
+  };
+}
+
+/**
+ * 删除知识库文档
+ *
+ * @param params - 删除文档参数
+ * @returns 删除结果
+ */
+export async function deleteDocuments(params: DeleteDocumentRequest): Promise<DeleteDocumentResponse> {
+  try {
+    console.log('[Coze KB] 删除文档, count:', params.document_ids.length);
+
+    const response = await fetch(`${COZE_API_BASE}/open_api/knowledge/document/delete`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${COZE_KNOWLEDGE_TOKEN}`,
+        'Agw-Js-Conv': 'str',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ document_ids: params.document_ids }),
+    });
+
+    console.log('[Coze KB] delete response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[Coze KB] API error:', response.status, errorText);
+      return {
+        code: response.status,
+        msg: `API 错误 ${response.status}: ${errorText}`,
+      };
+    }
+
+    const responseData = await response.json();
+    console.log('[Coze KB] delete response:', responseData);
+
+    return responseData;
+  } catch (error) {
+    console.error('[Coze KB] delete fetch error:', error);
+    return {
+      code: -1,
+      msg: '删除文档失败，请检查网络连接',
+    };
+  }
 }
 
 /**

@@ -19,10 +19,9 @@ import { Button, Card, Col, Collapse, Descriptions, Divider, Empty, Input, Row, 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { listDatasets, type DatasetInfo } from '@/app/api/kb';
+import { listDatasets, createDataset, uploadFile, type DatasetInfo } from '@/app/api/kb';
 import CreateKnowledgeBaseModal from '@/components/create-kb-modal';
 import { knowledgePath } from '@/lib/paths';
-import { buildKnowledgeBase, useKnowledgeBases, useKnowledgeStore } from '@/stores/knowledge-store';
 import type { Visibility } from '@/types';
 
 /** 格式化文件大小 */
@@ -61,8 +60,6 @@ function formatRelativeTime(timestamp: number): string {
 
 export default function KnowledgeBasesPage() {
   const router = useRouter();
-  const _kbList = useKnowledgeBases();
-  const addKnowledgeBase = useKnowledgeStore((s) => s.addKnowledgeBase);
   const [search, setSearch] = useState('');
   const [kbModalOpen, setKbModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -113,31 +110,59 @@ export default function KnowledgeBasesPage() {
     );
   }, [cozeDatasets, search]);
 
-  const handleCreateManualKb = (values: { name: string; description: string; visibility: Visibility; initialContent?: string }) => {
-    const kb = buildKnowledgeBase(values);
-    const docCount = values.initialContent?.trim() ? 1 : 0;
-    addKnowledgeBase({ ...kb, stats: { ...kb.stats, documentCount: docCount } });
-    message.success(`知识库「${values.name}」已创建`);
-    router.push(knowledgePath(kb.id));
+  const handleCreateManualKb = async (values: { name: string; description: string; visibility: Visibility; initialContent?: string }) => {
+    const hide = message.loading('正在创建知识库...', 0);
+    try {
+      const result = await createDataset({
+        name: values.name,
+        format_type: 0,
+      });
+      if (result.code === 0 && result.data?.dataset_id) {
+        message.success(`知识库「${values.name}」已创建`);
+        await fetchDatasets();
+        router.push(knowledgePath(result.data.dataset_id));
+      } else {
+        message.error(result.msg || '创建知识库失败');
+      }
+    } catch {
+      message.error('创建知识库失败，请检查网络连接');
+    } finally {
+      hide();
+    }
   };
 
-  const handleCreateImportKb = (values: {
+  const handleCreateImportKb = async (values: {
     name: string;
     description: string;
     visibility: Visibility;
     files: File[];
   }) => {
-    const kb = buildKnowledgeBase({
-      name: values.name,
-      description: values.description || `通过导入 ${values.files.length} 个文件创建`,
-      visibility: values.visibility,
-    });
-    addKnowledgeBase({
-      ...kb,
-      stats: { ...kb.stats, documentCount: values.files.length, lastActiveAt: new Date().toISOString() },
-    });
-    message.success(`知识库「${values.name}」已创建，进入工作台后可继续导入文件`);
-    router.push(knowledgePath(kb.id));
+    const hide = message.loading('正在创建知识库...', 0);
+    try {
+      const result = await createDataset({
+        name: values.name,
+        format_type: 0,
+      });
+      if (result.code === 0 && result.data?.dataset_id) {
+        const datasetId = result.data.dataset_id;
+        if (values.files.length > 0) {
+          message.loading({ content: `正在上传 ${values.files.length} 个文件...`, key: 'upload', duration: 0 });
+          for (const file of values.files) {
+            await uploadFile(file, datasetId);
+          }
+          message.success({ content: `已上传 ${values.files.length} 个文件`, key: 'upload' });
+        }
+        message.success(`知识库「${values.name}」已创建`);
+        await fetchDatasets();
+        router.push(knowledgePath(datasetId));
+      } else {
+        message.error(result.msg || '创建知识库失败');
+      }
+    } catch {
+      message.error('创建知识库失败，请检查网络连接');
+    } finally {
+      hide();
+    }
   };
 
   return (

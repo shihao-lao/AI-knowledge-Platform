@@ -1,9 +1,5 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import {
-  documents as mockDocuments,
-  knowledgeBases as mockKnowledgeBases,
-} from '@/data/mock';
 import type { KnowledgeBase, KnowledgeDocument, Visibility } from '@/types';
 
 export function buildKnowledgeBase(values: { name: string; description?: string; visibility: Visibility }): KnowledgeBase {
@@ -46,9 +42,9 @@ interface KnowledgeState {
 }
 
 export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
-  knowledgeBases: mockKnowledgeBases,
-  documents: mockDocuments,
-  expandedDocId: mockDocuments[0]?.id ?? '',
+  knowledgeBases: [],
+  documents: [],
+  expandedDocId: '',
 
   addKnowledgeBase: (kb) => {
     set((state) => ({

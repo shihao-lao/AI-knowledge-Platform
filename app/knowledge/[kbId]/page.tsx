@@ -8,7 +8,7 @@ import type { KnowledgeDocument, DocumentStatus, FileType } from '@/types';
 import { knowledgePath, chatPath } from '@/lib/paths';
 import { currentUser } from '@/data/mock';
 import { parseUploadedFile, documentProcessingStages } from '@/lib/document';
-import { listDocuments, listDatasets, type DocumentInfo, type DatasetInfo } from '@/app/api/kb';
+import { listDocuments, listDatasets, deleteDocuments, uploadFile, type DocumentInfo, type DatasetInfo } from '@/app/api/kb';
 import {
   useKnowledgeBases,
   useDocuments,
@@ -229,12 +229,37 @@ export default function KnowledgeWorkspacePage() {
   };
 
   const handleUpload = async (file: File) => {
-    await importFileToKb(file, activeKbId);
+    const key = `upload-${file.name}`;
+    message.loading({ content: `正在上传《${file.name}》到知识库...`, key, duration: 0 });
+    try {
+      const result = await uploadFile(file, activeKbId);
+      if (result.code === 0) {
+        message.success({ content: `《${file.name}》上传成功，正在处理中...`, key });
+        await fetchCozeDocuments();
+      } else {
+        message.error({ content: result.msg || '上传失败', key });
+      }
+    } catch {
+      message.error({ content: '上传失败，请检查网络连接', key });
+    }
   };
 
-  const removeDocument = (documentId: string) => {
-    removeDocumentFromStore(documentId, activeKbId);
-    message.success('文档已从当前知识库移除');
+  const removeDocument = async (documentId: string) => {
+    const hide = message.loading('正在删除文档...', 0);
+    try {
+      const result = await deleteDocuments({ document_ids: [documentId] });
+      if (result.code === 0) {
+        removeDocumentFromStore(documentId, activeKbId);
+        await fetchCozeDocuments(); // 刷新列表
+        message.success('文档已删除');
+      } else {
+        message.error(result.msg || '删除失败');
+      }
+    } catch {
+      message.error('删除文档失败，请检查网络连接');
+    } finally {
+      hide();
+    }
   };
 
   const goToChat = () => {
@@ -289,13 +314,6 @@ export default function KnowledgeWorkspacePage() {
       </aside>
 
       <main className="hub-main">
-        <header className="hub-topbar">
-          <input className="hub-global-search" placeholder="搜索知识、对话、文档内容..." />
-          <Space size={16}>
-            <span>{currentUser.name}</span>
-          </Space>
-        </header>
-
         <section className="knowledge-workspace">
           <div className="knowledge-main">
             <div className="knowledge-head">
@@ -311,15 +329,6 @@ export default function KnowledgeWorkspacePage() {
                   value={keyword}
                   onChange={(event) => setKeyword(event.target.value)}
                 />
-                <button
-                  type="button"
-                  className="ant-btn ant-btn-default"
-                  onClick={fetchCozeDocuments}
-                  disabled={loading}
-                >
-                  <ReloadOutlined spin={loading} />
-                  <span>刷新</span>
-                </button>
               </Space>
             </div>
             <Spin spinning={loading}>

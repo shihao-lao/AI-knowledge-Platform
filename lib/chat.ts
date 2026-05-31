@@ -1,4 +1,3 @@
-import { conversations as mockConversations, initialMessages, knowledgeBases } from '@/data/mock';
 import type { Message } from '@/types';
 
 export function createWelcomeMessage(kbName: string): Message {
@@ -9,13 +8,4 @@ export function createWelcomeMessage(kbName: string): Message {
     citations: [],
     createdAt: new Date().toISOString(),
   };
-}
-
-export function buildInitialMessagesMap(): Record<string, Message[]> {
-  const map: Record<string, Message[]> = {};
-  mockConversations.forEach((chat) => {
-    const kbName = knowledgeBases.find((kb) => kb.id === chat.knowledgeBaseId)?.name ?? '当前知识库';
-    map[chat.id] = chat.id === 'chat_001' ? initialMessages : [createWelcomeMessage(kbName)];
-  });
-  return map;
 }
