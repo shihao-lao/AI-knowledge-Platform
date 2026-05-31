@@ -24,10 +24,7 @@ function estimateTokens(text: string): number {
   return Math.ceil(text.length / 2);
 }
 
-export async function chunkDocuments(
-  docs: Document[],
-  config?: ChunkerConfig,
-): Promise<ChunkResult[]> {
+export async function chunkDocuments(docs: Document[], config?: ChunkerConfig): Promise<ChunkResult[]> {
   const { chunkSize, chunkOverlap, separators } = { ...DEFAULT_CONFIG, ...config };
 
   const splitter = new RecursiveCharacterTextSplitter({

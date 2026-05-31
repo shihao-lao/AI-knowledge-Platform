@@ -179,11 +179,17 @@ export default function KnowledgeBasesPage() {
                         <Typography.Title level={4} style={{ marginBottom: 4 }}>
                           {kb.name}
                         </Typography.Title>
-                        <Typography.Paragraph type="secondary" ellipsis={{ rows: 2 }} style={{ marginBottom: 8, minHeight: 44 }}>
+                        <Typography.Paragraph
+                          type="secondary"
+                          ellipsis={{ rows: 2 }}
+                          style={{ marginBottom: 8, minHeight: 44 }}
+                        >
                           {kb.description || '暂无描述'}
                         </Typography.Paragraph>
                         <Space size={4} wrap>
-                          <Tag color="blue"><FileOutlined /> {docCount} 份文档</Tag>
+                          <Tag color="blue">
+                            <FileOutlined /> {docCount} 份文档
+                          </Tag>
                           <Tag color={kb.visibility === 'public' ? 'green' : 'default'}>
                             {kb.visibility === 'public' ? '公开' : '私有'}
                           </Tag>
@@ -209,9 +215,21 @@ export default function KnowledgeBasesPage() {
                   </Card>
 
                   {isExpanded && (
-                    <Card size="small" style={{ marginTop: -1, borderTop: '2px solid #1677ff' }}
-                      title={<Space><InfoCircleOutlined /><span>{kb.name} — 详细信息</span></Space>}
-                      extra={<CloseOutlined style={{ cursor: 'pointer', color: '#999' }} onClick={() => toggleExpand(kb.id)} />}
+                    <Card
+                      size="small"
+                      style={{ marginTop: -1, borderTop: '2px solid #1677ff' }}
+                      title={
+                        <Space>
+                          <InfoCircleOutlined />
+                          <span>{kb.name} — 详细信息</span>
+                        </Space>
+                      }
+                      extra={
+                        <CloseOutlined
+                          style={{ cursor: 'pointer', color: '#999' }}
+                          onClick={() => toggleExpand(kb.id)}
+                        />
+                      }
                     >
                       <Descriptions column={2} size="small" bordered>
                         <Descriptions.Item label="知识库 ID">{kb.id}</Descriptions.Item>
@@ -224,8 +242,12 @@ export default function KnowledgeBasesPage() {
                           <Tag color={kb.status === 'active' ? 'green' : 'default'}>{kb.status}</Tag>
                         </Descriptions.Item>
                         <Descriptions.Item label="文档数">{docCount}</Descriptions.Item>
-                        <Descriptions.Item label="创建时间">{new Date(kb.createdAt).toLocaleString('zh-CN')}</Descriptions.Item>
-                        <Descriptions.Item label="更新时间">{new Date(kb.updatedAt).toLocaleString('zh-CN')}</Descriptions.Item>
+                        <Descriptions.Item label="创建时间">
+                          {new Date(kb.createdAt).toLocaleString('zh-CN')}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="更新时间">
+                          {new Date(kb.updatedAt).toLocaleString('zh-CN')}
+                        </Descriptions.Item>
                         <Descriptions.Item label="描述" span={2}>
                           {kb.description || '暂无描述'}
                         </Descriptions.Item>

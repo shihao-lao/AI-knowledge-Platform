@@ -92,7 +92,8 @@ export async function generateDocSummary(title: string, content: string): Promis
     [
       {
         role: 'system',
-        content: '你是一个专业的文档分析助手。请用简洁的中文对用户提供的文档进行摘要，提炼核心要点，输出 3-5 条关键结论。不要重复文档标题。',
+        content:
+          '你是一个专业的文档分析助手。请用简洁的中文对用户提供的文档进行摘要，提炼核心要点，输出 3-5 条关键结论。不要重复文档标题。',
       },
       {
         role: 'user',

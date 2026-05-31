@@ -31,13 +31,13 @@ npm run format:check # Prettier check
 
 ### Routing
 
-| Route | Purpose |
-|---|---|
-| `/` | Redirects to `/knowledge/:defaultKbId` |
-| `/login`, `/register` | Auth pages |
-| `/knowledge/:kbId` | Workspace in knowledge mode (3-column layout) |
-| `/chat/:kbId/:conversationId` | Workspace in chat mode (3-column layout) |
-| `/knowledge-bases` | KB management grid |
+| Route                         | Purpose                                       |
+| ----------------------------- | --------------------------------------------- |
+| `/`                           | Redirects to `/knowledge/:defaultKbId`        |
+| `/login`, `/register`         | Auth pages                                    |
+| `/knowledge/:kbId`            | Workspace in knowledge mode (3-column layout) |
+| `/chat/:kbId/:conversationId` | Workspace in chat mode (3-column layout)      |
+| `/knowledge-bases`            | KB management grid                            |
 
 ### Key Pattern: Monolithic Workspace
 
@@ -46,6 +46,7 @@ npm run format:check # Prettier check
 ### State Management
 
 Two Zustand stores split by domain:
+
 - `stores/knowledge-store.ts` — `knowledgeBases`, `documents`, `expandedDocId` + CRUD actions. Exports `buildKnowledgeBase()` factory.
 - `stores/chat-store.ts` — `conversations`, `messagesByConversation` + CRUD actions.
 - Custom hooks: `useKnowledgeBases()`, `useDocumentsByKb(kbId)`, `useConversationsByKb(kbId)`, `useConversationMessages(id)`

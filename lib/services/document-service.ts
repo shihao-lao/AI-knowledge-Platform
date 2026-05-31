@@ -82,7 +82,7 @@ export const documentService = {
       const doc = await documentRepo.findById(docId);
       const kbId = doc?.knowledgeId ?? '';
 
-      const embeddings = getEmbeddingProvider();
+      const embeddings = await getEmbeddingProvider();
       const texts = chunks.map((c) => c.content);
       const vectors = await embedBatch(texts);
       console.log(`[Ingest] ${docId}: embedded ${vectors.length} vectors (dim=${vectors[0]?.length})`);
@@ -128,11 +128,15 @@ export const documentService = {
 
     try {
       await deleteVectors(id);
-    } catch { /* non-fatal */ }
+    } catch {
+      /* non-fatal */
+    }
 
     try {
       await unlink(doc.filepath);
-    } catch { /* file may not exist */ }
+    } catch {
+      /* file may not exist */
+    }
 
     await documentRepo.delete(id);
   },

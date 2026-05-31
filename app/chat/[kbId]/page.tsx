@@ -14,9 +14,7 @@ export default function ChatWorkspacePage() {
   const [knowledgeBases, setKnowledgeBases] = useState<ApiKnowledge[]>([]);
 
   const activeKbId =
-    kbIdParam && knowledgeBases.some((kb) => kb.id === kbIdParam)
-      ? kbIdParam
-      : knowledgeBases[0]?.id ?? '';
+    kbIdParam && knowledgeBases.some((kb) => kb.id === kbIdParam) ? kbIdParam : (knowledgeBases[0]?.id ?? '');
 
   useEffect(() => {
     api.listKnowledge().then((result) => setKnowledgeBases(result.data));
@@ -56,7 +54,9 @@ export default function ChatWorkspacePage() {
     };
 
     init();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [activeKbId, knowledgeBases, router]);
 
   return null;

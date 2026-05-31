@@ -45,7 +45,13 @@ body {
   margin: 0;
   color: var(--color-text);
   background: var(--color-bg);
-  font-family: 'Plus Jakarta Sans', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei',
+  font-family:
+    'Plus Jakarta Sans',
+    'Noto Sans SC',
+    -apple-system,
+    BlinkMacSystemFont,
+    'PingFang SC',
+    'Microsoft YaHei',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -864,7 +870,8 @@ textarea {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(124, 58, 237, 0.04) 50%, rgba(99, 102, 241, 0.03) 100%),
+  background:
+    linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(124, 58, 237, 0.04) 50%, rgba(99, 102, 241, 0.03) 100%),
     var(--color-bg);
 }
 

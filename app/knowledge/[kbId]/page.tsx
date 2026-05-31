@@ -27,9 +27,8 @@ export default function KnowledgeWorkspacePage() {
   const [documents, setDocuments] = useState<ApiDocument[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const activeKbId = kbIdParam && knowledgeBases.some((kb) => kb.id === kbIdParam)
-    ? kbIdParam
-    : knowledgeBases[0]?.id ?? '';
+  const activeKbId =
+    kbIdParam && knowledgeBases.some((kb) => kb.id === kbIdParam) ? kbIdParam : (knowledgeBases[0]?.id ?? '');
   const activeKb = knowledgeBases.find((item) => item.id === activeKbId);
 
   useEffect(() => {
@@ -73,24 +72,25 @@ export default function KnowledgeWorkspacePage() {
     fetchDocuments();
   }, [fetchDocuments]);
 
-  const handleExpand = useCallback(async (docId: string) => {
-    setExpandedDocId(docId);
-    // Fetch full document with chunks to get content
-    try {
-      const { data } = await api.getDocument(docId);
-      if (data.chunks && data.chunks.length > 0) {
-        const content = data.chunks
-          .sort((a, b) => a.chunkIndex - b.chunkIndex)
-          .map((c) => c.content)
-          .join('\n\n');
-        setDocuments((prev) =>
-          prev.map((d) => (d.id === docId ? { ...d, _content: content } : d)),
-        );
+  const handleExpand = useCallback(
+    async (docId: string) => {
+      setExpandedDocId(docId);
+      // Fetch full document with chunks to get content
+      try {
+        const { data } = await api.getDocument(docId);
+        if (data.chunks && data.chunks.length > 0) {
+          const content = data.chunks
+            .sort((a, b) => a.chunkIndex - b.chunkIndex)
+            .map((c) => c.content)
+            .join('\n\n');
+          setDocuments((prev) => prev.map((d) => (d.id === docId ? { ...d, _content: content } : d)));
+        }
+      } catch {
+        // non-fatal, detail will show "暂无内容"
       }
-    } catch {
-      // non-fatal, detail will show "暂无内容"
-    }
-  }, [setExpandedDocId]);
+    },
+    [setExpandedDocId],
+  );
 
   const STAGE_TEXT: Record<string, string> = {
     pending: '等待中',
@@ -109,7 +109,10 @@ export default function KnowledgeWorkspacePage() {
         const { data } = await api.getDocument(docId);
         const stage = STAGE_TEXT[data.parseStatus] ?? data.parseStatus;
         if (data.parseStatus === 'completed') {
-          message.success({ content: `《${data.filename}》处理完成，共 ${data.chunkCount} 个切片`, key: `ingest-${docId}` });
+          message.success({
+            content: `《${data.filename}》处理完成，共 ${data.chunkCount} 个切片`,
+            key: `ingest-${docId}`,
+          });
           await fetchDocuments();
           return;
         }
@@ -119,7 +122,9 @@ export default function KnowledgeWorkspacePage() {
           return;
         }
         message.loading({ content: `《${data.filename}》${stage}...`, key: `ingest-${docId}`, duration: 0 });
-      } catch { /* ignore polling error */ }
+      } catch {
+        /* ignore polling error */
+      }
     }
   };
 
@@ -157,26 +162,38 @@ export default function KnowledgeWorkspacePage() {
     router.push(chatPath(activeKbId));
   };
 
-  const toKnowledgeDocument = useCallback((doc: ApiDocument & { _content?: string }) => ({
-    id: doc.id,
-    knowledgeBaseId: doc.knowledgeId,
-    title: doc.filename,
-    fileName: doc.filename,
-    fileType: 'text' as const,
-    fileSize: doc.size,
-    status: (doc.parseStatus === 'completed' ? 'completed' :
-            doc.parseStatus === 'failed' ? 'failed' : 'uploading') as 'completed' | 'failed' | 'uploading',
-    processingProgress: doc.parseStatus === 'completed' ? 100 :
-                       doc.parseStatus === 'embedding' ? 84 :
-                       doc.parseStatus === 'chunking' ? 58 :
-                       doc.parseStatus === 'parsing' ? 28 : 8,
-    chunkCount: doc.chunkCount,
-    charCount: doc.charCount,
-    uploadedBy: { id: '', name: '', email: '', role: 'viewer' as const, createdAt: '' },
-    createdAt: doc.createdAt,
-    updatedAt: doc.updatedAt,
-    content: doc._content ?? '',
-  }), []);
+  const toKnowledgeDocument = useCallback(
+    (doc: ApiDocument & { _content?: string }) => ({
+      id: doc.id,
+      knowledgeBaseId: doc.knowledgeId,
+      title: doc.filename,
+      fileName: doc.filename,
+      fileType: 'text' as const,
+      fileSize: doc.size,
+      status: (doc.parseStatus === 'completed'
+        ? 'completed'
+        : doc.parseStatus === 'failed'
+          ? 'failed'
+          : 'uploading') as 'completed' | 'failed' | 'uploading',
+      processingProgress:
+        doc.parseStatus === 'completed'
+          ? 100
+          : doc.parseStatus === 'embedding'
+            ? 84
+            : doc.parseStatus === 'chunking'
+              ? 58
+              : doc.parseStatus === 'parsing'
+                ? 28
+                : 8,
+      chunkCount: doc.chunkCount,
+      charCount: doc.charCount,
+      uploadedBy: { id: '', name: '', email: '', role: 'viewer' as const, createdAt: '' },
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+      content: doc._content ?? '',
+    }),
+    [],
+  );
 
   const expandedDoc = documents.find((d) => d.id === expandedDocId);
   const sidebarDoc = expandedDoc ? toKnowledgeDocument(expandedDoc) : null;

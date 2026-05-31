@@ -2,7 +2,11 @@ import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import type { KnowledgeBase, KnowledgeDocument, Visibility } from '@/types';
 
-export function buildKnowledgeBase(values: { name: string; description?: string; visibility: Visibility }): KnowledgeBase {
+export function buildKnowledgeBase(values: {
+  name: string;
+  description?: string;
+  visibility: Visibility;
+}): KnowledgeBase {
   const now = new Date().toISOString();
   return {
     id: `kb_${crypto.randomUUID().slice(0, 8)}`,

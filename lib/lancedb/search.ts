@@ -19,10 +19,7 @@ export interface SearchResult {
   knowledgeId: string;
 }
 
-export async function searchKnowledge(
-  embeddings: Embeddings,
-  params: SearchParams,
-): Promise<SearchResult[]> {
+export async function searchKnowledge(embeddings: Embeddings, params: SearchParams): Promise<SearchResult[]> {
   const { query, topK = 5, scoreThreshold = 0, knowledgeId } = params;
 
   const queryEmbedding = await embeddings.embedQuery(query);
@@ -65,10 +62,7 @@ export async function searchKnowledge(
   });
 }
 
-export async function insertVectors(
-  embeddings: Embeddings,
-  records: VectorRecord[],
-): Promise<void> {
+export async function insertVectors(embeddings: Embeddings, records: VectorRecord[]): Promise<void> {
   const store = await getVectorStore(embeddings);
   // LangChain LanceDB wrapper spreads metadata as top-level columns
   const docs = records.map((r) => ({

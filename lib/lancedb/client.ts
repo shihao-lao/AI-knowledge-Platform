@@ -3,7 +3,7 @@ import { LanceDB } from '@langchain/community/vectorstores/lancedb';
 import type { Embeddings } from '@langchain/core/embeddings';
 import type { Connection, Table } from '@lancedb/lancedb';
 import path from 'path';
-import { VECTOR_TABLE_NAME, VECTOR_DIMENSION } from './schema';
+import { VECTOR_TABLE_NAME, getVectorDimension } from './schema';
 
 const DB_PATH = path.join(process.cwd(), 'data', 'lancedb');
 
@@ -26,7 +26,7 @@ export async function ensureTable(embeddings: Embeddings) {
     // Schema: vector, text, id, chunkId, documentId, filename, knowledgeId
     await db.createTable(VECTOR_TABLE_NAME, [
       {
-        vector: Array(VECTOR_DIMENSION).fill(0) as number[],
+        vector: Array(getVectorDimension()).fill(0) as number[],
         text: '_init_',
         id: '_init_',
         chunkId: '',
@@ -41,14 +41,12 @@ export async function ensureTable(embeddings: Embeddings) {
   return db;
 }
 
-export async function getVectorStore(
-  embeddings: Embeddings,
-): Promise<LanceDB> {
+export async function getVectorStore(embeddings: Embeddings): Promise<LanceDB> {
   const db = await getLanceDB();
   await ensureTable(embeddings);
 
   return new LanceDB(embeddings, {
-    table: await db.openTable(VECTOR_TABLE_NAME) as unknown as Table,
+    table: (await db.openTable(VECTOR_TABLE_NAME)) as unknown as Table,
     textKey: 'text',
   });
 }

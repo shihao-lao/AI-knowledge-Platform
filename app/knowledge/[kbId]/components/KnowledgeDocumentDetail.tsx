@@ -29,25 +29,22 @@ function isHtmlContent(content: string): boolean {
 /** 渲染内容 - 自动检测 HTML 或 Markdown */
 function ContentRenderer({ content }: { content: string }) {
   if (!content) {
-    return <div className="html-content"><p>暂无内容</p></div>;
+    return (
+      <div className="html-content">
+        <p>暂无内容</p>
+      </div>
+    );
   }
 
   // 检测是否为 HTML 内容
   if (isHtmlContent(content)) {
-    return (
-      <div
-        className="html-content"
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
-    );
+    return <div className="html-content" dangerouslySetInnerHTML={{ __html: content }} />;
   }
 
   // Markdown 内容
   return (
     <div className="html-content">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-        {content}
-      </ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
     </div>
   );
 }

@@ -23,7 +23,9 @@ export const knowledgeService = {
     const docs = await documentRepo.list(id);
     try {
       await deleteVectorsByKnowledgeId(id);
-    } catch { /* vector cleanup error is non-fatal */ }
+    } catch {
+      /* vector cleanup error is non-fatal */
+    }
     await knowledgeRepo.delete(id);
   },
 };

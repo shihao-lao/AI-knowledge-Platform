@@ -212,7 +212,9 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
             {/* 专家 Skill 面板 */}
             {activeTab === 'skill' && (
               <>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}
+                >
                   <Typography.Title level={5} style={{ margin: 0 }}>
                     <ThunderboltOutlined style={{ marginRight: 6 }} />
                     专家 Skill

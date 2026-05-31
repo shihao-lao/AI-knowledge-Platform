@@ -102,7 +102,10 @@ export const api = {
     });
   },
 
-  updateKnowledge(id: string, data: { name?: string; description?: string; visibility?: string }): Promise<{ data: ApiKnowledge }> {
+  updateKnowledge(
+    id: string,
+    data: { name?: string; description?: string; visibility?: string },
+  ): Promise<{ data: ApiKnowledge }> {
     return request(`${BASE}/knowledge/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -211,11 +214,14 @@ export const api = {
     return request(`${BASE}/conversation/${conversationId}/message`);
   },
 
-  createMessage(conversationId: string, data: {
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-    citations?: any[];
-  }): Promise<{ data: ApiMessage }> {
+  createMessage(
+    conversationId: string,
+    data: {
+      role: 'user' | 'assistant' | 'system';
+      content: string;
+      citations?: any[];
+    },
+  ): Promise<{ data: ApiMessage }> {
     return request(`${BASE}/conversation/${conversationId}/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -26,7 +26,7 @@ export async function sendChatMessage(
   params: ChatRequest,
   onDelta?: (content: string) => void,
   onCompleted?: (content: string) => void,
-  onError?: (error: string) => void
+  onError?: (error: string) => void,
 ): Promise<void> {
   try {
     const { messages, botId, userId = 'test_user_id_123', stream = true } = params;
@@ -38,15 +38,13 @@ export async function sendChatMessage(
     console.log('[Coze Chat] messages count:', messages.length);
 
     // 构建 Coze 请求格式，过滤 system 消息并将其内容添加到第一条用户消息中
-    const systemMessages = messages.filter(m => m.role === 'system');
-    const nonSystemMessages = messages.filter(m => m.role !== 'system');
-    const systemContent = systemMessages.map(m => m.content).join('\n\n');
+    const systemMessages = messages.filter((m) => m.role === 'system');
+    const nonSystemMessages = messages.filter((m) => m.role !== 'system');
+    const systemContent = systemMessages.map((m) => m.content).join('\n\n');
 
     const additionalMessages: CozeMessage[] = nonSystemMessages.map((m, i) => {
       // 将 system 内容添加到第一条用户消息前面
-      const content = i === 0 && systemContent
-        ? `${systemContent}\n\n${m.content}`
-        : m.content;
+      const content = i === 0 && systemContent ? `${systemContent}\n\n${m.content}` : m.content;
       return {
         role: m.role as 'user' | 'assistant',
         type: m.role === 'user' ? 'question' : 'answer',
@@ -67,7 +65,7 @@ export async function sendChatMessage(
     const response = await fetch(`${COZE_API_BASE}/v3/chat`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${COZE_CHAT_TOKEN}`,
+        Authorization: `Bearer ${COZE_CHAT_TOKEN}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestData),

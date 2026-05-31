@@ -78,7 +78,9 @@ export const chunkRepo = {
     });
   },
 
-  createMany(chunks: Array<{ id: string; documentId: string; chunkIndex: number; content: string; tokenCount: number }>) {
+  createMany(
+    chunks: Array<{ id: string; documentId: string; chunkIndex: number; content: string; tokenCount: number }>,
+  ) {
     return prisma.chunk.createMany({ data: chunks });
   },
 

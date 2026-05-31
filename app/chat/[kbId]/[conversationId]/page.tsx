@@ -27,9 +27,7 @@ export default function ChatConversationPage() {
   const [loading, setLoading] = useState(false);
 
   const activeKbId =
-    kbIdParam && knowledgeBases.some((kb) => kb.id === kbIdParam)
-      ? kbIdParam
-      : knowledgeBases[0]?.id ?? '';
+    kbIdParam && knowledgeBases.some((kb) => kb.id === kbIdParam) ? kbIdParam : (knowledgeBases[0]?.id ?? '');
   const activeKb = knowledgeBases.find((item) => item.id === activeKbId) ?? knowledgeBases[0];
   const kbConversations = conversations.filter((c) => c.knowledgeId === activeKbId);
   const activeConversationId =
@@ -71,7 +69,7 @@ export default function ChatConversationPage() {
           content: m.content,
           citations: m.citations,
           createdAt: m.createdAt,
-        }))
+        })),
       );
     } catch (error) {
       console.error('获取消息失败:', error);
@@ -138,9 +136,7 @@ export default function ChatConversationPage() {
     if (messages.length === 0) {
       const title = question.length > 24 ? `${question.slice(0, 24)}…` : question;
       await api.updateConversation(activeConversationId, { title });
-      setConversations((prev) =>
-        prev.map((c) => (c.id === activeConversationId ? { ...c, title } : c))
-      );
+      setConversations((prev) => prev.map((c) => (c.id === activeConversationId ? { ...c, title } : c)));
     }
 
     // Step 1: RAG 检索
@@ -155,9 +151,7 @@ export default function ChatConversationPage() {
       });
 
       if (searchResults.chunks.length > 0) {
-        context = searchResults.chunks
-          .map((r, i) => `[${i + 1}] [来源: ${r.source}]\n${r.content}`)
-          .join('\n\n');
+        context = searchResults.chunks.map((r, i) => `[${i + 1}] [来源: ${r.source}]\n${r.content}`).join('\n\n');
 
         citations = searchResults.chunks.map((r, i) => ({
           documentId: r.documentId,
@@ -224,17 +218,13 @@ ${context}
       (content) => {
         fullContent = content;
         setMessages((prev) =>
-          prev.map((item) =>
-            item.id === assistantId ? { ...item, content, streaming: true } : item
-          )
+          prev.map((item) => (item.id === assistantId ? { ...item, content, streaming: true } : item)),
         );
       },
       async (content) => {
         fullContent = content;
         setMessages((prev) =>
-          prev.map((item) =>
-            item.id === assistantId ? { ...item, content, streaming: false } : item
-          )
+          prev.map((item) => (item.id === assistantId ? { ...item, content, streaming: false } : item)),
         );
 
         // 保存助手消息到数据库
@@ -250,10 +240,10 @@ ${context}
           prev.map((item) =>
             item.id === assistantId
               ? { ...item, content: '抱歉，获取回答时出现错误，请稍后重试。', streaming: false }
-              : item
-          )
+              : item,
+          ),
         );
-      }
+      },
     );
   };
 

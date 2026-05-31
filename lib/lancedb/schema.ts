@@ -12,4 +12,17 @@ export interface VectorRecord {
 
 export const VECTOR_TABLE_NAME = 'knowledge_chunks';
 
+/** 向量维度，由当前 embedding provider 决定 */
+const DIMENSION_MAP: Record<string, number> = {
+  openai: 1536,
+  deepseek: 1536,
+  tensorflow: 512,
+};
+
+export function getVectorDimension(): number {
+  const provider = process.env.EMBEDDING_PROVIDER || 'tensorflow';
+  return DIMENSION_MAP[provider] ?? 512;
+}
+
+/** @deprecated 使用 getVectorDimension() 代替 */
 export const VECTOR_DIMENSION = 1536;

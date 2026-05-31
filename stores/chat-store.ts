@@ -14,10 +14,7 @@ interface ChatState {
   deleteConversation: (conversationId: string) => void;
   updateConversation: (conversationId: string, patch: Partial<Conversation>) => void;
   ensureConversationMessages: (conversationId: string, kbName: string) => void;
-  setConversationMessages: (
-    conversationId: string,
-    updater: Message[] | ((prev: Message[]) => Message[]),
-  ) => void;
+  setConversationMessages: (conversationId: string, updater: Message[] | ((prev: Message[]) => Message[])) => void;
   syncConversationMeta: (conversationId: string, messages: Message[]) => void;
 }
 

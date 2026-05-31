@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '查询内容过长' }, { status: 400 });
     }
 
-    const embeddings = getEmbeddingProvider();
+    const embeddings = await getEmbeddingProvider();
     const results = await searchKnowledge(embeddings, {
       query: query.trim(),
       knowledgeId: knowledgeId || undefined,

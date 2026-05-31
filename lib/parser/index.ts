@@ -43,7 +43,12 @@ export function detectFormat(filename: string, mimeType?: string): SupportedForm
   if (mimeType && MIME_MAP[mimeType]) return MIME_MAP[mimeType];
   const ext = filename.split('.').pop()?.toLowerCase();
   const extMap: Record<string, SupportedFormat> = {
-    txt: 'txt', md: 'md', markdown: 'md', pdf: 'pdf', docx: 'docx', json: 'json',
+    txt: 'txt',
+    md: 'md',
+    markdown: 'md',
+    pdf: 'pdf',
+    docx: 'docx',
+    json: 'json',
   };
   return extMap[ext ?? ''] ?? 'txt';
 }
@@ -51,8 +56,11 @@ export function detectFormat(filename: string, mimeType?: string): SupportedForm
 export function getMimeType(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase();
   const mimeMap: Record<string, string> = {
-    txt: 'text/plain', md: 'text/markdown', markdown: 'text/markdown',
-    pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    txt: 'text/plain',
+    md: 'text/markdown',
+    markdown: 'text/markdown',
+    pdf: 'application/pdf',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     json: 'application/json',
   };
   return mimeMap[ext ?? ''] ?? 'application/octet-stream';

@@ -19,7 +19,9 @@ try {
       process.env[key] = val;
     }
   }
-} catch { /* no .env */ }
+} catch {
+  /* no .env */
+}
 
 async function main() {
   console.log('========== RAG Pipeline 诊断 ==========\n');
@@ -27,7 +29,10 @@ async function main() {
   // 1. 环境变量
   console.log('--- 1. 环境变量 ---');
   console.log('EMBEDDING_PROVIDER:', process.env.EMBEDDING_PROVIDER);
-  console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? `${process.env.OPENAI_API_KEY.slice(0, 8)}...` : 'MISSING');
+  console.log(
+    'OPENAI_API_KEY:',
+    process.env.OPENAI_API_KEY ? `${process.env.OPENAI_API_KEY.slice(0, 8)}...` : 'MISSING',
+  );
   console.log('OPENAI_BASE_URL:', process.env.OPENAI_BASE_URL);
   console.log('OPENAI_EMBEDDING_MODEL:', process.env.OPENAI_EMBEDDING_MODEL);
   console.log();
@@ -36,11 +41,16 @@ async function main() {
   console.log('--- 2. 测试 Embedding API ---');
   try {
     const { getEmbeddingProvider } = await import('../lib/embedding/index');
-    const embeddings = getEmbeddingProvider();
+    const embeddings = await getEmbeddingProvider();
     console.log('Embedding provider initialized OK');
     const result = await embeddings.embedQuery('测试文本');
     console.log(`Embedding 成功! 维度: ${result.length}`);
-    console.log(`前3个值: [${result.slice(0, 3).map((v: number) => v.toFixed(4)).join(', ')}]`);
+    console.log(
+      `前3个值: [${result
+        .slice(0, 3)
+        .map((v: number) => v.toFixed(4))
+        .join(', ')}]`,
+    );
   } catch (err) {
     console.error('Embedding 失败:', err instanceof Error ? err.message : err);
     if (err instanceof Error && err.stack) console.error(err.stack.split('\n').slice(0, 5).join('\n'));
@@ -92,7 +102,7 @@ async function main() {
     const { getLanceDB, ensureTable } = await import('../lib/lancedb/client');
     const db = await getLanceDB();
     console.log('LanceDB 连接成功');
-    const embeddings = (await import('../lib/embedding/index')).getEmbeddingProvider();
+    const embeddings = await (await import('../lib/embedding/index')).getEmbeddingProvider();
     await ensureTable(embeddings);
     console.log('ensureTable 成功');
     const tableNames = await db.tableNames();
