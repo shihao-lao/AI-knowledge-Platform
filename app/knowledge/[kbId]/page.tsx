@@ -1,262 +1,153 @@
 'use client';
 
 import { App, Input, Space, Typography, Spin } from 'antd';
-import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
-import { useEffect, useMemo, useState } from 'react';
+import { SearchOutlined } from '@ant-design/icons';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { KnowledgeDocument, DocumentStatus, FileType } from '@/types';
 import { knowledgePath, chatPath } from '@/lib/paths';
-import { currentUser } from '@/data/mock';
-import { parseUploadedFile, documentProcessingStages } from '@/lib/document';
-import { listDocuments, listDatasets, deleteDocuments, uploadFile, type DocumentInfo, type DatasetInfo } from '@/app/api/kb';
-import {
-  useKnowledgeBases,
-  useDocuments,
-  useExpandedDocId,
-  useKnowledgeStore,
-} from '@/stores/knowledge-store';
+import { api, type ApiKnowledge, type ApiDocument } from '@/lib/api-client';
+import { useExpandedDocId, useKnowledgeStore } from '@/stores/knowledge-store';
 import KnowledgeDocumentList from './components/KnowledgeDocumentList';
 import KnowledgeUploader from './components/KnowledgeUploader';
 import KnowledgeSidebar from './components/KnowledgeSidebar';
-
-/** 根据文件名推断文件类型 */
-function inferFileType(fileName: string): FileType {
-  const ext = fileName.split('.').pop()?.toLowerCase() || '';
-  if (['pdf'].includes(ext)) return 'pdf';
-  if (['md', 'markdown'].includes(ext)) return 'markdown';
-  if (['txt', 'text'].includes(ext)) return 'text';
-  if (['doc', 'docx'].includes(ext)) return 'word';
-  if (['xls', 'xlsx'].includes(ext)) return 'excel';
-  return 'text';
-}
-
-/** 将 Coze 文档状态映射到本地状态 */
-function mapDocumentStatus(status: number): DocumentStatus {
-  switch (status) {
-    case 0:
-      return 'uploading';
-    case 1:
-      return 'completed';
-    case 2:
-      return 'failed';
-    default:
-      return 'uploading';
-  }
-}
-
-/** 从 web_url 获取文档内容 */
-async function fetchDocumentContent(url: string): Promise<string> {
-  try {
-    const response = await fetch(url);
-    if (response.ok) {
-      return await response.text();
-    }
-  } catch (error) {
-    console.error('获取文档内容失败:', error);
-  }
-  return '';
-}
-
-/** 将 Coze 文档转换为本地 KnowledgeDocument 格式 */
-function convertToKnowledgeDocument(doc: DocumentInfo, kbId: string): KnowledgeDocument {
-  return {
-    id: doc.document_id,
-    knowledgeBaseId: kbId,
-    title: doc.name,
-    fileName: doc.name,
-    fileType: inferFileType(doc.name),
-    fileSize: doc.size || 0,
-    status: mapDocumentStatus(doc.status),
-    processingProgress: doc.status === 1 ? 100 : 50,
-    chunkCount: doc.slice_count || 0,
-    charCount: doc.char_count || 0,
-    uploadedBy: currentUser,
-    createdAt: doc.create_time ? new Date(doc.create_time * 1000).toISOString() : new Date().toISOString(),
-    updatedAt: doc.update_time ? new Date(doc.update_time * 1000).toISOString() : new Date().toISOString(),
-    content: '',
-  };
-}
 
 export default function KnowledgeWorkspacePage() {
   const router = useRouter();
   const params = useParams();
   const kbIdParam = typeof params.kbId === 'string' ? params.kbId : undefined;
-
   const { message } = App.useApp();
 
-  const _kbList = useKnowledgeBases();
-  const docRows = useDocuments();
   const expandedDocId = useExpandedDocId();
-  const addDocument = useKnowledgeStore((s) => s.addDocument);
-  const updateDocument = useKnowledgeStore((s) => s.updateDocument);
   const removeDocumentFromStore = useKnowledgeStore((s) => s.removeDocument);
   const setExpandedDocId = useKnowledgeStore((s) => s.setExpandedDocId);
   const resolveExpandedDocForKb = useKnowledgeStore((s) => s.resolveExpandedDocForKb);
 
   const [keyword, setKeyword] = useState('');
-  const [cozeDocuments, setCozeDocuments] = useState<KnowledgeDocument[]>([]);
-  const [cozeDatasets, setCozeDatasets] = useState<DatasetInfo[]>([]);
+  const [knowledgeBases, setKnowledgeBases] = useState<ApiKnowledge[]>([]);
+  const [documents, setDocuments] = useState<ApiDocument[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const activeKbId = kbIdParam && cozeDatasets.some((kb) => kb.dataset_id === kbIdParam)
+  const activeKbId = kbIdParam && knowledgeBases.some((kb) => kb.id === kbIdParam)
     ? kbIdParam
-    : cozeDatasets[0]?.dataset_id ?? '';
-  const activeKb = cozeDatasets.find((item) => item.dataset_id === activeKbId) ?? cozeDatasets[0];
+    : knowledgeBases[0]?.id ?? '';
+  const activeKb = knowledgeBases.find((item) => item.id === activeKbId);
 
   useEffect(() => {
-    if (cozeDatasets.length > 0 && kbIdParam && !cozeDatasets.some((kb) => kb.dataset_id === kbIdParam)) {
-      router.replace(knowledgePath(cozeDatasets[0].dataset_id));
+    if (knowledgeBases.length > 0 && kbIdParam && !knowledgeBases.some((kb) => kb.id === kbIdParam)) {
+      router.replace(knowledgePath(knowledgeBases[0].id));
     }
-  }, [kbIdParam, cozeDatasets, router]);
+  }, [kbIdParam, knowledgeBases, router]);
 
   useEffect(() => {
     resolveExpandedDocForKb(activeKbId);
   }, [activeKbId, resolveExpandedDocForKb]);
 
-  // 从 Coze API 获取知识库列表
-  const fetchCozeDatasets = async () => {
+  const fetchKnowledgeBases = useCallback(async () => {
     try {
-      const result = await listDatasets();
-      if (result.code === 0 && result.data?.dataset_list) {
-        setCozeDatasets(result.data.dataset_list);
-      }
-    } catch (error) {
-      console.error('获取知识库列表失败:', error);
+      const result = await api.listKnowledge();
+      setKnowledgeBases(result.data);
+    } catch (err) {
+      console.error('获取知识库列表失败:', err);
     }
-  };
+  }, []);
 
-  // 从 Coze API 获取文档列表
-  const fetchCozeDocuments = async () => {
-    if (!activeKbId) {
-      console.log('[Docs] activeKbId is empty, skip fetching');
-      return;
-    }
-
-    console.log('[Docs] Fetching documents for dataset_id:', activeKbId);
+  const fetchDocuments = useCallback(async () => {
+    if (!activeKbId) return;
     setLoading(true);
     try {
-      const result = await listDocuments({ dataset_id: activeKbId });
-      console.log('[Docs] API response:', result);
-
-      if (result.code === 0 && result.document_infos) {
-        console.log('[Docs] Found documents:', result.document_infos.length);
-        // 转换文档基本信息
-        const docs = result.document_infos.map((doc) => convertToKnowledgeDocument(doc, activeKbId));
-
-        // 获取每个文档的内容
-        const docsWithContent = await Promise.all(
-          result.document_infos.map(async (doc, index) => {
-            if (doc.web_url) {
-              const content = await fetchDocumentContent(doc.web_url);
-              return { ...docs[index], content };
-            }
-            return docs[index];
-          })
-        );
-
-        console.log('[Docs] Setting documents:', docsWithContent.length);
-        setCozeDocuments(docsWithContent);
-        message.success(`已加载 ${docsWithContent.length} 个文档`);
-      } else {
-        console.error('[Docs] API error:', result.msg);
-        message.error(result.msg || '获取文档列表失败');
-      }
-    } catch (error) {
-      console.error('[Docs] Fetch error:', error);
+      const result = await api.listDocuments(activeKbId);
+      setDocuments(result.data);
+    } catch (err) {
+      console.error('获取文档列表失败:', err);
       message.error('获取文档列表失败');
     } finally {
       setLoading(false);
     }
+  }, [activeKbId, message]);
+
+  useEffect(() => {
+    fetchKnowledgeBases();
+  }, [fetchKnowledgeBases]);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
+
+  const handleExpand = useCallback(async (docId: string) => {
+    setExpandedDocId(docId);
+    // Fetch full document with chunks to get content
+    try {
+      const { data } = await api.getDocument(docId);
+      if (data.chunks && data.chunks.length > 0) {
+        const content = data.chunks
+          .sort((a, b) => a.chunkIndex - b.chunkIndex)
+          .map((c) => c.content)
+          .join('\n\n');
+        setDocuments((prev) =>
+          prev.map((d) => (d.id === docId ? { ...d, _content: content } : d)),
+        );
+      }
+    } catch {
+      // non-fatal, detail will show "暂无内容"
+    }
+  }, [setExpandedDocId]);
+
+  const STAGE_TEXT: Record<string, string> = {
+    pending: '等待中',
+    parsing: '解析文档中',
+    chunking: '切片中',
+    embedding: '向量化中',
+    completed: '已完成',
+    failed: '处理失败',
   };
 
-  // 页面加载时获取数据
-  useEffect(() => {
-    fetchCozeDatasets();
-    fetchCozeDocuments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeKbId]);
-
-  // 合并本地文档和 Coze 文档
-  const allDocuments = useMemo(() => {
-    const localDocs = docRows.filter((doc) => doc.knowledgeBaseId === activeKbId);
-    // 去重：Coze 文档优先
-    const cozeDocIds = new Set(cozeDocuments.map((d) => d.id));
-    const filteredLocalDocs = localDocs.filter((d) => !cozeDocIds.has(d.id));
-    return [...cozeDocuments, ...filteredLocalDocs];
-  }, [activeKbId, docRows, cozeDocuments]);
-
-  const activeDocs = useMemo(() => {
-    return allDocuments.filter((doc) => {
-      const matchKeyword = `${doc.title}${doc.fileName}${doc.content}`.includes(keyword.trim());
-      return !keyword.trim() || matchKeyword;
-    });
-  }, [allDocuments, keyword]);
-
-  const expandedDoc = activeDocs.find((doc) => doc.id === expandedDocId) ?? activeDocs[0];
-
-  const importFileToKb = async (file: File, kbId: string) => {
-    const importKey = `import-${file.name}-${file.size}`;
-    message.loading({ content: `正在读取《${file.name}》并提取关键点...`, key: importKey, duration: 0 });
-    const { sourceTitle, content } = await parseUploadedFile(file);
-    const newDoc: KnowledgeDocument = {
-      id: crypto.randomUUID(),
-      knowledgeBaseId: kbId,
-      title: `${sourceTitle}关键点文档`,
-      fileName: `${sourceTitle}-关键点.md`,
-      fileType: 'markdown',
-      fileSize: file.size,
-      status: 'uploading',
-      processingProgress: 8,
-      chunkCount: 0,
-      uploadedBy: currentUser,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      content,
-    };
-    addDocument(newDoc);
-    message.success({ content: `已生成《${sourceTitle}关键点文档》`, key: importKey });
-
-    documentProcessingStages.forEach(([status, progress, delay]) => {
-      window.setTimeout(() => {
-        updateDocument(newDoc.id, {
-          status,
-          processingProgress: progress,
-          chunkCount: status === 'completed' ? 24 : 12,
-        });
-      }, delay);
-    });
-    return newDoc;
+  const pollDocumentStatus = async (docId: string) => {
+    const maxAttempts = 120;
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      try {
+        const { data } = await api.getDocument(docId);
+        const stage = STAGE_TEXT[data.parseStatus] ?? data.parseStatus;
+        if (data.parseStatus === 'completed') {
+          message.success({ content: `《${data.filename}》处理完成，共 ${data.chunkCount} 个切片`, key: `ingest-${docId}` });
+          await fetchDocuments();
+          return;
+        }
+        if (data.parseStatus === 'failed') {
+          message.error({ content: `《${data.filename}》处理失败`, key: `ingest-${docId}` });
+          await fetchDocuments();
+          return;
+        }
+        message.loading({ content: `《${data.filename}》${stage}...`, key: `ingest-${docId}`, duration: 0 });
+      } catch { /* ignore polling error */ }
+    }
   };
 
   const handleUpload = async (file: File) => {
     const key = `upload-${file.name}`;
-    message.loading({ content: `正在上传《${file.name}》到知识库...`, key, duration: 0 });
+    message.loading({ content: `正在上传《${file.name}》... 0%`, key, duration: 0 });
     try {
-      const result = await uploadFile(file, activeKbId);
-      if (result.code === 0) {
-        message.success({ content: `《${file.name}》上传成功，正在处理中...`, key });
-        await fetchCozeDocuments();
-      } else {
-        message.error({ content: result.msg || '上传失败', key });
-      }
-    } catch {
-      message.error({ content: '上传失败，请检查网络连接', key });
+      const result = await api.uploadDocument(activeKbId, file, (percent) => {
+        message.loading({ content: `正在上传《${file.name}》... ${percent}%`, key, duration: 0 });
+      });
+      message.success({ content: `《${file.name}》上传完成，开始处理...`, key });
+      await fetchDocuments();
+      // Poll for processing status
+      pollDocumentStatus(result.data.id);
+    } catch (err) {
+      message.error({ content: err instanceof Error ? err.message : '上传失败', key });
     }
   };
 
   const removeDocument = async (documentId: string) => {
     const hide = message.loading('正在删除文档...', 0);
     try {
-      const result = await deleteDocuments({ document_ids: [documentId] });
-      if (result.code === 0) {
-        removeDocumentFromStore(documentId, activeKbId);
-        await fetchCozeDocuments(); // 刷新列表
-        message.success('文档已删除');
-      } else {
-        message.error(result.msg || '删除失败');
-      }
-    } catch {
-      message.error('删除文档失败，请检查网络连接');
+      await api.deleteDocument(documentId);
+      removeDocumentFromStore(documentId, activeKbId);
+      await fetchDocuments();
+      message.success('文档已删除');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '删除文档失败');
     } finally {
       hide();
     }
@@ -265,6 +156,30 @@ export default function KnowledgeWorkspacePage() {
   const goToChat = () => {
     router.push(chatPath(activeKbId));
   };
+
+  const toKnowledgeDocument = useCallback((doc: ApiDocument & { _content?: string }) => ({
+    id: doc.id,
+    knowledgeBaseId: doc.knowledgeId,
+    title: doc.filename,
+    fileName: doc.filename,
+    fileType: 'text' as const,
+    fileSize: doc.size,
+    status: (doc.parseStatus === 'completed' ? 'completed' :
+            doc.parseStatus === 'failed' ? 'failed' : 'uploading') as 'completed' | 'failed' | 'uploading',
+    processingProgress: doc.parseStatus === 'completed' ? 100 :
+                       doc.parseStatus === 'embedding' ? 84 :
+                       doc.parseStatus === 'chunking' ? 58 :
+                       doc.parseStatus === 'parsing' ? 28 : 8,
+    chunkCount: doc.chunkCount,
+    charCount: doc.charCount,
+    uploadedBy: { id: '', name: '', email: '', role: 'viewer' as const, createdAt: '' },
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+    content: doc._content ?? '',
+  }), []);
+
+  const expandedDoc = documents.find((d) => d.id === expandedDocId);
+  const sidebarDoc = expandedDoc ? toKnowledgeDocument(expandedDoc) : null;
 
   return (
     <div className="hub-shell">
@@ -288,19 +203,17 @@ export default function KnowledgeWorkspacePage() {
         <div className="hub-side-section">
           <div className="hub-section-title">
             <span>我的知识库</span>
-            <span>{cozeDatasets.length}</span>
+            <span>{knowledgeBases.length}</span>
           </div>
-          {cozeDatasets.map((kb) => (
+          {knowledgeBases.map((kb) => (
             <button
               type="button"
-              key={kb.dataset_id}
-              className={`hub-kb ${activeKbId === kb.dataset_id ? 'is-active' : ''}`}
-              onClick={() => router.push(knowledgePath(kb.dataset_id))}
+              key={kb.id}
+              className={`hub-kb ${activeKbId === kb.id ? 'is-active' : ''}`}
+              onClick={() => router.push(knowledgePath(kb.id))}
             >
               <span>{kb.name}</span>
-              <small>
-                {kb.file_list?.length ?? kb.doc_count} 份知识
-              </small>
+              <small>{kb._count?.documents ?? 0} 份知识</small>
             </button>
           ))}
         </div>
@@ -333,14 +246,14 @@ export default function KnowledgeWorkspacePage() {
             </div>
             <Spin spinning={loading}>
               <KnowledgeDocumentList
-                documents={activeDocs}
+                documents={documents.map(toKnowledgeDocument)}
                 expandedDocId={expandedDocId}
-                onExpand={setExpandedDocId}
+                onExpand={handleExpand}
                 onDelete={removeDocument}
               />
             </Spin>
           </div>
-          <KnowledgeSidebar expandedDoc={expandedDoc ?? null} onGoToChat={goToChat} />
+          <KnowledgeSidebar expandedDoc={sidebarDoc} onGoToChat={goToChat} />
         </section>
       </main>
     </div>

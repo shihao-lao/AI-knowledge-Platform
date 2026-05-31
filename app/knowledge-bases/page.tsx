@@ -4,128 +4,85 @@ import {
   BookOutlined,
   CloseOutlined,
   DeleteOutlined,
-  EditOutlined,
   EyeOutlined,
   FileOutlined,
   InfoCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
-  RobotOutlined,
   SearchOutlined,
-  ThunderboltOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { Button, Card, Col, Collapse, Descriptions, Divider, Empty, Input, Row, Space, Spin, Statistic, Tag, Tooltip, Typography, message } from 'antd';
+import { App, Button, Card, Col, Descriptions, Empty, Input, Row, Space, Spin, Statistic, Tag, Typography } from 'antd';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { listDatasets, createDataset, uploadFile, type DatasetInfo } from '@/app/api/kb';
+import { api, type ApiKnowledge } from '@/lib/api-client';
 import CreateKnowledgeBaseModal from '@/components/create-kb-modal';
 import { knowledgePath } from '@/lib/paths';
 import type { Visibility } from '@/types';
 
-/** 格式化文件大小 */
-function formatFileSize(sizeStr: string): string {
-  const size = parseInt(sizeStr, 10);
-  if (isNaN(size) || size === 0) return '0 B';
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/** 格式化时间戳 */
-function formatTimestamp(timestamp: number): string {
-  if (!timestamp) return '-';
-  return new Date(timestamp * 1000).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-/** 格式化相对时间 */
-function formatRelativeTime(timestamp: number): string {
-  if (!timestamp) return '-';
-  const now = Date.now() / 1000;
-  const diff = now - timestamp;
-
-  if (diff < 60) return '刚刚';
-  if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
-  if (diff < 2592000) return `${Math.floor(diff / 86400)} 天前`;
-  return formatTimestamp(timestamp);
+function formatRelativeTime(dateStr: string): string {
+  const now = Date.now();
+  const diff = now - new Date(dateStr).getTime();
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+  if (diff < 2592000000) return `${Math.floor(diff / 86400000)} 天前`;
+  return new Date(dateStr).toLocaleDateString('zh-CN');
 }
 
 export default function KnowledgeBasesPage() {
   const router = useRouter();
+  const { message } = App.useApp();
   const [search, setSearch] = useState('');
   const [kbModalOpen, setKbModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [cozeDatasets, setCozeDatasets] = useState<DatasetInfo[]>([]);
+  const [knowledgeBases, setKnowledgeBases] = useState<ApiKnowledge[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-  const toggleExpand = useCallback((datasetId: string) => {
+  const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(datasetId)) {
-        next.delete(datasetId);
-      } else {
-        next.add(datasetId);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }, []);
 
-  // 从 Coze API 获取知识库列表
-  const fetchDatasets = async () => {
+  const fetchKnowledgeBases = async () => {
     setLoading(true);
     try {
-      const result = await listDatasets();
-      if (result.code === 0 && result.data?.dataset_list) {
-        setCozeDatasets(result.data.dataset_list);
-        message.success(`已加载 ${result.data.dataset_list.length} 个知识库`);
-      } else {
-        message.error(result.msg || '获取知识库列表失败');
-      }
-    } catch (error) {
-      console.error('获取知识库列表失败:', error);
+      const result = await api.listKnowledge();
+      setKnowledgeBases(result.data);
+    } catch (err) {
+      console.error('获取知识库列表失败:', err);
       message.error('获取知识库列表失败');
     } finally {
       setLoading(false);
     }
   };
 
-  // 页面加载时获取知识库列表
   useEffect(() => {
-    fetchDatasets();
+    fetchKnowledgeBases();
   }, []);
 
   const filteredKbs = useMemo(() => {
     const keyword = search.trim().toLowerCase();
-    if (!keyword) return cozeDatasets;
-    return cozeDatasets.filter(
+    if (!keyword) return knowledgeBases;
+    return knowledgeBases.filter(
       (kb) => kb.name.toLowerCase().includes(keyword) || kb.description.toLowerCase().includes(keyword),
     );
-  }, [cozeDatasets, search]);
+  }, [knowledgeBases, search]);
 
-  const handleCreateManualKb = async (values: { name: string; description: string; visibility: Visibility; initialContent?: string }) => {
+  const handleCreateManualKb = async (values: { name: string; description: string; visibility: Visibility }) => {
     const hide = message.loading('正在创建知识库...', 0);
     try {
-      const result = await createDataset({
-        name: values.name,
-        format_type: 0,
-      });
-      if (result.code === 0 && result.data?.dataset_id) {
-        message.success(`知识库「${values.name}」已创建`);
-        await fetchDatasets();
-        router.push(knowledgePath(result.data.dataset_id));
-      } else {
-        message.error(result.msg || '创建知识库失败');
-      }
-    } catch {
-      message.error('创建知识库失败，请检查网络连接');
+      const result = await api.createKnowledge(values);
+      message.success(`知识库「${values.name}」已创建`);
+      await fetchKnowledgeBases();
+      router.push(knowledgePath(result.data.id));
+    } catch (err) {
+      message.error('创建知识库失败');
     } finally {
       hide();
     }
@@ -139,29 +96,32 @@ export default function KnowledgeBasesPage() {
   }) => {
     const hide = message.loading('正在创建知识库...', 0);
     try {
-      const result = await createDataset({
-        name: values.name,
-        format_type: 0,
-      });
-      if (result.code === 0 && result.data?.dataset_id) {
-        const datasetId = result.data.dataset_id;
-        if (values.files.length > 0) {
-          message.loading({ content: `正在上传 ${values.files.length} 个文件...`, key: 'upload', duration: 0 });
-          for (const file of values.files) {
-            await uploadFile(file, datasetId);
-          }
-          message.success({ content: `已上传 ${values.files.length} 个文件`, key: 'upload' });
+      const result = await api.createKnowledge(values);
+      const kbId = result.data.id;
+      if (values.files.length > 0) {
+        message.loading({ content: `正在上传 ${values.files.length} 个文件...`, key: 'upload', duration: 0 });
+        for (const file of values.files) {
+          await api.uploadDocument(kbId, file);
         }
-        message.success(`知识库「${values.name}」已创建`);
-        await fetchDatasets();
-        router.push(knowledgePath(datasetId));
-      } else {
-        message.error(result.msg || '创建知识库失败');
+        message.success({ content: `已上传 ${values.files.length} 个文件`, key: 'upload' });
       }
+      message.success(`知识库「${values.name}」已创建`);
+      await fetchKnowledgeBases();
+      router.push(knowledgePath(kbId));
     } catch {
-      message.error('创建知识库失败，请检查网络连接');
+      message.error('创建知识库失败');
     } finally {
       hide();
+    }
+  };
+
+  const handleDeleteKb = async (kbId: string, kbName: string) => {
+    try {
+      await api.deleteKnowledge(kbId);
+      message.success(`知识库「${kbName}」已删除`);
+      await fetchKnowledgeBases();
+    } catch {
+      message.error('删除知识库失败');
     }
   };
 
@@ -179,7 +139,7 @@ export default function KnowledgeBasesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <Button icon={<ReloadOutlined />} onClick={fetchDatasets} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={fetchKnowledgeBases} loading={loading}>
             刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setKbModalOpen(true)}>
@@ -194,201 +154,82 @@ export default function KnowledgeBasesPage() {
         ) : (
           <Row gutter={[16, 16]}>
             {filteredKbs.map((kb) => {
-              const isExpanded = expandedIds.has(kb.dataset_id);
+              const isExpanded = expandedIds.has(kb.id);
+              const docCount = kb._count?.documents ?? 0;
               return (
-                <Col xs={24} md={12} xl={8} key={kb.dataset_id}>
+                <Col xs={24} md={12} xl={8} key={kb.id}>
                   <Card
                     className="kb-card"
                     actions={[
-                      <Link href={knowledgePath(kb.dataset_id)} key="open">
+                      <Link href={knowledgePath(kb.id)} key="open">
                         打开
                       </Link>,
-                      <span key="detail" onClick={() => toggleExpand(kb.dataset_id)} style={{ cursor: 'pointer' }}>
+                      <span key="detail" onClick={() => toggleExpand(kb.id)} style={{ cursor: 'pointer' }}>
                         {isExpanded ? <CloseOutlined /> : <EyeOutlined />}
                         <span style={{ marginLeft: 4 }}>{isExpanded ? '收起' : '详情'}</span>
                       </span>,
-                      <DeleteOutlined key="delete" />,
+                      <DeleteOutlined key="delete" onClick={() => handleDeleteKb(kb.id, kb.name)} />,
                     ]}
                   >
                     <Space align="start" style={{ width: '100%' }}>
                       <span className="kb-card__icon">
-                        {kb.icon_url ? (
-                          <img src={kb.icon_url} alt={kb.name} style={{ width: 48, height: 48, borderRadius: 8 }} />
-                        ) : (
-                          <BookOutlined style={{ fontSize: 48 }} />
-                        )}
+                        <BookOutlined style={{ fontSize: 48 }} />
                       </span>
                       <div style={{ flex: 1 }}>
                         <Typography.Title level={4} style={{ marginBottom: 4 }}>
                           {kb.name}
                         </Typography.Title>
-                        <Typography.Paragraph
-                          type="secondary"
-                          ellipsis={{ rows: 2 }}
-                          style={{ marginBottom: 8, minHeight: 44 }}
-                        >
+                        <Typography.Paragraph type="secondary" ellipsis={{ rows: 2 }} style={{ marginBottom: 8, minHeight: 44 }}>
                           {kb.description || '暂无描述'}
                         </Typography.Paragraph>
                         <Space size={4} wrap>
-                          <Tag color="blue">
-                            <FileOutlined /> {kb.file_list?.length ?? kb.doc_count} 份文档
+                          <Tag color="blue"><FileOutlined /> {docCount} 份文档</Tag>
+                          <Tag color={kb.visibility === 'public' ? 'green' : 'default'}>
+                            {kb.visibility === 'public' ? '公开' : '私有'}
                           </Tag>
-                          {kb.bot_used_count > 0 && (
-                            <Tag color="green">
-                              <RobotOutlined /> {kb.bot_used_count} 个 Bot
-                            </Tag>
-                          )}
-                          {kb.processing_file_list && kb.processing_file_list.length > 0 && (
-                            <Tag color="processing">
-                              处理中 {kb.processing_file_list.length} 个文件
-                            </Tag>
-                          )}
-                          {kb.failed_file_list && kb.failed_file_list.length > 0 && (
-                            <Tag color="error">
-                              失败 {kb.failed_file_list.length} 个文件
-                            </Tag>
-                          )}
                         </Space>
                       </div>
                     </Space>
 
                     <div className="kb-card__stats">
-                      <Statistic
-                        title="文档"
-                        value={kb.file_list?.length ?? kb.doc_count}
-                        prefix={<FileOutlined />}
-                      />
-                      <Statistic
-                        title="大小"
-                        value={formatFileSize(kb.all_file_size)}
-                      />
-                      {kb.hit_count > 0 && (
-                        <Statistic
-                          title="命中"
-                          value={kb.hit_count}
-                          prefix={<ThunderboltOutlined />}
-                        />
-                      )}
+                      <Statistic title="文档" value={docCount} prefix={<FileOutlined />} />
                     </div>
 
                     <div className="kb-card__meta">
                       <Space split={<span style={{ color: '#d9d9d9' }}>|</span>}>
-                        <Tooltip title={`创建者: ${kb.creator_name}`}>
-                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                            {kb.avatar_url ? (
-                              <img
-                                src={kb.avatar_url}
-                                alt={kb.creator_name}
-                                style={{ width: 16, height: 16, borderRadius: '50%', marginRight: 4, verticalAlign: 'middle' }}
-                              />
-                            ) : (
-                              <UserOutlined style={{ marginRight: 4 }} />
-                            )}
-                            {kb.creator_name}
-                          </Typography.Text>
-                        </Tooltip>
-                        <Tooltip title={formatTimestamp(kb.create_time)}>
-                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                            创建于 {formatRelativeTime(kb.create_time)}
-                          </Typography.Text>
-                        </Tooltip>
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                          <UserOutlined style={{ marginRight: 4 }} />
+                          {kb.status === 'active' ? '活跃' : kb.status}
+                        </Typography.Text>
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                          创建于 {formatRelativeTime(kb.createdAt)}
+                        </Typography.Text>
                       </Space>
                     </div>
                   </Card>
 
-                  {/* 详情面板 */}
                   {isExpanded && (
-                    <Card
-                      size="small"
-                      style={{ marginTop: -1, borderTop: '2px solid #1677ff' }}
-                      title={
-                        <Space>
-                          <InfoCircleOutlined />
-                          <span>{kb.name} — 详细信息</span>
-                        </Space>
-                      }
-                      extra={
-                        <CloseOutlined
-                          style={{ cursor: 'pointer', color: '#999' }}
-                          onClick={() => toggleExpand(kb.dataset_id)}
-                        />
-                      }
+                    <Card size="small" style={{ marginTop: -1, borderTop: '2px solid #1677ff' }}
+                      title={<Space><InfoCircleOutlined /><span>{kb.name} — 详细信息</span></Space>}
+                      extra={<CloseOutlined style={{ cursor: 'pointer', color: '#999' }} onClick={() => toggleExpand(kb.id)} />}
                     >
                       <Descriptions column={2} size="small" bordered>
-                        <Descriptions.Item label="知识库 ID">{kb.dataset_id}</Descriptions.Item>
-                        <Descriptions.Item label="空间 ID">{kb.space_id}</Descriptions.Item>
-                        <Descriptions.Item label="状态">
-                          <Tag color={kb.status === 1 ? 'green' : 'default'}>
-                            {kb.status === 1 ? '正常' : `状态 ${kb.status}`}
+                        <Descriptions.Item label="知识库 ID">{kb.id}</Descriptions.Item>
+                        <Descriptions.Item label="可见性">
+                          <Tag color={kb.visibility === 'public' ? 'green' : 'default'}>
+                            {kb.visibility === 'public' ? '公开' : '私有'}
                           </Tag>
                         </Descriptions.Item>
-                        <Descriptions.Item label="格式类型">{kb.format_type === 0 ? '文本' : `类型 ${kb.format_type}`}</Descriptions.Item>
-                        <Descriptions.Item label="创建者">
-                          <Space size={4}>
-                            {kb.avatar_url && (
-                              <img src={kb.avatar_url} alt="" style={{ width: 20, height: 20, borderRadius: '50%' }} />
-                            )}
-                            {kb.creator_name}
-                          </Space>
+                        <Descriptions.Item label="状态">
+                          <Tag color={kb.status === 'active' ? 'green' : 'default'}>{kb.status}</Tag>
                         </Descriptions.Item>
-                        <Descriptions.Item label="创建者 ID">{kb.creator_id}</Descriptions.Item>
-                        <Descriptions.Item label="创建时间">{formatTimestamp(kb.create_time)}</Descriptions.Item>
-                        <Descriptions.Item label="更新时间">{formatTimestamp(kb.update_time)}</Descriptions.Item>
-                        <Descriptions.Item label="文档数">{kb.file_list?.length ?? kb.doc_count}</Descriptions.Item>
-                        <Descriptions.Item label="切片数">{kb.slice_count}</Descriptions.Item>
-                        <Descriptions.Item label="总大小">{formatFileSize(kb.all_file_size)}</Descriptions.Item>
-                        <Descriptions.Item label="命中次数">{kb.hit_count}</Descriptions.Item>
-                        <Descriptions.Item label="Bot 引用">{kb.bot_used_count}</Descriptions.Item>
-                        <Descriptions.Item label="可编辑">{kb.can_edit ? '是' : '否'}</Descriptions.Item>
+                        <Descriptions.Item label="文档数">{docCount}</Descriptions.Item>
+                        <Descriptions.Item label="创建时间">{new Date(kb.createdAt).toLocaleString('zh-CN')}</Descriptions.Item>
+                        <Descriptions.Item label="更新时间">{new Date(kb.updatedAt).toLocaleString('zh-CN')}</Descriptions.Item>
                         <Descriptions.Item label="描述" span={2}>
                           {kb.description || '暂无描述'}
                         </Descriptions.Item>
                       </Descriptions>
-
-                      {kb.file_list && kb.file_list.length > 0 && (
-                        <>
-                          <Divider orientation="left" plain style={{ margin: '12px 0 8px' }}>
-                            文件列表
-                          </Divider>
-                          <Space wrap size={[8, 8]}>
-                            {kb.file_list.map((file, index) => (
-                              <Tag key={index} icon={<FileOutlined />}>
-                                {file}
-                              </Tag>
-                            ))}
-                          </Space>
-                        </>
-                      )}
-
-                      {kb.processing_file_list && kb.processing_file_list.length > 0 && (
-                        <>
-                          <Divider orientation="left" plain style={{ margin: '12px 0 8px' }}>
-                            处理中的文件
-                          </Divider>
-                          <Space wrap size={[8, 8]}>
-                            {kb.processing_file_list.map((file, index) => (
-                              <Tag key={index} color="processing">
-                                {file}
-                              </Tag>
-                            ))}
-                          </Space>
-                        </>
-                      )}
-
-                      {kb.failed_file_list && kb.failed_file_list.length > 0 && (
-                        <>
-                          <Divider orientation="left" plain style={{ margin: '12px 0 8px' }}>
-                            失败的文件
-                          </Divider>
-                          <Space wrap size={[8, 8]}>
-                            {kb.failed_file_list.map((file, index) => (
-                              <Tag key={index} color="error">
-                                {file}
-                              </Tag>
-                            ))}
-                          </Space>
-                        </>
-                      )}
                     </Card>
                   )}
                 </Col>

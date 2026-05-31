@@ -1,20 +1,14 @@
 'use client';
 
-import { App, Avatar, Select, Space, Typography } from 'antd';
-import { useEffect, useMemo, useState } from 'react';
+import { App, Select, Typography } from 'antd';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { Citation, Conversation, Message } from '@/types';
+import type { Citation, Message } from '@/types';
 import { currentUser } from '@/data/mock';
 import { chatPath, knowledgePath } from '@/lib/paths';
 import { createWelcomeMessage } from '@/lib/chat';
 import { sendChatMessage } from '@/app/api/chat';
-import { listDatasets, type DatasetInfo } from '@/app/api/kb';
-import {
-  useConversations,
-  useConversationsByKb,
-  useConversationMessages,
-  useChatStore,
-} from '@/stores/chat-store';
+import { api, type ApiKnowledge, type ApiConversation, type ApiMessage } from '@/lib/api-client';
 import ChatMessageList from './components/ChatMessageList';
 import ChatInputArea from './components/ChatInputArea';
 import ChatSidebar from './components/ChatSidebar';
@@ -27,131 +21,227 @@ export default function ChatConversationPage() {
 
   const { message } = App.useApp();
 
-  const [cozeDatasets, setCozeDatasets] = useState<DatasetInfo[]>([]);
-  const conversationList = useConversations();
-  const addConversation = useChatStore((s) => s.addConversation);
-  const updateConversation = useChatStore((s) => s.updateConversation);
-  const ensureConversationMessages = useChatStore((s) => s.ensureConversationMessages);
-  const setConversationMessages = useChatStore((s) => s.setConversationMessages);
-  const syncConversationMeta = useChatStore((s) => s.syncConversationMeta);
+  const [knowledgeBases, setKnowledgeBases] = useState<ApiKnowledge[]>([]);
+  const [conversations, setConversations] = useState<ApiConversation[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const activeKbId =
-    kbIdParam && cozeDatasets.some((kb) => kb.dataset_id === kbIdParam)
+    kbIdParam && knowledgeBases.some((kb) => kb.id === kbIdParam)
       ? kbIdParam
-      : cozeDatasets[0]?.dataset_id ?? '';
-  const activeKb = cozeDatasets.find((item) => item.dataset_id === activeKbId) ?? cozeDatasets[0];
-  const kbConversations = useConversationsByKb(activeKbId);
+      : knowledgeBases[0]?.id ?? '';
+  const activeKb = knowledgeBases.find((item) => item.id === activeKbId) ?? knowledgeBases[0];
+  const kbConversations = conversations.filter((c) => c.knowledgeId === activeKbId);
   const activeConversationId =
-    conversationIdParam && conversationList.some((chat) => chat.id === conversationIdParam)
+    conversationIdParam && conversations.some((chat) => chat.id === conversationIdParam)
       ? conversationIdParam
       : (kbConversations[0]?.id ?? '');
-  const messages = useConversationMessages(activeConversationId);
 
   const [input, setInput] = useState('');
   const [liveCitations, setLiveCitations] = useState<Citation[]>([]);
 
-  const setMessages = (updater: Message[] | ((prev: Message[]) => Message[])) => {
-    if (!activeConversationId) return;
-    setConversationMessages(activeConversationId, updater);
-  };
-
-  // 从 Coze API 获取知识库列表
-  const fetchCozeDatasets = async () => {
+  // 获取知识库列表
+  const fetchKnowledgeBases = async () => {
     try {
-      const result = await listDatasets();
-      if (result.code === 0 && result.data?.dataset_list) {
-        setCozeDatasets(result.data.dataset_list);
-      }
+      const result = await api.listKnowledge();
+      setKnowledgeBases(result.data);
     } catch (error) {
       console.error('获取知识库列表失败:', error);
     }
   };
 
+  // 获取对话列表
+  const fetchConversations = async (knowledgeId: string) => {
+    try {
+      const result = await api.listConversations(knowledgeId);
+      setConversations(result.data);
+    } catch (error) {
+      console.error('获取对话列表失败:', error);
+    }
+  };
+
+  // 获取消息列表
+  const fetchMessages = async (conversationId: string) => {
+    try {
+      const result = await api.listMessages(conversationId);
+      setMessages(
+        result.data.map((m) => ({
+          id: m.id,
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          citations: m.citations,
+          createdAt: m.createdAt,
+        }))
+      );
+    } catch (error) {
+      console.error('获取消息失败:', error);
+    }
+  };
+
   useEffect(() => {
-    fetchCozeDatasets();
+    fetchKnowledgeBases();
   }, []);
 
   useEffect(() => {
-    if (cozeDatasets.length === 0) return;
-    if (kbIdParam && cozeDatasets.some((kb) => kb.dataset_id === kbIdParam)) return;
-    if (cozeDatasets[0]) {
-      router.replace(chatPath(cozeDatasets[0].dataset_id));
+    if (activeKbId) {
+      fetchConversations(activeKbId);
     }
-  }, [kbIdParam, cozeDatasets, router]);
+  }, [activeKbId]);
 
   useEffect(() => {
-    if (conversationIdParam && conversationList.some((chat) => chat.id === conversationIdParam)) {
-      ensureConversationMessages(conversationIdParam, activeKb?.name ?? '当前知识库');
+    if (knowledgeBases.length === 0) return;
+    if (kbIdParam && knowledgeBases.some((kb) => kb.id === kbIdParam)) return;
+    if (knowledgeBases[0]) {
+      router.replace(chatPath(knowledgeBases[0].id));
+    }
+  }, [kbIdParam, knowledgeBases, router]);
+
+  useEffect(() => {
+    if (activeConversationId) {
+      fetchMessages(activeConversationId);
+    } else {
+      setMessages([]);
+    }
+  }, [activeConversationId]);
+
+  useEffect(() => {
+    if (conversationIdParam && !conversations.some((chat) => chat.id === conversationIdParam)) {
+      // 对话不存在，等待加载
       return;
     }
     if (!conversationIdParam && kbConversations[0]) {
       router.replace(chatPath(activeKbId, kbConversations[0].id));
     }
-  }, [conversationIdParam, conversationList, activeKbId, activeKb?.name, kbConversations, router, ensureConversationMessages]);
+  }, [conversationIdParam, conversations, activeKbId, kbConversations, router]);
 
-  const sendMessageToCoze = async (question: string) => {
+  const sendMessageToLLM = async (question: string) => {
+    if (!activeConversationId) return;
+
     const userMessage: Message = {
-      id: crypto.randomUUID(),
+      id: `msg_${Date.now()}_user`,
       role: 'user',
       content: question,
       createdAt: new Date().toISOString(),
     };
-    const assistantId = crypto.randomUUID();
 
-    setMessages((prev) => {
-      const next = [
-        ...prev,
-        userMessage,
-        {
-          id: assistantId,
-          role: 'assistant' as const,
-          content: '',
-          citations: [],
-          createdAt: new Date().toISOString(),
-          streaming: true,
-        },
-      ];
-      syncConversationMeta(activeConversationId, next);
-      const chat = conversationList.find((item) => item.id === activeConversationId);
-      if (chat?.title === '新对话') {
-        updateConversation(activeConversationId, {
-          title: question.length > 24 ? `${question.slice(0, 24)}…` : question,
-        });
-      }
-      return next;
-    });
+    // 更新 UI
+    setMessages((prev) => [...prev, userMessage]);
     setLiveCitations([]);
 
-    // 转换消息格式
-    const chatMessages = messages
+    // 保存用户消息到数据库
+    await api.createMessage(activeConversationId, {
+      role: 'user',
+      content: question,
+    });
+
+    // 如果是第一条消息，更新对话标题
+    if (messages.length === 0) {
+      const title = question.length > 24 ? `${question.slice(0, 24)}…` : question;
+      await api.updateConversation(activeConversationId, { title });
+      setConversations((prev) =>
+        prev.map((c) => (c.id === activeConversationId ? { ...c, title } : c))
+      );
+    }
+
+    // Step 1: RAG 检索
+    let context = '';
+    let citations: Citation[] = [];
+    try {
+      const searchResults = await api.search({
+        query: question,
+        knowledgeId: activeKbId,
+        topK: 5,
+        scoreThreshold: 0.3,
+      });
+
+      if (searchResults.chunks.length > 0) {
+        context = searchResults.chunks
+          .map((r, i) => `[${i + 1}] [来源: ${r.source}]\n${r.content}`)
+          .join('\n\n');
+
+        citations = searchResults.chunks.map((r, i) => ({
+          documentId: r.documentId,
+          documentTitle: r.source,
+          chunkIndex: i,
+          preview: r.content.substring(0, 100) + (r.content.length > 100 ? '...' : ''),
+          confidenceScore: r.score,
+          color: `hsl(${(i * 60) % 360}, 70%, 50%)`,
+        }));
+
+        setLiveCitations(citations);
+        console.log(`[RAG] 检索到 ${searchResults.chunks.length} 个相关片段`);
+      }
+    } catch (err) {
+      console.error('[RAG] 检索失败:', err);
+    }
+
+    // Step 2: 构建消息
+    const chatMessages: { role: 'user' | 'assistant' | 'system'; content: string }[] = [];
+
+    if (context) {
+      chatMessages.push({
+        role: 'system',
+        content: `你是一个知识库助手。请基于以下参考资料回答用户的问题。
+
+## 参考资料
+${context}
+
+## 回答要求
+1. 优先使用参考资料中的内容回答
+2. 如果参考资料中没有相关信息，请基于你的知识回答，但要说明这不是来自知识库
+3. 回答时可以引用参考资料中的具体内容`,
+      });
+    }
+
+    // 添加历史消息
+    const historyMessages = messages
       .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
       .map((msg) => ({
         role: msg.role as 'user' | 'assistant',
         content: msg.content,
       }));
+    chatMessages.push(...historyMessages);
     chatMessages.push({ role: 'user', content: question });
 
-    // 使用 sendChatMessage API 函数
+    // Step 3: 调用 LLM
+    const assistantId = `msg_${Date.now()}_assistant`;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        citations,
+        createdAt: new Date().toISOString(),
+        streaming: true,
+      },
+    ]);
+
+    let fullContent = '';
+
     await sendChatMessage(
       { messages: chatMessages, stream: true },
       (content) => {
+        fullContent = content;
         setMessages((prev) =>
           prev.map((item) =>
-            item.id === assistantId
-              ? { ...item, content: content, streaming: true }
-              : item,
-          ),
+            item.id === assistantId ? { ...item, content, streaming: true } : item
+          )
         );
       },
-      (content) => {
-        setMessages((prev) => {
-          const final = prev.map((item) =>
-            item.id === assistantId
-              ? { ...item, content: content, streaming: false }
-              : item,
-          );
-          syncConversationMeta(activeConversationId, final);
-          return final;
+      async (content) => {
+        fullContent = content;
+        setMessages((prev) =>
+          prev.map((item) =>
+            item.id === assistantId ? { ...item, content, streaming: false } : item
+          )
+        );
+
+        // 保存助手消息到数据库
+        await api.createMessage(activeConversationId, {
+          role: 'assistant',
+          content,
+          citations,
         });
       },
       (error) => {
@@ -160,8 +250,8 @@ export default function ChatConversationPage() {
           prev.map((item) =>
             item.id === assistantId
               ? { ...item, content: '抱歉，获取回答时出现错误，请稍后重试。', streaming: false }
-              : item,
-          ),
+              : item
+          )
         );
       }
     );
@@ -169,33 +259,48 @@ export default function ChatConversationPage() {
 
   const sendMessage = () => {
     const question = input.trim();
-    if (!question) return;
+    if (!question || loading) return;
     setInput('');
-    sendMessageToCoze(question);
+    sendMessageToLLM(question);
   };
 
-  const createNewConversation = () => {
-    const conversationId = `chat_${crypto.randomUUID().slice(0, 8)}`;
-    const now = new Date().toISOString();
-    const kbName = activeKb?.name ?? '当前知识库';
-    const newChat: Conversation = {
-      id: conversationId,
-      knowledgeBaseId: activeKbId,
-      title: '新对话',
-      messageCount: 1,
-      createdAt: now,
-      updatedAt: now,
-    };
-    addConversation(newChat, [createWelcomeMessage(kbName)]);
-    setInput('');
-    setLiveCitations([]);
-    router.push(chatPath(activeKbId, conversationId));
-    message.success('已开始新对话');
+  const createNewConversation = async () => {
+    if (!activeKbId) return;
+
+    setLoading(true);
+    try {
+      const result = await api.createConversation(activeKbId, '新对话');
+      const newConversation = result.data;
+
+      // 添加欢迎消息
+      const kbName = activeKb?.name ?? '当前知识库';
+      const welcomeMsg = createWelcomeMessage(kbName);
+      await api.createMessage(newConversation.id, {
+        role: welcomeMsg.role,
+        content: welcomeMsg.content,
+      });
+
+      // 刷新对话列表
+      await fetchConversations(activeKbId);
+      setMessages([
+        {
+          ...welcomeMsg,
+          id: welcomeMsg.id,
+        },
+      ]);
+
+      router.push(chatPath(activeKbId, newConversation.id));
+      message.success('已开始新对话');
+    } catch (error) {
+      console.error('创建对话失败:', error);
+      message.error('创建对话失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openConversation = (conversationId: string) => {
     setLiveCitations([]);
-    ensureConversationMessages(conversationId, activeKb?.name ?? '当前知识库');
     router.push(chatPath(activeKbId, conversationId));
   };
 
@@ -243,9 +348,7 @@ export default function ChatConversationPage() {
               </button>
             ))
           ) : (
-            <span className="hub-empty-hint">
-              当前知识库暂无对话
-            </span>
+            <span className="hub-empty-hint">当前知识库暂无对话</span>
           )}
         </div>
 
@@ -254,7 +357,12 @@ export default function ChatConversationPage() {
             <span>⚙️</span>
             <span>系统设置</span>
           </button>
-          <button type="button" className="ant-btn ant-btn-primary ant-btn-block" onClick={createNewConversation}>
+          <button
+            type="button"
+            className="ant-btn ant-btn-primary ant-btn-block"
+            onClick={createNewConversation}
+            disabled={loading}
+          >
             新建对话
           </button>
         </div>
@@ -271,11 +379,9 @@ export default function ChatConversationPage() {
               <Select
                 value={activeKbId}
                 onChange={(kbId) => {
-                  const chatsForKb = conversationList.filter((chat) => chat.knowledgeBaseId === kbId);
-                  const targetChat = chatsForKb.find((chat) => chat.id === activeConversationId) ?? chatsForKb[0];
-                  router.push(chatPath(kbId, targetChat?.id));
+                  router.push(chatPath(kbId));
                 }}
-                options={cozeDatasets.map((kb) => ({ value: kb.dataset_id, label: kb.name }))}
+                options={knowledgeBases.map((kb) => ({ value: kb.id, label: kb.name }))}
               />
             </div>
             <ChatMessageList messages={messages} currentUser={currentUser} />
@@ -283,7 +389,14 @@ export default function ChatConversationPage() {
           </div>
           <ChatSidebar
             liveCitations={liveCitations}
-            conversations={kbConversations}
+            conversations={kbConversations.map((c) => ({
+              id: c.id,
+              knowledgeBaseId: c.knowledgeId,
+              title: c.title,
+              messageCount: c.messageCount,
+              createdAt: c.createdAt,
+              updatedAt: c.updatedAt,
+            }))}
             activeConversationId={activeConversationId}
             onCitationOpen={goToKnowledge}
             onConversationSelect={openConversation}

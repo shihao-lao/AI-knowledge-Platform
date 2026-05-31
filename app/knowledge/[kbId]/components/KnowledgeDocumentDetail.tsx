@@ -57,10 +57,6 @@ export default function KnowledgeDocumentDetail({ document: doc }: KnowledgeDocu
     <div className="knowledge-detail">
       <div className="knowledge-detail__toolbar">
         <Typography.Title level={3}>{doc.title}：内容解析与知识摘要</Typography.Title>
-        <div>
-          <Button icon={<ExportOutlined />}>导出</Button>
-          <Button type="primary">编辑</Button>
-        </div>
       </div>
       <Typography.Paragraph>
         当前内容已经被解析为可检索的知识片段，后续提问时系统会优先召回相关段落，并在回答中给出来源。

@@ -4,7 +4,7 @@ const COZE_CHAT_TOKEN = process.env.NEXT_PUBLIC_COZE_CHAT_TOKEN!;
 const DEFAULT_BOT_ID = process.env.NEXT_PUBLIC_COZE_BOT_ID!;
 
 interface ChatMessage {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
@@ -37,13 +37,23 @@ export async function sendChatMessage(
     console.log('[Coze Chat] user_id:', userId);
     console.log('[Coze Chat] messages count:', messages.length);
 
-    // 构建 Coze 请求格式
-    const additionalMessages: CozeMessage[] = messages.map(m => ({
-      role: m.role,
-      type: m.role === 'user' ? 'question' : 'answer',
-      content_type: 'text',
-      content: m.content,
-    }));
+    // 构建 Coze 请求格式，过滤 system 消息并将其内容添加到第一条用户消息中
+    const systemMessages = messages.filter(m => m.role === 'system');
+    const nonSystemMessages = messages.filter(m => m.role !== 'system');
+    const systemContent = systemMessages.map(m => m.content).join('\n\n');
+
+    const additionalMessages: CozeMessage[] = nonSystemMessages.map((m, i) => {
+      // 将 system 内容添加到第一条用户消息前面
+      const content = i === 0 && systemContent
+        ? `${systemContent}\n\n${m.content}`
+        : m.content;
+      return {
+        role: m.role as 'user' | 'assistant',
+        type: m.role === 'user' ? 'question' : 'answer',
+        content_type: 'text',
+        content,
+      };
+    });
 
     const requestData = {
       bot_id: botIdToUse,

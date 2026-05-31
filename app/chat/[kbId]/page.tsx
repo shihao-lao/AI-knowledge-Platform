@@ -4,53 +4,60 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { chatPath } from '@/lib/paths';
 import { createWelcomeMessage } from '@/lib/chat';
-import { useChatStore, useConversationsByKb } from '@/stores/chat-store';
-import { listDatasets, type DatasetInfo } from '@/app/api/kb';
-import type { Conversation } from '@/types';
+import { api, type ApiKnowledge } from '@/lib/api-client';
 
 export default function ChatWorkspacePage() {
   const router = useRouter();
   const params = useParams();
   const kbIdParam = typeof params.kbId === 'string' ? params.kbId : undefined;
 
-  const [cozeDatasets, setCozeDatasets] = useState<DatasetInfo[]>([]);
-  const addConversation = useChatStore((s) => s.addConversation);
+  const [knowledgeBases, setKnowledgeBases] = useState<ApiKnowledge[]>([]);
 
   const activeKbId =
-    kbIdParam && cozeDatasets.some((kb) => kb.dataset_id === kbIdParam)
+    kbIdParam && knowledgeBases.some((kb) => kb.id === kbIdParam)
       ? kbIdParam
-      : cozeDatasets[0]?.dataset_id ?? '';
-  const activeKb = cozeDatasets.find((item) => item.dataset_id === activeKbId) ?? cozeDatasets[0];
-  const kbConversations = useConversationsByKb(activeKbId);
+      : knowledgeBases[0]?.id ?? '';
 
   useEffect(() => {
-    listDatasets().then((result) => {
-      if (result.code === 0 && result.data?.dataset_list) {
-        setCozeDatasets(result.data.dataset_list);
-      }
-    });
+    api.listKnowledge().then((result) => setKnowledgeBases(result.data));
   }, []);
 
   useEffect(() => {
     if (!activeKbId) return;
-    if (kbConversations[0]) {
-      router.replace(chatPath(activeKbId, kbConversations[0].id));
-    } else {
-      // 没有对话时自动创建新对话
-      const conversationId = `chat_${crypto.randomUUID().slice(0, 8)}`;
-      const now = new Date().toISOString();
-      const newChat: Conversation = {
-        id: conversationId,
-        knowledgeBaseId: activeKbId,
-        title: '新对话',
-        messageCount: 1,
-        createdAt: now,
-        updatedAt: now,
-      };
-      addConversation(newChat, [createWelcomeMessage(activeKb?.name ?? '当前知识库')]);
-      router.replace(chatPath(activeKbId, conversationId));
-    }
-  }, [activeKbId, kbConversations, router, addConversation, activeKb?.name]);
+
+    let cancelled = false;
+
+    const init = async () => {
+      try {
+        // Check for existing conversations in the database
+        const result = await api.listConversations(activeKbId);
+        if (cancelled) return;
+
+        if (result.data.length > 0) {
+          router.replace(chatPath(activeKbId, result.data[0].id));
+        } else {
+          // No conversations exist — create one via the API
+          const kb = knowledgeBases.find((kb) => kb.id === activeKbId);
+          const convResult = await api.createConversation(activeKbId, '新对话');
+          if (cancelled) return;
+
+          // Add welcome message
+          const welcomeMsg = createWelcomeMessage(kb?.name ?? '当前知识库');
+          await api.createMessage(convResult.data.id, {
+            role: welcomeMsg.role,
+            content: welcomeMsg.content,
+          });
+
+          router.replace(chatPath(activeKbId, convResult.data.id));
+        }
+      } catch (err) {
+        console.error('初始化对话失败:', err);
+      }
+    };
+
+    init();
+    return () => { cancelled = true; };
+  }, [activeKbId, knowledgeBases, router]);
 
   return null;
 }

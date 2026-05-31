@@ -51,7 +51,7 @@ export interface Citation {
   chunkIndex: number;
   preview: string;
   confidenceScore: number;
-  color: string;
+  color?: string;
 }
 
 export interface Message {

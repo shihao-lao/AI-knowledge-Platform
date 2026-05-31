@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Knowledge {
+  id          String   @id
+  name        String
+  description String   @default("")
+  visibility  String   @default("private")
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  documents     Document[]
+  conversations Conversation[]
+}
+
+model Document {
+  id          String   @id
+  knowledgeId String
+  filename    String
+  filepath    String   @default("")
+  mimeType    String   @default("application/octet-stream")
+  size        Int      @default(0)
+  parseStatus String   @default("pending")
+  chunkCount  Int      @default(0)
+  charCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  knowledge Knowledge @relation(fields: [knowledgeId], references: [id], onDelete: Cascade)
+  chunks    Chunk[]
+}
+
+model Chunk {
+  id         String   @id
+  documentId String
+  chunkIndex Int
+  content    String
+  tokenCount Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
+  id            String    @id
+  knowledgeId   String
+  title         String    @default("新对话")
+  messageCount  Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  knowledge Knowledge @relation(fields: [knowledgeId], references: [id], onDelete: Cascade)
+  messages  Message[]
+}
+
+model Message {
+  id             String   @id
+  conversationId String
+  role           String   // 'user' | 'assistant' | 'system'
+  content        String
+  citations      String   @default("[]")  // JSON array of citations
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
