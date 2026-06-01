@@ -20,7 +20,7 @@ export default function HomePage() {
         <div className="home-header__inner">
           <Space size={8}>
             <span className="home-logo">知</span>
-            <Typography.Text strong style={{ fontSize: 18, color: '#fff' }}>
+            <Typography.Text strong className="home-header__title">
               AI 知识库
             </Typography.Text>
           </Space>
@@ -102,21 +102,21 @@ export default function HomePage() {
           <Row gutter={[24, 24]} justify="center">
             <Col xs={24} sm={8}>
               <Space direction="vertical" align="center" style={{ textAlign: 'center' }}>
-                <SafetyOutlined style={{ fontSize: 32, color: '#1677ff' }} />
+                <SafetyOutlined className="home-advantage-icon" />
                 <Typography.Text strong>数据安全</Typography.Text>
                 <Typography.Text type="secondary">文档加密存储，权限精细控制</Typography.Text>
               </Space>
             </Col>
             <Col xs={24} sm={8}>
               <Space direction="vertical" align="center" style={{ textAlign: 'center' }}>
-                <ThunderboltOutlined style={{ fontSize: 32, color: '#1677ff' }} />
+                <ThunderboltOutlined className="home-advantage-icon" />
                 <Typography.Text strong>快速响应</Typography.Text>
                 <Typography.Text type="secondary">毫秒级检索，流式输出回答</Typography.Text>
               </Space>
             </Col>
             <Col xs={24} sm={8}>
               <Space direction="vertical" align="center" style={{ textAlign: 'center' }}>
-                <BookOutlined style={{ fontSize: 32, color: '#1677ff' }} />
+                <BookOutlined className="home-advantage-icon" />
                 <Typography.Text strong>来源可溯</Typography.Text>
                 <Typography.Text type="secondary">每个回答附带引用，可验证</Typography.Text>
               </Space>

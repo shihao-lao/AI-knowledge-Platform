@@ -11,6 +11,7 @@
   --color-success: #10b981;
   --color-error: #ef4444;
   --color-warning: #f59e0b;
+  --color-info: #4f46e5;
 
   --color-text: #0f172a;
   --color-muted: #64748b;
@@ -21,14 +22,24 @@
 
   --sidebar: #0f172a;
   --sidebar-soft: #1e293b;
+  --sidebar-active-bg: rgba(79, 70, 229, 0.2);
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.07);
+  --sidebar-divider: rgba(255, 255, 255, 0.12);
+  --sidebar-text: rgba(255, 255, 255, 0.78);
+  --sidebar-text-muted: rgba(255, 255, 255, 0.45);
+  --sidebar-text-dim: rgba(255, 255, 255, 0.5);
 
   --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.06);
   --shadow-card-hover: 0 4px 16px rgba(79, 70, 229, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);
   --shadow-pop: 0 12px 40px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-bubble: 0 1px 4px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.04);
+  --shadow-composer: 0 -2px 16px rgba(15, 23, 42, 0.04);
 
   --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --duration-fast: 0.15s;
   --duration-normal: 0.2s;
+  --duration-slow: 0.35s;
 
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -82,6 +93,9 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
 .hub-brand {
@@ -99,11 +113,12 @@ textarea {
   place-items: center;
   border-radius: 8px;
   background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
-  transition: transform var(--duration-normal) var(--ease-out);
+  transition: transform var(--duration-normal) var(--ease-spring);
+  flex-shrink: 0;
 }
 
 .hub-brand:hover .hub-brand__mark {
-  transform: scale(1.05);
+  transform: scale(1.08) rotate(-3deg);
 }
 
 .hub-nav,
@@ -120,9 +135,9 @@ textarea {
 .chat-history {
   width: 100%;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--sidebar-text);
   cursor: pointer;
   text-align: left;
   transition: all var(--duration-fast) var(--ease-out);
@@ -139,20 +154,33 @@ textarea {
 .hub-nav__item:hover,
 .hub-kb:hover,
 .hub-chat-record:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--sidebar-hover-bg);
   color: #fff;
 }
 
 .hub-nav__item.is-active,
 .hub-kb.is-active,
 .hub-chat-record.is-active {
-  background: rgba(79, 70, 229, 0.2);
+  background: var(--sidebar-active-bg);
   color: #fff;
+  position: relative;
+}
+
+.hub-nav__item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-primary-light);
 }
 
 .hub-side-section {
   padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 1px solid var(--sidebar-divider);
 }
 
 .hub-section-title {
@@ -164,7 +192,7 @@ textarea {
 
 .hub-section-title .ant-typography,
 .hub-section-title span {
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--sidebar-text-muted);
 }
 
 .hub-section-title span {
@@ -185,7 +213,7 @@ textarea {
 }
 
 .hub-kb small {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--sidebar-text-dim);
 }
 
 .hub-chat-record {
@@ -211,11 +239,13 @@ textarea {
 }
 
 .hub-chat-record small {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--sidebar-text-dim);
 }
 
 .hub-sidebar__bottom {
   margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--sidebar-divider);
 }
 
 .hub-sidebar__bottom .ant-btn {
@@ -225,10 +255,11 @@ textarea {
   transition: all var(--duration-fast) var(--ease-out);
 }
 
-.hub-sidebar__bottom .ant-btn:hover {
-  background: rgba(79, 70, 229, 0.18) !important;
-  border-color: rgba(79, 70, 229, 0.25) !important;
-  color: #fff !important;
+.hub-sidebar__bottom .ant-btn.ant-btn-default:hover,
+.hub-sidebar__bottom .ant-btn.ant-btn-primary:hover {
+  background: rgba(79, 70, 229, 0.18);
+  border-color: rgba(79, 70, 229, 0.25);
+  color: #fff;
 }
 
 /* ── KB Create Choices ────────────────────────────────────────── */
@@ -366,6 +397,7 @@ textarea {
 
 .knowledge-card.is-expanded {
   border-color: var(--color-primary-light);
+  border-left: 3px solid var(--color-primary);
 }
 
 .knowledge-card__summary {
@@ -384,7 +416,7 @@ textarea {
 }
 
 .knowledge-card__summary:hover {
-  background: rgba(79, 70, 229, 0.015);
+  background: rgba(79, 70, 229, 0.04);
 }
 
 .knowledge-card__title {
@@ -395,6 +427,11 @@ textarea {
 
 .knowledge-card__title strong {
   font-size: 16px;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.knowledge-card__summary:hover .knowledge-card__title strong {
+  color: var(--color-primary);
 }
 
 .knowledge-card__title small {
@@ -662,8 +699,8 @@ textarea {
 .message-row.is-user .message-bubble {
   grid-column: 1;
   grid-row: 1;
-  background: #eef2ff;
-  border-color: rgba(79, 70, 229, 0.1);
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.06), rgba(124, 58, 237, 0.04));
+  border-color: rgba(79, 70, 229, 0.12);
 }
 
 .message-bubble {
@@ -672,7 +709,8 @@ textarea {
   border-radius: var(--radius-lg);
   background: var(--color-surface);
   padding: 14px 16px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  box-shadow: var(--shadow-bubble);
+  transition: box-shadow var(--duration-normal) var(--ease-out);
 }
 
 .message-bubble p {
@@ -725,11 +763,19 @@ textarea {
 .composer {
   margin: auto -24px 0;
   padding: 16px 24px 20px;
-  background: rgba(245, 247, 251, 0.94);
+  background: rgba(248, 250, 252, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--color-border);
+  box-shadow: var(--shadow-composer);
   display: grid;
   grid-template-columns: minmax(0, 1fr) 44px;
   gap: 10px;
+  transition: box-shadow var(--duration-normal) var(--ease-out);
+}
+
+.composer:focus-within {
+  box-shadow: 0 -4px 20px rgba(79, 70, 229, 0.06);
 }
 
 .composer .ant-btn {
@@ -740,7 +786,7 @@ textarea {
 .citation-card {
   width: 100%;
   border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-primary);
+  border-left: 4px solid var(--color-primary);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   padding: 12px;
@@ -755,6 +801,7 @@ textarea {
 .citation-card.is-active {
   transform: translateY(-1px);
   box-shadow: var(--shadow-card-hover);
+  border-left-width: 5px;
 }
 
 .citation-card__head,
@@ -935,6 +982,8 @@ textarea {
   .hub-sidebar {
     position: static;
     height: auto;
+    max-height: 50vh;
+    overflow-y: auto;
   }
 
   .hub-topbar {
@@ -999,6 +1048,10 @@ textarea {
   .auth-actions {
     grid-template-columns: 1fr;
   }
+
+  .chat-main {
+    width: 100%;
+  }
 }
 
 /* ── Home Page ────────────────────────────────────────────────── */
@@ -1032,6 +1085,11 @@ textarea {
   place-items: center;
 }
 
+.home-header__title {
+  font-size: 18px;
+  color: #fff;
+}
+
 .home-hero {
   padding: 100px 24px 80px;
   text-align: center;
@@ -1058,6 +1116,11 @@ textarea {
   height: 100%;
   border-radius: var(--radius-lg);
   text-align: center;
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
 }
 
 .feature-card .ant-card-body {
@@ -1068,6 +1131,11 @@ textarea {
   font-size: 48px;
   color: var(--color-primary);
   margin-bottom: 16px;
+  transition: transform var(--duration-normal) var(--ease-spring);
+}
+
+.feature-card:hover .feature-icon {
+  transform: scale(1.12);
 }
 
 .feature-card h4 {
@@ -1079,6 +1147,16 @@ textarea {
   margin: 0 auto;
   padding: 40px 24px 60px;
   border-top: 1px solid var(--color-border);
+}
+
+.home-advantage-icon {
+  font-size: 32px;
+  color: var(--color-primary);
+  transition: transform var(--duration-normal) var(--ease-spring);
+}
+
+.home-advantages .ant-space:hover .home-advantage-icon {
+  transform: scale(1.1);
 }
 
 .home-footer {
@@ -1276,8 +1354,61 @@ textarea {
   border-top: 1px dashed var(--color-border);
 }
 
-.kb-card__meta {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--color-border);
+/* ── Skill Code Block (extracted from inline styles) ─────────── */
+.skill-code-block {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  max-height: 300px;
+  overflow-y: auto;
 }
+
+.skill-code-block .ant-typography {
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  margin: 0;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.ai-summary__skill-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+/* ── AI Loading Container ────────────────────────────────────── */
+.ai-loading-container {
+  padding: 16px 0;
+  text-align: center;
+  min-height: 60px;
+}
+
+/* ── KB Detail Card (expand panel) ──────────────────────────── */
+.kb-detail-card {
+  margin-top: -1px;
+  border-top: 2px solid var(--color-primary);
+}
+
+.kb-detail-close {
+  cursor: pointer;
+  color: var(--color-muted);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.kb-detail-close:hover {
+  color: var(--color-text);
+}
+
+.kb-card__detail-trigger {
+  cursor: pointer;
+}
+
+.kb-card__meta-sep {
+  color: var(--color-border);
+}
+
+/* ── Home Advantage Icon ────────────────────────────────────── */
+/* Already defined above in Home Page section */

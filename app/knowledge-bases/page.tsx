@@ -164,7 +164,7 @@ export default function KnowledgeBasesPage() {
                       <Link href={knowledgePath(kb.id)} key="open">
                         打开
                       </Link>,
-                      <span key="detail" onClick={() => toggleExpand(kb.id)} style={{ cursor: 'pointer' }}>
+                      <span key="detail" onClick={() => toggleExpand(kb.id)} className="kb-card__detail-trigger">
                         {isExpanded ? <CloseOutlined /> : <EyeOutlined />}
                         <span style={{ marginLeft: 4 }}>{isExpanded ? '收起' : '详情'}</span>
                       </span>,
@@ -202,7 +202,7 @@ export default function KnowledgeBasesPage() {
                     </div>
 
                     <div className="kb-card__meta">
-                      <Space split={<span style={{ color: '#d9d9d9' }}>|</span>}>
+                      <Space split={<span className="kb-card__meta-sep">|</span>}>
                         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                           <UserOutlined style={{ marginRight: 4 }} />
                           {kb.status === 'active' ? '活跃' : kb.status}
@@ -217,7 +217,7 @@ export default function KnowledgeBasesPage() {
                   {isExpanded && (
                     <Card
                       size="small"
-                      style={{ marginTop: -1, borderTop: '2px solid #1677ff' }}
+                      className="kb-detail-card"
                       title={
                         <Space>
                           <InfoCircleOutlined />
@@ -226,7 +226,7 @@ export default function KnowledgeBasesPage() {
                       }
                       extra={
                         <CloseOutlined
-                          style={{ cursor: 'pointer', color: '#999' }}
+                          className="kb-detail-close"
                           onClick={() => toggleExpand(kb.id)}
                         />
                       }

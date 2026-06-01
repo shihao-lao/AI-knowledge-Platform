@@ -183,7 +183,7 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
 
                 {summaryLoading && (
                   <Spin>
-                    <div style={{ padding: '16px 0', textAlign: 'center', minHeight: 60 }}>
+                    <div className="ai-loading-container">
                       <Typography.Text type="secondary">正在生成摘要...</Typography.Text>
                     </div>
                   </Spin>
@@ -212,9 +212,7 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
             {/* 专家 Skill 面板 */}
             {activeTab === 'skill' && (
               <>
-                <div
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}
-                >
+                <div className="ai-summary__skill-header">
                   <Typography.Title level={5} style={{ margin: 0 }}>
                     <ThunderboltOutlined style={{ marginRight: 6 }} />
                     专家 Skill
@@ -233,7 +231,7 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
 
                 {skillLoading && (
                   <Spin>
-                    <div style={{ padding: '16px 0', textAlign: 'center', minHeight: 60 }}>
+                    <div className="ai-loading-container">
                       <Typography.Text type="secondary">正在生成专家 Skill...</Typography.Text>
                     </div>
                   </Spin>
@@ -246,25 +244,8 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
                 )}
 
                 {skill && (
-                  <div
-                    style={{
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: 8,
-                      padding: 12,
-                      maxHeight: 300,
-                      overflowY: 'auto',
-                    }}
-                  >
-                    <Typography.Paragraph
-                      style={{
-                        fontSize: 13,
-                        lineHeight: 1.8,
-                        whiteSpace: 'pre-wrap',
-                        margin: 0,
-                        fontFamily: "'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace",
-                      }}
-                    >
+                  <div className="skill-code-block">
+                    <Typography.Paragraph>
                       {skill}
                     </Typography.Paragraph>
                   </div>
