@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEmbeddingProvider } from '@/lib/embedding';
 import { searchKnowledge } from '@/lib/lancedb/search';
+import { ensureTable } from '@/lib/lancedb/client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,6 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const embeddings = await getEmbeddingProvider();
+    await ensureTable(embeddings);
     const results = await searchKnowledge(embeddings, {
       query: query.trim(),
       knowledgeId: knowledgeId || undefined,

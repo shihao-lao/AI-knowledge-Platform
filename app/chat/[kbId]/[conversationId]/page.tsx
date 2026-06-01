@@ -1,6 +1,7 @@
 'use client';
 
-import { App, Select, Typography } from 'antd';
+import { App, Modal, Select, Typography } from 'antd';
+import { DeleteOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Citation, Message } from '@/types';
@@ -294,6 +295,28 @@ ${context}
     router.push(chatPath(activeKbId, conversationId));
   };
 
+  const deleteConversation = async (conversationId: string) => {
+    try {
+      await api.deleteConversation(conversationId);
+      const remaining = conversations.filter((c) => c.id !== conversationId);
+      setConversations(remaining);
+
+      // 如果删除的是当前对话，跳转到另一个对话或创建新对话
+      if (conversationId === activeConversationId) {
+        if (remaining.length > 0) {
+          const next = remaining.find((c) => c.knowledgeId === activeKbId) || remaining[0];
+          router.push(chatPath(activeKbId, next.id));
+        } else {
+          createNewConversation();
+        }
+      }
+      message.success('对话已删除');
+    } catch (err) {
+      console.error('删除对话失败:', err);
+      message.error('删除对话失败');
+    }
+  };
+
   const goToKnowledge = () => {
     router.push(knowledgePath(activeKbId));
   };
@@ -324,18 +347,39 @@ ${context}
           </div>
           {kbConversations.length ? (
             kbConversations.map((chat) => (
-              <button
-                type="button"
+              <div
                 key={chat.id}
                 className={`hub-chat-record ${activeConversationId === chat.id ? 'is-active' : ''}`}
-                onClick={() => openConversation(chat.id)}
               >
-                <span>💬</span>
-                <span>
-                  <strong>{chat.title}</strong>
-                  <small>{chat.messageCount} 条消息 · 当前知识库</small>
-                </span>
-              </button>
+                <button
+                  type="button"
+                  className="hub-chat-record__btn"
+                  onClick={() => openConversation(chat.id)}
+                >
+                  <span>💬</span>
+                  <span>
+                    <strong>{chat.title}</strong>
+                    <small>{chat.messageCount} 条消息 · 当前知识库</small>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="hub-chat-record__delete"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    Modal.confirm({
+                      title: '确定删除此对话？',
+                      content: '删除后不可恢复',
+                      okText: '删除',
+                      cancelText: '取消',
+                      okButtonProps: { danger: true },
+                      onOk: () => deleteConversation(chat.id),
+                    });
+                  }}
+                >
+                  <DeleteOutlined />
+                </button>
+              </div>
             ))
           ) : (
             <span className="hub-empty-hint">当前知识库暂无对话</span>
@@ -390,6 +434,7 @@ ${context}
             activeConversationId={activeConversationId}
             onCitationOpen={goToKnowledge}
             onConversationSelect={openConversation}
+            onConversationDelete={deleteConversation}
           />
         </section>
       </main>

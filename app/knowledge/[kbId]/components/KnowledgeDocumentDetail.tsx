@@ -4,6 +4,8 @@ import { ExportOutlined } from '@ant-design/icons';
 import { Button, Progress, Tag, Typography } from 'antd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import rehypePrism from 'rehype-prism-plus';
 import type { DocumentStatus, KnowledgeDocument } from '@/types';
 
 const statusMeta: Record<DocumentStatus, { label: string; color: string }> = {
@@ -19,14 +21,6 @@ interface KnowledgeDocumentDetailProps {
   document: KnowledgeDocument;
 }
 
-/** 检测内容是否包含 HTML 标签 */
-function isHtmlContent(content: string): boolean {
-  // 检测常见的 HTML 标签
-  const htmlTagPattern = /<[a-z][\s\S]*>/i;
-  return htmlTagPattern.test(content);
-}
-
-/** 渲染内容 - 自动检测 HTML 或 Markdown */
 function ContentRenderer({ content }: { content: string }) {
   if (!content) {
     return (
@@ -36,15 +30,11 @@ function ContentRenderer({ content }: { content: string }) {
     );
   }
 
-  // 检测是否为 HTML 内容
-  if (isHtmlContent(content)) {
-    return <div className="html-content" dangerouslySetInnerHTML={{ __html: content }} />;
-  }
-
-  // Markdown 内容
   return (
     <div className="html-content">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw, rehypePrism]}>
+        {content}
+      </ReactMarkdown>
     </div>
   );
 }

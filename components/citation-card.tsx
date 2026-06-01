@@ -10,6 +10,12 @@ interface CitationCardProps {
   onOpen: (citation: Citation) => void;
 }
 
+function getRelevanceTier(score: number): { label: string; color: string } {
+  if (score >= 0.85) return { label: '高度相关', color: '#52c41a' };
+  if (score >= 0.65) return { label: '较为相关', color: '#faad14' };
+  return { label: '一般相关', color: '#ff7a45' };
+}
+
 function CitationCard({ citation, active, onOpen }: CitationCardProps) {
   const Icon = citation.documentTitle.endsWith('.pdf')
     ? FilePdfOutlined
@@ -17,10 +23,14 @@ function CitationCard({ citation, active, onOpen }: CitationCardProps) {
       ? FileMarkdownOutlined
       : FileTextOutlined;
 
+  const percent = Math.round(citation.confidenceScore * 100);
+  const tier = getRelevanceTier(citation.confidenceScore);
+  const barColor = citation.confidenceScore >= 0.85 ? '#52c41a' : citation.confidenceScore >= 0.65 ? '#faad14' : '#ff7a45';
+
   return (
     <button
       className={`citation-card ${active ? 'is-active' : ''}`}
-      style={{ borderLeftColor: citation.color }}
+      style={{ borderLeftColor: barColor }}
       onClick={() => onOpen(citation)}
       type="button"
     >
@@ -35,13 +45,16 @@ function CitationCard({ citation, active, onOpen }: CitationCardProps) {
       </Typography.Paragraph>
       <span className="citation-card__meta">
         <span>第 {citation.chunkIndex} 段</span>
-        <span>{Math.round(citation.confidenceScore * 100)}% 匹配</span>
+        <span className="citation-card__score" style={{ color: barColor }}>
+          {tier.label} {percent}%
+        </span>
       </span>
       <Progress
-        percent={Math.round(citation.confidenceScore * 100)}
+        percent={percent}
         showInfo={false}
         size="small"
-        strokeColor={citation.color}
+        strokeColor={barColor}
+        trailColor="rgba(0,0,0,0.06)"
       />
       <span className="citation-card__action">点击查看原文</span>
     </button>

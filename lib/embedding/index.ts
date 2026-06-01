@@ -1,25 +1,38 @@
-import { OpenAIEmbeddings } from '@langchain/openai';
-import type { Embeddings } from '@langchain/core/embeddings';
+import { LocalHashEmbeddings } from './local-embedding';
 
-export type EmbeddingProvider = 'openai' | 'deepseek' | 'tensorflow';
+// OpenAI/DeepSeek embeddings are loaded dynamically to avoid bundling issues
 
-const PROVIDER: EmbeddingProvider = (process.env.EMBEDDING_PROVIDER as EmbeddingProvider) || 'tensorflow';
+export type EmbeddingProvider = 'openai' | 'deepseek' | 'tensorflow' | 'local';
+
+const PROVIDER: EmbeddingProvider = (process.env.EMBEDDING_PROVIDER as EmbeddingProvider) || 'local';
 
 /** 每个 provider 对应的向量维度 */
 export const EMBEDDING_DIMENSION_MAP: Record<EmbeddingProvider, number> = {
   openai: 1536,
   deepseek: 1536,
   tensorflow: 512,
+  local: 512,
 };
 
-let cachedEmbeddings: Embeddings | null = null;
+interface EmbeddingInstance {
+  embedQuery(text: string): Promise<number[]>;
+  embedDocuments(texts: string[]): Promise<number[][]>;
+}
+
+let cachedEmbeddings: EmbeddingInstance | null = null;
 let cachedProvider: EmbeddingProvider | null = null;
 
-export async function getEmbeddingProvider(): Promise<Embeddings> {
+export async function getEmbeddingProvider(): Promise<EmbeddingInstance> {
   if (cachedEmbeddings && cachedProvider === PROVIDER) return cachedEmbeddings;
 
+  if (PROVIDER === 'local') {
+    console.log(`[Embedding] provider=local, dim=512 (hash-based, no model download)`);
+    cachedEmbeddings = new LocalHashEmbeddings(512);
+    cachedProvider = PROVIDER;
+    return cachedEmbeddings;
+  }
+
   if (PROVIDER === 'tensorflow') {
-    // 先加载 TensorFlow.js CPU backend，再加载 embeddings
     const tf = await import('@tensorflow/tfjs');
     await tf.setBackend('cpu');
     const { TensorFlowEmbeddings } = await import('@langchain/community/embeddings/tensorflow');
@@ -48,6 +61,7 @@ export async function getEmbeddingProvider(): Promise<Embeddings> {
   const model = EMBEDDING_MODEL_MAP[PROVIDER];
   console.log(`[Embedding] provider=${PROVIDER}, model=${model}, baseURL=${baseURL}`);
 
+  const { OpenAIEmbeddings } = await import('@langchain/openai');
   cachedEmbeddings = new OpenAIEmbeddings({
     openAIApiKey: apiKey,
     model,

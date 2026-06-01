@@ -11,6 +11,7 @@ interface ChatSidebarProps {
   activeConversationId: string;
   onCitationOpen: (citation: Citation) => void;
   onConversationSelect: (conversationId: string) => void;
+  onConversationDelete: (conversationId: string) => void;
 }
 
 export default function ChatSidebar({
@@ -19,6 +20,7 @@ export default function ChatSidebar({
   activeConversationId,
   onCitationOpen,
   onConversationSelect,
+  onConversationDelete,
 }: ChatSidebarProps) {
   return (
     <aside className="chat-side">
@@ -26,13 +28,14 @@ export default function ChatSidebar({
       <Typography.Text type="secondary">回答生成时实时同步</Typography.Text>
       <div className="chat-side__citations">
         {liveCitations.map((citation) => (
-          <CitationCard key={citation.documentId} citation={citation} onOpen={onCitationOpen} />
+          <CitationCard key={`${citation.documentId}-${citation.chunkIndex}`} citation={citation} onOpen={onCitationOpen} />
         ))}
       </div>
       <ConversationHistory
         conversations={conversations}
         activeConversationId={activeConversationId}
         onSelect={onConversationSelect}
+        onDelete={onConversationDelete}
       />
     </aside>
   );

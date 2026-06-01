@@ -17,10 +17,11 @@ const DIMENSION_MAP: Record<string, number> = {
   openai: 1536,
   deepseek: 1536,
   tensorflow: 512,
+  local: 512,
 };
 
 export function getVectorDimension(): number {
-  const provider = process.env.EMBEDDING_PROVIDER || 'tensorflow';
+  const provider = process.env.EMBEDDING_PROVIDER || 'local';
   return DIMENSION_MAP[provider] ?? 512;
 }
 

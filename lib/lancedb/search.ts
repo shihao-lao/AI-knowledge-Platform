@@ -40,24 +40,33 @@ export async function searchKnowledge(embeddings: Embeddings, params: SearchPara
 
   const results = await queryBuilder.toArray();
 
-  const filtered = results
-    .filter((item: Record<string, unknown>) => {
-      const distance = (item._distance as number) ?? 0;
-      const score = 1 / (1 + distance);
-      return score >= scoreThreshold;
-    })
-    .slice(0, topK);
-
-  return filtered.map((item: Record<string, unknown>) => {
+  // Calculate raw scores (1 / (1 + distance)) for all results
+  const withScore = results.map((item: Record<string, unknown>) => {
     const distance = (item._distance as number) ?? 0;
-    const score = 1 / (1 + distance);
+    return { item, distance, rawScore: 1 / (1 + distance) };
+  });
+
+  // Filter by threshold
+  const filtered = withScore.filter((r) => r.rawScore >= scoreThreshold).slice(0, topK);
+
+  if (filtered.length === 0) return [];
+
+  // Normalize scores relative to the best match to avoid low absolute values
+  // with weaker embedding providers (e.g. local hash-based)
+  const maxDistance = Math.min(...filtered.map((r) => r.distance));
+  const minDistance = Math.max(...filtered.map((r) => r.distance));
+  const distanceRange = minDistance - maxDistance;
+
+  return filtered.map((r) => {
+    // Map distance to 0.5–1.0 range: closest → 1.0, farthest → 0.5
+    const normalized = distanceRange > 0 ? 0.5 + 0.5 * ((minDistance - r.distance) / distanceRange) : 1.0;
     return {
-      content: (item.text as string) ?? '',
-      score: Number(score.toFixed(4)),
-      chunkId: (item.chunkId as string) ?? '',
-      documentId: (item.documentId as string) ?? '',
-      filename: (item.filename as string) ?? '',
-      knowledgeId: (item.knowledgeId as string) ?? '',
+      content: (r.item.text as string) ?? '',
+      score: Number(normalized.toFixed(4)),
+      chunkId: (r.item.chunkId as string) ?? '',
+      documentId: (r.item.documentId as string) ?? '',
+      filename: (r.item.filename as string) ?? '',
+      knowledgeId: (r.item.knowledgeId as string) ?? '',
     };
   });
 }
