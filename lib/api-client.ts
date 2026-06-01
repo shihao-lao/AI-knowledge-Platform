@@ -1,3 +1,5 @@
+import type { Citation } from '@/types';
+
 export interface ApiKnowledge {
   id: string;
   name: string;
@@ -219,7 +221,7 @@ export const api = {
     data: {
       role: 'user' | 'assistant' | 'system';
       content: string;
-      citations?: any[];
+      citations?: Citation[];
     },
   ): Promise<{ data: ApiMessage }> {
     return request(`${BASE}/conversation/${conversationId}/message`, {

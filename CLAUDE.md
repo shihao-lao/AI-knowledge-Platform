@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AI 知识库智能问答平台 — an AI Knowledge Base Q&A platform built with Next.js 16 (App Router) + TypeScript. Currently a **frontend-only prototype** with no backend: all data is mocked in-memory via Zustand + `data/mock.ts`. No API routes exist.
+AI 知识库智能问答平台 — an AI Knowledge Base Q&A platform built with Next.js 16 (App Router) + TypeScript. Uses Prisma + LanceDB for backend, and Xiaomi MiMo (`mimo-v2.5`) as the LLM for chat completions via `/api/chat` (streaming SSE). Document summaries and expert skills are generated via `lib/mimo-api.ts`.
 
 ## Commands
 

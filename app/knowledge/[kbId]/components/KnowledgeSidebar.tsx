@@ -5,7 +5,6 @@ import { CopyOutlined, CheckOutlined, RobotOutlined, ThunderboltOutlined } from 
 import { useEffect, useState } from 'react';
 import type { KnowledgeDocument } from '@/types';
 import { formatSize, fileTypeText } from '@/lib/document';
-import { generateDocSummary, generateExpertSkill } from '@/lib/mimo-api';
 
 type TabKey = 'summary' | 'skill';
 
@@ -43,9 +42,16 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
     setSummaryError('');
     setSummaryLoading(true);
 
-    generateDocSummary(expandedDoc.title, expandedDoc.content)
-      .then((result) => {
-        if (!cancelled) setSummary(result);
+    fetch('/api/mimo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'summary', title: expandedDoc.title, content: expandedDoc.content }),
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return;
+        if (json.error) throw new Error(json.error);
+        setSummary(json.data);
       })
       .catch((err) => {
         if (!cancelled) setSummaryError(err.message || '生成摘要失败');
@@ -68,9 +74,16 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
     setSkillError('');
     setSkillLoading(true);
 
-    generateExpertSkill(expandedDoc.title, expandedDoc.content)
-      .then((result) => {
-        if (!cancelled) setSkill(result);
+    fetch('/api/mimo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'skill', title: expandedDoc.title, content: expandedDoc.content }),
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return;
+        if (json.error) throw new Error(json.error);
+        setSkill(json.data);
       })
       .catch((err) => {
         if (!cancelled) setSkillError(err.message || '生成专家 Skill 失败');
@@ -118,7 +131,7 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
             </div>
             <div>
               <span>文档描述</span>
-              <strong style={{ fontWeight: 400, fontSize: 13, lineHeight: 1.6 }}>
+              <strong className="sidebar-desc">
                 {expandedDoc.content
                   ? expandedDoc.content.slice(0, 120) + (expandedDoc.content.length > 120 ? '...' : '')
                   : '暂无描述'}
@@ -177,32 +190,32 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
             {activeTab === 'summary' && (
               <>
                 <Typography.Title level={5}>
-                  <RobotOutlined style={{ marginRight: 6 }} />
+                  <RobotOutlined className="sidebar-icon" />
                   AI 智能摘要
                 </Typography.Title>
 
                 {summaryLoading && (
                   <Spin>
-                    <div style={{ padding: '16px 0', textAlign: 'center', minHeight: 60 }}>
+                    <div className="sidebar-loading">
                       <Typography.Text type="secondary">正在生成摘要...</Typography.Text>
                     </div>
                   </Spin>
                 )}
 
                 {summaryError && (
-                  <Typography.Paragraph type="danger" style={{ fontSize: 13 }}>
+                  <Typography.Paragraph type="danger" className="sidebar-error">
                     {summaryError}
                   </Typography.Paragraph>
                 )}
 
                 {summary && (
-                  <Typography.Paragraph style={{ fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
+                  <Typography.Paragraph className="sidebar-summary">
                     {summary}
                   </Typography.Paragraph>
                 )}
 
                 {!summaryLoading && !summaryError && !summary && (
-                  <Typography.Paragraph type="secondary" style={{ fontSize: 13 }}>
+                  <Typography.Paragraph type="secondary" className="sidebar-placeholder">
                     暂无摘要，请上传文档后自动生成。
                   </Typography.Paragraph>
                 )}
@@ -212,11 +225,9 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
             {/* 专家 Skill 面板 */}
             {activeTab === 'skill' && (
               <>
-                <div
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}
-                >
-                  <Typography.Title level={5} style={{ margin: 0 }}>
-                    <ThunderboltOutlined style={{ marginRight: 6 }} />
+                <div className="sidebar-skill-header">
+                  <Typography.Title level={5}>
+                    <ThunderboltOutlined className="sidebar-icon" />
                     专家 Skill
                   </Typography.Title>
                   {skill && (
@@ -233,52 +244,35 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
 
                 {skillLoading && (
                   <Spin>
-                    <div style={{ padding: '16px 0', textAlign: 'center', minHeight: 60 }}>
+                    <div className="sidebar-loading">
                       <Typography.Text type="secondary">正在生成专家 Skill...</Typography.Text>
                     </div>
                   </Spin>
                 )}
 
                 {skillError && (
-                  <Typography.Paragraph type="danger" style={{ fontSize: 13 }}>
+                  <Typography.Paragraph type="danger" className="sidebar-error">
                     {skillError}
                   </Typography.Paragraph>
                 )}
 
                 {skill && (
-                  <div
-                    style={{
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: 8,
-                      padding: 12,
-                      maxHeight: 300,
-                      overflowY: 'auto',
-                    }}
-                  >
-                    <Typography.Paragraph
-                      style={{
-                        fontSize: 13,
-                        lineHeight: 1.8,
-                        whiteSpace: 'pre-wrap',
-                        margin: 0,
-                        fontFamily: "'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace",
-                      }}
-                    >
+                  <div className="sidebar-skill-content">
+                    <Typography.Paragraph className="sidebar-skill-text">
                       {skill}
                     </Typography.Paragraph>
                   </div>
                 )}
 
                 {!skillLoading && !skillError && !skill && (
-                  <Typography.Paragraph type="secondary" style={{ fontSize: 13 }}>
+                  <Typography.Paragraph type="secondary" className="sidebar-placeholder">
                     基于文档内容自动生成专家级 System Prompt，可直接复制使用。
                   </Typography.Paragraph>
                 )}
               </>
             )}
 
-            <Button type="primary" block onClick={onGoToChat} style={{ marginTop: 12 }}>
+            <Button type="primary" block onClick={onGoToChat} className="sidebar-action">
               基于此文档提问
             </Button>
           </section>

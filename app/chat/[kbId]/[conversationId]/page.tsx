@@ -1,6 +1,6 @@
 'use client';
 
-import { App, Modal, Select, Typography } from 'antd';
+import { App, Select, Typography } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -9,7 +9,7 @@ import { currentUser } from '@/data/mock';
 import { chatPath, knowledgePath } from '@/lib/paths';
 import { createWelcomeMessage } from '@/lib/chat';
 import { sendChatMessage } from '@/app/api/chat';
-import { api, type ApiKnowledge, type ApiConversation, type ApiMessage } from '@/lib/api-client';
+import { api, type ApiKnowledge, type ApiConversation } from '@/lib/api-client';
 import ChatMessageList from './components/ChatMessageList';
 import ChatInputArea from './components/ChatInputArea';
 import ChatSidebar from './components/ChatSidebar';
@@ -20,7 +20,7 @@ export default function ChatConversationPage() {
   const kbIdParam = typeof params.kbId === 'string' ? params.kbId : undefined;
   const conversationIdParam = typeof params.conversationId === 'string' ? params.conversationId : undefined;
 
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
 
   const [knowledgeBases, setKnowledgeBases] = useState<ApiKnowledge[]>([]);
   const [conversations, setConversations] = useState<ApiConversation[]>([]);
@@ -37,6 +37,7 @@ export default function ChatConversationPage() {
       : (kbConversations[0]?.id ?? '');
 
   const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
   const [liveCitations, setLiveCitations] = useState<Citation[]>([]);
 
   // 获取知识库列表
@@ -147,24 +148,27 @@ export default function ChatConversationPage() {
       const searchResults = await api.search({
         query: question,
         knowledgeId: activeKbId,
-        topK: 5,
-        scoreThreshold: 0.3,
+        topK: 8,
+        scoreThreshold: 0.1,
       });
 
       if (searchResults.chunks.length > 0) {
-        context = searchResults.chunks.map((r, i) => `[${i + 1}] [来源: ${r.source}]\n${r.content}`).join('\n\n');
+        context = searchResults.chunks
+          .map((r, i) => `[${i + 1}] [来源: ${r.source}]\n${r.content}`)
+          .join('\n\n');
 
         citations = searchResults.chunks.map((r, i) => ({
           documentId: r.documentId,
           documentTitle: r.source,
           chunkIndex: i,
-          preview: r.content.substring(0, 100) + (r.content.length > 100 ? '...' : ''),
+          preview: r.content
+            .replace(/^\[文档:.*?\]\n/, '')
+            .substring(0, 100) + (r.content.length > 100 ? '...' : ''),
           confidenceScore: r.score,
           color: `hsl(${(i * 60) % 360}, 70%, 50%)`,
         }));
 
         setLiveCitations(citations);
-        console.log(`[RAG] 检索到 ${searchResults.chunks.length} 个相关片段`);
       }
     } catch (err) {
       console.error('[RAG] 检索失败:', err);
@@ -176,15 +180,16 @@ export default function ChatConversationPage() {
     if (context) {
       chatMessages.push({
         role: 'system',
-        content: `你是一个知识库助手。请基于以下参考资料回答用户的问题。
+        content: `你是一个知识库问答助手。请严格基于下方「参考资料」回答用户问题。
 
 ## 参考资料
 ${context}
 
-## 回答要求
-1. 优先使用参考资料中的内容回答
-2. 如果参考资料中没有相关信息，请基于你的知识回答，但要说明这不是来自知识库
-3. 回答时可以引用参考资料中的具体内容`,
+## 回答规则
+1. **只使用参考资料中的信息**回答，不要编造或推测参考资料未提及的内容
+2. 回答时标注引用来源，格式：[1]、[2] 等，对应参考资料中的编号
+3. 如果参考资料中没有相关信息，直接回答"根据现有知识库资料，未找到与此问题相关的内容"，不要尝试自行回答
+4. 回答简洁准确，使用中文`,
       });
     }
 
@@ -250,9 +255,10 @@ ${context}
 
   const sendMessage = () => {
     const question = input.trim();
-    if (!question || loading) return;
+    if (!question || loading || sending) return;
     setInput('');
-    sendMessageToLLM(question);
+    setSending(true);
+    sendMessageToLLM(question).finally(() => setSending(false));
   };
 
   const createNewConversation = async () => {
@@ -367,7 +373,7 @@ ${context}
                   className="hub-chat-record__delete"
                   onClick={(e) => {
                     e.stopPropagation();
-                    Modal.confirm({
+                    modal.confirm({
                       title: '确定删除此对话？',
                       content: '删除后不可恢复',
                       okText: '删除',
@@ -418,8 +424,8 @@ ${context}
                 options={knowledgeBases.map((kb) => ({ value: kb.id, label: kb.name }))}
               />
             </div>
-            <ChatMessageList messages={messages} currentUser={currentUser} />
-            <ChatInputArea value={input} onChange={setInput} onSend={sendMessage} />
+            <ChatMessageList messages={messages} userAvatar={currentUser.avatar} />
+            <ChatInputArea value={input} onChange={setInput} onSend={sendMessage} sending={sending} />
           </div>
           <ChatSidebar
             liveCitations={liveCitations}

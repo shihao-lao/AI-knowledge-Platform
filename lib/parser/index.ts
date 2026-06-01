@@ -12,7 +12,11 @@ class CustomTextLoader extends BaseDocumentLoader {
   }
 
   async load(): Promise<Document[]> {
-    const content = await readFile(this.filepath, 'utf-8');
+    let content = await readFile(this.filepath, 'utf-8');
+    // Strip BOM if present
+    if (content.charCodeAt(0) === 0xFEFF) {
+      content = content.slice(1);
+    }
     return [{ pageContent: content, metadata: { source: this.filepath } }];
   }
 }

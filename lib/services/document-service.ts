@@ -50,12 +50,25 @@ export const documentService = {
       const fullText = docs.map((d) => d.pageContent).join('\n');
       console.log(`[Ingest] ${docId}: parsed ${docs.length} docs, ${fullText.length} chars`);
 
+      if (!fullText || fullText.trim().length === 0) {
+        console.warn(`[Ingest] ${docId}: parsed content is empty`);
+        await documentRepo.updateParseStatus(docId, {
+          parseStatus: 'failed',
+          charCount: 0,
+        });
+        return;
+      }
+
       await documentRepo.updateParseStatus(docId, {
         parseStatus: 'chunking',
         charCount: fullText.length,
       });
 
-      const chunks = await chunkDocuments(docs);
+      const doc = await documentRepo.findById(docId);
+      const kbId = doc?.knowledgeId ?? '';
+      const contextPrefix = `[文档: ${doc?.filename ?? '未知'}]`;
+
+      const chunks = await chunkDocuments(docs, { contextPrefix });
       console.log(`[Ingest] ${docId}: chunked into ${chunks.length} chunks`);
 
       if (chunks.length === 0) {
@@ -78,9 +91,6 @@ export const documentService = {
           tokenCount: chunk.tokenCount,
         })),
       );
-
-      const doc = await documentRepo.findById(docId);
-      const kbId = doc?.knowledgeId ?? '';
 
       const embeddings = await getEmbeddingProvider();
       const texts = chunks.map((c) => c.content);

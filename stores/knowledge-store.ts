@@ -1,23 +1,5 @@
 import { create } from 'zustand';
-import { useShallow } from 'zustand/react/shallow';
-import type { KnowledgeBase, KnowledgeDocument, Visibility } from '@/types';
-
-export function buildKnowledgeBase(values: {
-  name: string;
-  description?: string;
-  visibility: Visibility;
-}): KnowledgeBase {
-  const now = new Date().toISOString();
-  return {
-    id: `kb_${crypto.randomUUID().slice(0, 8)}`,
-    name: values.name,
-    description: values.description ?? '',
-    visibility: values.visibility,
-    stats: { documentCount: 0, conversationCount: 0, memberCount: 1, lastActiveAt: now },
-    createdAt: now,
-    updatedAt: now,
-  };
-}
+import type { KnowledgeBase, KnowledgeDocument } from '@/types';
 
 function recalcDocStats(kbList: KnowledgeBase[], documents: KnowledgeDocument[]) {
   return kbList.map((kb) => ({
@@ -120,17 +102,4 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
   },
 }));
 
-export const useKnowledgeBases = () => useKnowledgeStore((s) => s.knowledgeBases);
-export const useDocuments = () => useKnowledgeStore((s) => s.documents);
 export const useExpandedDocId = () => useKnowledgeStore((s) => s.expandedDocId);
-
-export function useDocumentsByKb(kbId: string) {
-  return useKnowledgeStore(
-    useShallow((s) => {
-      const docs = s.documents.filter((doc) => doc.knowledgeBaseId === kbId);
-      return docs.length ? docs : EMPTY_ARRAY;
-    }),
-  );
-}
-
-const EMPTY_ARRAY: never[] = [];

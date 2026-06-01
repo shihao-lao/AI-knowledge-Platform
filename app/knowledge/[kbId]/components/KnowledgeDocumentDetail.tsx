@@ -1,21 +1,13 @@
 'use client';
 
-import { ExportOutlined } from '@ant-design/icons';
-import { Button, Progress, Tag, Typography } from 'antd';
+import { Button, Progress, Tag, Typography, message } from 'antd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
 import rehypePrism from 'rehype-prism-plus';
-import type { DocumentStatus, KnowledgeDocument } from '@/types';
-
-const statusMeta: Record<DocumentStatus, { label: string; color: string }> = {
-  uploading: { label: '上传中', color: 'processing' },
-  parsing: { label: '解析中', color: 'blue' },
-  chunking: { label: '切片中', color: 'gold' },
-  embedding: { label: '向量化中', color: 'purple' },
-  completed: { label: '已完成', color: 'green' },
-  failed: { label: '失败', color: 'red' },
-};
+import type { KnowledgeDocument } from '@/types';
+import { statusMeta } from '@/lib/constants';
 
 interface KnowledgeDocumentDetailProps {
   document: KnowledgeDocument;
@@ -32,7 +24,7 @@ function ContentRenderer({ content }: { content: string }) {
 
   return (
     <div className="html-content">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw, rehypePrism]}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw, rehypeSanitize, rehypePrism]}>
         {content}
       </ReactMarkdown>
     </div>
@@ -56,15 +48,20 @@ export default function KnowledgeDocumentDetail({ document: doc }: KnowledgeDocu
         {doc.status !== 'completed' && <Progress percent={doc.processingProgress} size="small" />}
         <ContentRenderer content={doc.content || ''} />
       </div>
-      <Typography.Paragraph>重点摘要：</Typography.Paragraph>
-      <ul className="knowledge-points">
-        <li>资料会经历上传、读取、解析、切片、向量化四个阶段。</li>
-        <li>完成后的知识片段可被 AI 对话检索，并作为回答依据。</li>
-        <li>引用来源需要能回到原文段落，保证回答可验证。</li>
-      </ul>
       <pre className="knowledge-code">
-        <button type="button">复制</button>
-        <code>{`知识片段示例：\n标题：${doc.title}\n状态：${statusMeta[doc.status].label}\n用途：用于当前知识库问答与引用溯源`}</code>
+        <button
+          type="button"
+          onClick={() => {
+            const text = `标题：${doc.title}\n状态：${statusMeta[doc.status].label}\n切片数：${doc.chunkCount || 0}\n用途：用于当前知识库问答与引用溯源`;
+            navigator.clipboard
+              .writeText(text)
+              .then(() => message.success('已复制'))
+              .catch(() => message.error('复制失败'));
+          }}
+        >
+          复制
+        </button>
+        <code>{`标题：${doc.title}\n状态：${statusMeta[doc.status].label}\n切片数：${doc.chunkCount || 0}\n用途：用于当前知识库问答与引用溯源`}</code>
       </pre>
     </div>
   );

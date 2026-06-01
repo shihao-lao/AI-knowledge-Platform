@@ -1,7 +1,7 @@
 'use client';
 
 import { DeleteOutlined, MessageOutlined } from '@ant-design/icons';
-import { Modal, Typography } from 'antd';
+import { App, Typography } from 'antd';
 import type { Conversation } from '@/types';
 
 interface ConversationHistoryProps {
@@ -17,6 +17,7 @@ export default function ConversationHistory({
   onSelect,
   onDelete,
 }: ConversationHistoryProps) {
+  const { modal } = App.useApp();
   return (
     <div className="chat-history-panel">
       <Typography.Title level={5}>历史对话</Typography.Title>
@@ -31,7 +32,7 @@ export default function ConversationHistory({
             className="chat-history__delete"
             onClick={(e) => {
               e.stopPropagation();
-              Modal.confirm({
+              modal.confirm({
                 title: '确定删除此对话？',
                 content: '删除后不可恢复',
                 okText: '删除',

@@ -20,13 +20,13 @@ export default function HomePage() {
         <div className="home-header__inner">
           <Space size={8}>
             <span className="home-logo">知</span>
-            <Typography.Text strong style={{ fontSize: 18, color: '#fff' }}>
+            <Typography.Text strong className="home-header__title">
               AI 知识库
             </Typography.Text>
           </Space>
           <Space size={16}>
             <Link href="/login">
-              <Button type="text" style={{ color: '#fff' }}>
+              <Button type="text" className="home-header__btn">
                 登录
               </Button>
             </Link>
@@ -40,7 +40,7 @@ export default function HomePage() {
       <Content>
         <section className="home-hero">
           <Typography.Title level={1}>团队知识，智能问答</Typography.Title>
-          <Typography.Paragraph type="secondary" style={{ fontSize: 18, maxWidth: 600, margin: '0 auto 32px' }}>
+          <Typography.Paragraph type="secondary" className="home-hero__subtitle">
             上传文档、构建知识库，让 AI 基于真实资料回答问题，每个回答都有来源可追溯。
           </Typography.Paragraph>
           <Space size={16}>
@@ -101,22 +101,22 @@ export default function HomePage() {
         <section className="home-advantages">
           <Row gutter={[24, 24]} justify="center">
             <Col xs={24} sm={8}>
-              <Space direction="vertical" align="center" style={{ textAlign: 'center' }}>
-                <SafetyOutlined style={{ fontSize: 32, color: '#1677ff' }} />
+              <Space direction="vertical" align="center" className="home-advantage">
+                <SafetyOutlined className="home-advantage-icon" />
                 <Typography.Text strong>数据安全</Typography.Text>
                 <Typography.Text type="secondary">文档加密存储，权限精细控制</Typography.Text>
               </Space>
             </Col>
             <Col xs={24} sm={8}>
-              <Space direction="vertical" align="center" style={{ textAlign: 'center' }}>
-                <ThunderboltOutlined style={{ fontSize: 32, color: '#1677ff' }} />
+              <Space direction="vertical" align="center" className="home-advantage">
+                <ThunderboltOutlined className="home-advantage-icon" />
                 <Typography.Text strong>快速响应</Typography.Text>
                 <Typography.Text type="secondary">毫秒级检索，流式输出回答</Typography.Text>
               </Space>
             </Col>
             <Col xs={24} sm={8}>
-              <Space direction="vertical" align="center" style={{ textAlign: 'center' }}>
-                <BookOutlined style={{ fontSize: 32, color: '#1677ff' }} />
+              <Space direction="vertical" align="center" className="home-advantage">
+                <BookOutlined className="home-advantage-icon" />
                 <Typography.Text strong>来源可溯</Typography.Text>
                 <Typography.Text type="secondary">每个回答附带引用，可验证</Typography.Text>
               </Space>

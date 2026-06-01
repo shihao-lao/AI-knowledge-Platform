@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const results = await searchKnowledge(embeddings, {
       query: query.trim(),
       knowledgeId: knowledgeId || undefined,
-      topK: Math.min(topK ?? 5, 20),
+      topK: Math.min(topK ?? 8, 20),
       scoreThreshold: scoreThreshold ?? 0,
       metadataFilter: metadataFilter || undefined,
     });

@@ -2,14 +2,24 @@
 
 import { App, Input, Space, Typography, Spin } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { knowledgePath, chatPath } from '@/lib/paths';
 import { api, type ApiKnowledge, type ApiDocument } from '@/lib/api-client';
 import { useExpandedDocId, useKnowledgeStore } from '@/stores/knowledge-store';
+import CreateDocumentModal from './components/CreateDocumentModal';
 import KnowledgeDocumentList from './components/KnowledgeDocumentList';
 import KnowledgeUploader from './components/KnowledgeUploader';
 import KnowledgeSidebar from './components/KnowledgeSidebar';
+
+const STAGE_TEXT: Record<string, string> = {
+  pending: '等待中',
+  parsing: '解析文档中',
+  chunking: '切片中',
+  embedding: '向量化中',
+  completed: '已完成',
+  failed: '处理失败',
+};
 
 export default function KnowledgeWorkspacePage() {
   const router = useRouter();
@@ -26,6 +36,7 @@ export default function KnowledgeWorkspacePage() {
   const [knowledgeBases, setKnowledgeBases] = useState<ApiKnowledge[]>([]);
   const [documents, setDocuments] = useState<ApiDocument[]>([]);
   const [loading, setLoading] = useState(false);
+  const [docModalOpen, setDocModalOpen] = useState(false);
 
   const activeKbId =
     kbIdParam && knowledgeBases.some((kb) => kb.id === kbIdParam) ? kbIdParam : (knowledgeBases[0]?.id ?? '');
@@ -92,15 +103,6 @@ export default function KnowledgeWorkspacePage() {
     [setExpandedDocId],
   );
 
-  const STAGE_TEXT: Record<string, string> = {
-    pending: '等待中',
-    parsing: '解析文档中',
-    chunking: '切片中',
-    embedding: '向量化中',
-    completed: '已完成',
-    failed: '处理失败',
-  };
-
   const pollDocumentStatus = async (docId: string) => {
     const maxAttempts = 120;
     for (let i = 0; i < maxAttempts; i++) {
@@ -162,6 +164,11 @@ export default function KnowledgeWorkspacePage() {
     router.push(chatPath(activeKbId));
   };
 
+  const handleCreateDoc = async (title: string, content: string) => {
+    const file = new File([content], `${title}.txt`, { type: 'text/plain' });
+    await handleUpload(file);
+  };
+
   const toKnowledgeDocument = useCallback(
     (doc: ApiDocument & { _content?: string }) => ({
       id: doc.id,
@@ -194,6 +201,12 @@ export default function KnowledgeWorkspacePage() {
     }),
     [],
   );
+
+  const filteredDocuments = useMemo(() => {
+    const kw = keyword.trim().toLowerCase();
+    if (!kw) return documents;
+    return documents.filter((d) => d.filename.toLowerCase().includes(kw));
+  }, [documents, keyword]);
 
   const expandedDoc = documents.find((d) => d.id === expandedDocId);
   const sidebarDoc = expandedDoc ? toKnowledgeDocument(expandedDoc) : null;
@@ -236,6 +249,10 @@ export default function KnowledgeWorkspacePage() {
         </div>
 
         <div className="hub-sidebar__bottom">
+          <button type="button" className="hub-nav__item" onClick={() => router.push('/knowledge-bases')}>
+            <span>📦</span>
+            <span>知识库管理</span>
+          </button>
           <button type="button" className="hub-nav__item">
             <span>⚙️</span>
             <span>系统设置</span>
@@ -252,7 +269,7 @@ export default function KnowledgeWorkspacePage() {
                 <Typography.Text type="secondary">{activeKb?.description || '暂无描述'}</Typography.Text>
               </div>
               <Space wrap>
-                <KnowledgeUploader onUpload={handleUpload} />
+                <KnowledgeUploader onUpload={handleUpload} onCreateManual={() => setDocModalOpen(true)} />
                 <Input
                   prefix={<SearchOutlined />}
                   placeholder="搜索当前知识库..."
@@ -263,7 +280,7 @@ export default function KnowledgeWorkspacePage() {
             </div>
             <Spin spinning={loading}>
               <KnowledgeDocumentList
-                documents={documents.map(toKnowledgeDocument)}
+                documents={filteredDocuments.map(toKnowledgeDocument)}
                 expandedDocId={expandedDocId}
                 onExpand={handleExpand}
                 onDelete={removeDocument}
@@ -273,6 +290,12 @@ export default function KnowledgeWorkspacePage() {
           <KnowledgeSidebar expandedDoc={sidebarDoc} onGoToChat={goToChat} />
         </section>
       </main>
+
+      <CreateDocumentModal
+        open={docModalOpen}
+        onClose={() => setDocModalOpen(false)}
+        onSubmit={handleCreateDoc}
+      />
     </div>
   );
 }

@@ -23,8 +23,6 @@ export async function sendChatMessage(
   try {
     const { messages, stream = true, enableSearch = true } = params;
 
-    console.log('[Chat] sending to /api/chat, messages:', messages.length, 'search:', enableSearch);
-
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -75,7 +73,6 @@ export async function sendChatMessage(
 
             if (data.type === 'done') {
               completed = true;
-              console.log('[Chat] answer finished, length:', fullContent.length);
               if (onCompleted) onCompleted(fullContent);
               continue;
             }

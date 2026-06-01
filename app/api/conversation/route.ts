@@ -25,9 +25,9 @@ export async function GET(request: NextRequest) {
         messageCount: c._count.messages,
       })),
     });
-  } catch (err: any) {
-    console.error('[Conversation API] GET error:', err);
-    return NextResponse.json({ error: '获取对话列表失败', details: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : '未知错误';
+    return NextResponse.json({ error: '获取对话列表失败', details: msg }, { status: 500 });
   }
 }
 
@@ -43,15 +43,15 @@ export async function POST(request: NextRequest) {
 
     const conversation = await prisma.conversation.create({
       data: {
-        id: `conv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        id: `conv_${crypto.randomUUID()}`,
         knowledgeId,
         title: title || '新对话',
       },
     });
 
     return NextResponse.json({ data: conversation });
-  } catch (err: any) {
-    console.error('[Conversation API] POST error:', err);
-    return NextResponse.json({ error: '创建对话失败', details: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : '未知错误';
+    return NextResponse.json({ error: '创建对话失败', details: msg }, { status: 500 });
   }
 }

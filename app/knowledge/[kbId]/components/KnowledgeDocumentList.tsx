@@ -1,19 +1,11 @@
 'use client';
 
 import { DeleteOutlined } from '@ant-design/icons';
-import { Button, Empty, Progress } from 'antd';
-import type { DocumentStatus, FileType, KnowledgeDocument } from '@/types';
+import { App, Button, Empty, Progress } from 'antd';
+import type { FileType, KnowledgeDocument } from '@/types';
 import { formatSize } from '@/lib/document';
+import { statusMeta } from '@/lib/constants';
 import KnowledgeDocumentDetail from './KnowledgeDocumentDetail';
-
-const statusMeta: Record<DocumentStatus, { label: string; color: string }> = {
-  uploading: { label: '上传中', color: 'processing' },
-  parsing: { label: '解析中', color: 'blue' },
-  chunking: { label: '切片中', color: 'gold' },
-  embedding: { label: '向量化中', color: 'purple' },
-  completed: { label: '已完成', color: 'green' },
-  failed: { label: '失败', color: 'red' },
-};
 
 const fileIconMap: Record<FileType, string> = {
   pdf: '📄',
@@ -36,6 +28,8 @@ export default function KnowledgeDocumentList({
   onExpand,
   onDelete,
 }: KnowledgeDocumentListProps) {
+  const { modal } = App.useApp();
+
   if (documents.length === 0) {
     return <Empty description="当前知识库暂无匹配内容" />;
   }
@@ -62,7 +56,8 @@ export default function KnowledgeDocumentList({
               <span className="knowledge-card__title">
                 <strong>{doc.title}</strong>
                 <small>
-                  创建于 2026-05-21 · 大小 {formatSize(doc.fileSize)} · {statusMeta[doc.status].label}
+                  创建于 {new Date(doc.createdAt).toLocaleDateString('zh-CN')} · 大小 {formatSize(doc.fileSize)} ·{' '}
+                  {statusMeta[doc.status].label}
                 </small>
               </span>
               {doc.status !== 'completed' && (
@@ -81,7 +76,14 @@ export default function KnowledgeDocumentList({
                   icon={<DeleteOutlined />}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onDelete(doc.id);
+                    modal.confirm({
+                      title: '确定删除此文档？',
+                      content: `删除「${doc.title}」后不可恢复，相关知识切片也将被清除。`,
+                      okText: '删除',
+                      cancelText: '取消',
+                      okButtonProps: { danger: true },
+                      onOk: () => onDelete(doc.id),
+                    });
                   }}
                 >
                   删除

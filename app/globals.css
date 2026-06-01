@@ -13,6 +13,8 @@
   --color-warning: #f59e0b;
 
   --color-text: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-tertiary: #94a3b8;
   --color-muted: #64748b;
 
   --color-border: #e2e8f0;
@@ -266,10 +268,10 @@ textarea {
   transition: all var(--duration-fast) var(--ease-out);
 }
 
-.hub-sidebar__bottom .ant-btn:hover {
-  background: rgba(79, 70, 229, 0.18) !important;
-  border-color: rgba(79, 70, 229, 0.25) !important;
-  color: #fff !important;
+.hub-sidebar .hub-sidebar__bottom .ant-btn:hover {
+  background: rgba(79, 70, 229, 0.18);
+  border-color: rgba(79, 70, 229, 0.25);
+  color: #fff;
 }
 
 /* ── KB Create Choices ────────────────────────────────────────── */
@@ -806,8 +808,8 @@ textarea {
   gap: 8px;
 }
 
-.citation-card__preview {
-  margin: 0 !important;
+.citation-card .citation-card__preview.ant-typography {
+  margin: 0;
   color: var(--color-muted);
 }
 
@@ -994,6 +996,75 @@ textarea {
   box-shadow: var(--shadow-pop);
 }
 
+/* ── Knowledge Sidebar ───────────────────────────────────────── */
+.sidebar-desc {
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.sidebar-icon {
+  margin-right: 6px;
+}
+
+.sidebar-loading {
+  padding: 16px 0;
+  text-align: center;
+  min-height: 60px;
+}
+
+.sidebar-error {
+  font-size: 13px;
+}
+
+.sidebar-summary {
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.sidebar-placeholder {
+  font-size: 13px;
+}
+
+.sidebar-skill-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.sidebar-skill-header .ant-typography {
+  margin: 0;
+}
+
+.sidebar-skill-content {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.sidebar-skill-text {
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  margin: 0;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.sidebar-action {
+  margin-top: 12px;
+}
+
+/* ── Home Page Advantages ────────────────────────────────────── */
+.home-advantage-icon {
+  font-size: 32px;
+  color: var(--color-primary);
+}
+
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 1180px) {
   .hub-shell {
@@ -1110,6 +1181,25 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.home-header__title {
+  font-size: 18px;
+  color: #fff;
+}
+
+.home-header__btn {
+  color: #fff;
+}
+
+.home-hero__subtitle {
+  font-size: 18px;
+  max-width: 600px;
+  margin: 0 auto 32px;
+}
+
+.home-advantage {
+  text-align: center;
 }
 
 .home-logo {
@@ -1368,8 +1458,53 @@ textarea {
   border-top: 1px dashed var(--color-border);
 }
 
-.kb-card__meta {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--color-border);
+.kb-card__detail {
+  margin-top: -1px;
+  border-top: 2px solid var(--color-primary);
+}
+
+.kb-card__detail-close {
+  cursor: pointer;
+  color: var(--color-muted);
+}
+
+.kb-card__meta-icon {
+  margin-right: 4px;
+}
+
+.kb-card__meta-text {
+  font-size: 12px;
+}
+
+.kb-card__meta-divider {
+  color: var(--color-border);
+}
+
+.kb-card__action-detail {
+  cursor: pointer;
+}
+
+.kb-card__action-detail .anticon + span {
+  margin-left: 4px;
+}
+
+.kb-card__body {
+  width: 100%;
+}
+
+.kb-card__icon-svg {
+  font-size: 48px;
+}
+
+.kb-card__info {
+  flex: 1;
+}
+
+.kb-card__name {
+  margin-bottom: 4px;
+}
+
+.kb-card__desc {
+  margin-bottom: 8px;
+  min-height: 44px;
 }

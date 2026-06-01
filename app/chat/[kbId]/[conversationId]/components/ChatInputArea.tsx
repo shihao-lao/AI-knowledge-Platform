@@ -7,9 +7,10 @@ interface ChatInputAreaProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
+  sending?: boolean;
 }
 
-export default function ChatInputArea({ value, onChange, onSend }: ChatInputAreaProps) {
+export default function ChatInputArea({ value, onChange, onSend, sending }: ChatInputAreaProps) {
   return (
     <div className="composer">
       <Input.TextArea
@@ -18,6 +19,7 @@ export default function ChatInputArea({ value, onChange, onSend }: ChatInputArea
         maxLength={2000}
         autoSize={{ minRows: 1, maxRows: 5 }}
         placeholder="向当前知识库提问，按 Enter 发送"
+        disabled={sending}
         onPressEnter={(event) => {
           if (!event.shiftKey) {
             event.preventDefault();
@@ -25,7 +27,7 @@ export default function ChatInputArea({ value, onChange, onSend }: ChatInputArea
           }
         }}
       />
-      <Button type="primary" icon={<SendOutlined />} onClick={onSend} />
+      <Button type="primary" icon={<SendOutlined />} onClick={onSend} loading={sending} disabled={sending} />
     </div>
   );
 }

@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server';
 import { webSearch, formatSearchResults } from '@/lib/search/web-search';
 
-const COZE_API_BASE = process.env.COZE_BASE_URL || process.env.NEXT_PUBLIC_COZE_API_BASE || 'https://api.coze.cn';
-const COZE_CHAT_TOKEN = process.env.COZE_API_KEY?.replace('Bearer ', '') || process.env.NEXT_PUBLIC_COZE_CHAT_TOKEN;
-const DEFAULT_BOT_ID = process.env.COZE_BOT_ID || process.env.NEXT_PUBLIC_COZE_BOT_ID;
+const MIMO_BASE_URL = process.env.MIMO_BASE_URL || 'https://api.xiaomimimo.com/v1';
+const MIMO_API_KEY = process.env.MIMO_API_KEY;
+const MIMO_MODEL = process.env.MIMO_MODEL || 'mimo-v2.5-pro';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (!COZE_CHAT_TOKEN || !DEFAULT_BOT_ID) {
-      return new Response(JSON.stringify({ error: 'Coze API 配置缺失' }), {
+    if (!MIMO_API_KEY) {
+      return new Response(JSON.stringify({ error: 'MiMo API 配置缺失' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -40,66 +40,68 @@ export async function POST(request: NextRequest) {
     let searchContext = '';
     if (enableSearch && lastUserMsg) {
       try {
-        console.log(`[Chat API] searching web for: ${lastUserMsg.content.slice(0, 50)}...`);
         const results = await webSearch(lastUserMsg.content, 5);
         if (results.length > 0) {
           searchContext = formatSearchResults(results);
-          console.log(`[Chat API] found ${results.length} web results`);
         }
       } catch (err) {
         console.error('[Chat API] web search failed:', err);
       }
     }
 
-    // 构建 Coze 请求
+    // 构建消息：将搜索结果注入系统消息
     const systemMessages = messages.filter((m) => m.role === 'system');
     const nonSystemMessages = messages.filter((m) => m.role !== 'system');
     const systemContent = systemMessages.map((m) => m.content).join('\n\n');
 
-    // 将搜索结果注入到系统消息中
     let enrichedSystemContent = systemContent;
     if (searchContext) {
       enrichedSystemContent += `\n\n## 联网搜索结果\n以下是与用户问题相关的最新网络搜索结果，请参考这些信息来回答：\n\n${searchContext}`;
     }
 
-    const additionalMessages = nonSystemMessages.map((m, i) => ({
-      role: m.role as 'user' | 'assistant',
-      type: m.role === 'user' ? 'question' : 'answer',
-      content_type: 'text',
-      content: i === 0 && enrichedSystemContent ? `${enrichedSystemContent}\n\n${m.content}` : m.content,
-    }));
+    // 构建 OpenAI 兼容格式的消息列表
+    const mimoMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
+
+    if (enrichedSystemContent) {
+      mimoMessages.push({ role: 'system', content: enrichedSystemContent });
+    }
+
+    for (const msg of nonSystemMessages) {
+      mimoMessages.push({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+      });
+    }
 
     const requestData = {
-      bot_id: DEFAULT_BOT_ID,
-      user_id: 'user_' + Date.now(),
+      model: MIMO_MODEL,
+      messages: mimoMessages,
       stream,
-      additional_messages: additionalMessages,
+      max_completion_tokens: 2048,
     };
 
-    console.log(`[Chat API] calling Coze API, bot=${DEFAULT_BOT_ID}, stream=${stream}`);
-
-    const cozeResponse = await fetch(`${COZE_API_BASE}/v3/chat`, {
+    const mimoResponse = await fetch(`${MIMO_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${COZE_CHAT_TOKEN}`,
+        Authorization: `Bearer ${MIMO_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestData),
     });
 
-    if (!cozeResponse.ok) {
-      const errorText = await cozeResponse.text();
-      console.error('[Chat API] Coze error:', cozeResponse.status, errorText);
-      return new Response(JSON.stringify({ error: `Coze API 错误: ${cozeResponse.status}` }), {
-        status: cozeResponse.status,
+    if (!mimoResponse.ok) {
+      const errorText = await mimoResponse.text();
+      console.error('[Chat API] MiMo error:', mimoResponse.status, errorText);
+      return new Response(JSON.stringify({ error: `MiMo API 错误: ${mimoResponse.status}` }), {
+        status: mimoResponse.status,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    // 流式响应：将 Coze SSE 转发给客户端
-    if (stream && cozeResponse.body) {
+    // 流式响应：将 MiMo SSE 转发给客户端
+    if (stream && mimoResponse.body) {
       const encoder = new TextEncoder();
-      const reader = cozeResponse.body.getReader();
+      const reader = mimoResponse.body.getReader();
       const decoder = new TextDecoder();
 
       const readableStream = new ReadableStream({
@@ -116,51 +118,28 @@ export async function POST(request: NextRequest) {
 
               for (const line of lines) {
                 const trimmed = line.trim();
-                if (!trimmed) continue;
-
-                // Coze v3 SSE 格式：event:xxx 和 data:{json} 分行
-                if (trimmed.startsWith('event:')) continue; // 跳过 event 行
-                if (!trimmed.startsWith('data:')) continue;
+                if (!trimmed || !trimmed.startsWith('data:')) continue;
 
                 const dataStr = trimmed.slice(5).trim();
                 if (dataStr === '[DONE]') {
-                  controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`));
                   continue;
                 }
 
                 try {
                   const data = JSON.parse(dataStr);
+                  const delta = data.choices?.[0]?.delta;
 
-                  // 知识库召回：type=verbose 包含 knowledge_recall
-                  if (data.type === 'verbose') continue;
-
-                  // 回答完成：conversation.chat.completed
-                  if (data.status === 'completed') {
+                  // 跳过 reasoning_content，只转发 content
+                  if (delta?.content) {
                     controller.enqueue(
-                      encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`),
+                      encoder.encode(`data: ${JSON.stringify({ type: 'answer', content: delta.content })}\n\n`),
                     );
-                    continue;
                   }
 
-                  // 错误
-                  if (data.last_error?.code && data.last_error.code !== 0) {
-                    controller.enqueue(
-                      encoder.encode(
-                        `data: ${JSON.stringify({ type: 'error', message: data.last_error.msg || '对话失败' })}\n\n`,
-                      ),
-                    );
-                    continue;
-                  }
-
-                  // 回答内容：type=answer 的 delta 事件
-                  if (data.type === 'answer' && typeof data.content === 'string') {
-                    // 只转发非空内容（Coze 可能发送空 content + reasoning_content）
-                    if (data.content) {
-                      controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify({ type: 'answer', content: data.content })}\n\n`),
-                      );
-                    }
-                    continue;
+                  // 检查是否结束
+                  if (data.choices?.[0]?.finish_reason === 'stop') {
+                    controller.enqueue(encoder.encode('data: [DONE]\n\n'));
                   }
                 } catch {
                   // 忽略非 JSON 行
@@ -185,19 +164,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 非流式响应
-    const responseData = await cozeResponse.json();
-    let content = '';
-    if (responseData.code !== 0) {
-      return new Response(JSON.stringify({ error: responseData.msg || '请求失败' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    if (responseData.data?.content) {
-      content = responseData.data.content;
-    } else if (responseData.choices?.[0]?.message?.content) {
-      content = responseData.choices[0].message.content;
-    }
+    const responseData = await mimoResponse.json();
+    const content = responseData.choices?.[0]?.message?.content ?? '';
 
     return Response.json({ content });
   } catch (err) {

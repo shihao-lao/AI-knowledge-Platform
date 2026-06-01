@@ -33,7 +33,7 @@ function formatRelativeTime(dateStr: string): string {
 
 export default function KnowledgeBasesPage() {
   const router = useRouter();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [search, setSearch] = useState('');
   const [kbModalOpen, setKbModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -74,40 +74,13 @@ export default function KnowledgeBasesPage() {
     );
   }, [knowledgeBases, search]);
 
-  const handleCreateManualKb = async (values: { name: string; description: string; visibility: Visibility }) => {
+  const handleCreateKb = async (values: { name: string; description: string; visibility: Visibility }) => {
     const hide = message.loading('正在创建知识库...', 0);
     try {
       const result = await api.createKnowledge(values);
       message.success(`知识库「${values.name}」已创建`);
       await fetchKnowledgeBases();
       router.push(knowledgePath(result.data.id));
-    } catch (err) {
-      message.error('创建知识库失败');
-    } finally {
-      hide();
-    }
-  };
-
-  const handleCreateImportKb = async (values: {
-    name: string;
-    description: string;
-    visibility: Visibility;
-    files: File[];
-  }) => {
-    const hide = message.loading('正在创建知识库...', 0);
-    try {
-      const result = await api.createKnowledge(values);
-      const kbId = result.data.id;
-      if (values.files.length > 0) {
-        message.loading({ content: `正在上传 ${values.files.length} 个文件...`, key: 'upload', duration: 0 });
-        for (const file of values.files) {
-          await api.uploadDocument(kbId, file);
-        }
-        message.success({ content: `已上传 ${values.files.length} 个文件`, key: 'upload' });
-      }
-      message.success(`知识库「${values.name}」已创建`);
-      await fetchKnowledgeBases();
-      router.push(knowledgePath(kbId));
     } catch {
       message.error('创建知识库失败');
     } finally {
@@ -164,25 +137,37 @@ export default function KnowledgeBasesPage() {
                       <Link href={knowledgePath(kb.id)} key="open">
                         打开
                       </Link>,
-                      <span key="detail" onClick={() => toggleExpand(kb.id)} style={{ cursor: 'pointer' }}>
+                      <span key="detail" onClick={() => toggleExpand(kb.id)} className="kb-card__action-detail">
                         {isExpanded ? <CloseOutlined /> : <EyeOutlined />}
-                        <span style={{ marginLeft: 4 }}>{isExpanded ? '收起' : '详情'}</span>
+                        <span>{isExpanded ? '收起' : '详情'}</span>
                       </span>,
-                      <DeleteOutlined key="delete" onClick={() => handleDeleteKb(kb.id, kb.name)} />,
+                      <DeleteOutlined
+                        key="delete"
+                        onClick={() =>
+                          modal.confirm({
+                            title: '确定删除此知识库？',
+                            content: `删除「${kb.name}」后不可恢复，其中的所有文档和对话记录也将被清除。`,
+                            okText: '删除',
+                            cancelText: '取消',
+                            okButtonProps: { danger: true },
+                            onOk: () => handleDeleteKb(kb.id, kb.name),
+                          })
+                        }
+                      />,
                     ]}
                   >
-                    <Space align="start" style={{ width: '100%' }}>
+                    <Space align="start" className="kb-card__body">
                       <span className="kb-card__icon">
-                        <BookOutlined style={{ fontSize: 48 }} />
+                        <BookOutlined className="kb-card__icon-svg" />
                       </span>
-                      <div style={{ flex: 1 }}>
-                        <Typography.Title level={4} style={{ marginBottom: 4 }}>
+                      <div className="kb-card__info">
+                        <Typography.Title level={4} className="kb-card__name">
                           {kb.name}
                         </Typography.Title>
                         <Typography.Paragraph
                           type="secondary"
                           ellipsis={{ rows: 2 }}
-                          style={{ marginBottom: 8, minHeight: 44 }}
+                          className="kb-card__desc"
                         >
                           {kb.description || '暂无描述'}
                         </Typography.Paragraph>
@@ -202,12 +187,12 @@ export default function KnowledgeBasesPage() {
                     </div>
 
                     <div className="kb-card__meta">
-                      <Space split={<span style={{ color: '#d9d9d9' }}>|</span>}>
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                          <UserOutlined style={{ marginRight: 4 }} />
+                      <Space split={<span className="kb-card__meta-divider">|</span>}>
+                        <Typography.Text type="secondary" className="kb-card__meta-text">
+                          <UserOutlined className="kb-card__meta-icon" />
                           {kb.status === 'active' ? '活跃' : kb.status}
                         </Typography.Text>
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        <Typography.Text type="secondary" className="kb-card__meta-text">
                           创建于 {formatRelativeTime(kb.createdAt)}
                         </Typography.Text>
                       </Space>
@@ -217,7 +202,7 @@ export default function KnowledgeBasesPage() {
                   {isExpanded && (
                     <Card
                       size="small"
-                      style={{ marginTop: -1, borderTop: '2px solid #1677ff' }}
+                      className="kb-card__detail"
                       title={
                         <Space>
                           <InfoCircleOutlined />
@@ -226,7 +211,7 @@ export default function KnowledgeBasesPage() {
                       }
                       extra={
                         <CloseOutlined
-                          style={{ cursor: 'pointer', color: '#999' }}
+                          className="kb-card__detail-close"
                           onClick={() => toggleExpand(kb.id)}
                         />
                       }
@@ -264,8 +249,7 @@ export default function KnowledgeBasesPage() {
       <CreateKnowledgeBaseModal
         open={kbModalOpen}
         onClose={() => setKbModalOpen(false)}
-        onCreateManual={handleCreateManualKb}
-        onCreateImport={handleCreateImportKb}
+        onCreate={handleCreateKb}
       />
     </main>
   );

@@ -2,15 +2,15 @@
 
 import { useEffect, useRef } from 'react';
 import { Avatar } from 'antd';
-import type { Message, User } from '@/types';
+import type { Message } from '@/types';
 import MarkdownMessage from '@/components/markdown-message';
 
 interface ChatMessageListProps {
   messages: Message[];
-  currentUser: User;
+  userAvatar?: string;
 }
 
-export default function ChatMessageList({ messages, currentUser }: ChatMessageListProps) {
+export default function ChatMessageList({ messages, userAvatar }: ChatMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export default function ChatMessageList({ messages, currentUser }: ChatMessageLi
     <div className="message-list">
       {messages.map((item) => (
         <article className={`message-row ${item.role === 'user' ? 'is-user' : ''}`} key={item.id}>
-          <Avatar src={item.role === 'user' ? currentUser.avatar : undefined}>
+          <Avatar src={item.role === 'user' ? userAvatar : undefined}>
             {item.role === 'user' ? '我' : 'AI'}
           </Avatar>
           <div className="message-bubble">
