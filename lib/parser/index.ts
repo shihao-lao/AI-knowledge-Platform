@@ -53,19 +53,6 @@ export function detectFormat(filename: string, mimeType?: string): SupportedForm
   return extMap[ext ?? ''] ?? 'txt';
 }
 
-export function getMimeType(filename: string): string {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  const mimeMap: Record<string, string> = {
-    txt: 'text/plain',
-    md: 'text/markdown',
-    markdown: 'text/markdown',
-    pdf: 'application/pdf',
-    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    json: 'application/json',
-  };
-  return mimeMap[ext ?? ''] ?? 'application/octet-stream';
-}
-
 export async function parseFile(filepath: string, format: SupportedFormat): Promise<Document[]> {
   switch (format) {
     case 'txt':

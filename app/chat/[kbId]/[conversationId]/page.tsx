@@ -7,7 +7,7 @@ import type { Citation, Message } from '@/types';
 import { currentUser } from '@/data/mock';
 import { chatPath, knowledgePath } from '@/lib/paths';
 import { createWelcomeMessage } from '@/lib/chat';
-import { sendChatMessage } from '@/app/api/chat';
+import { sendChatMessage } from '@/lib/coze-chat';
 import { api, type ApiKnowledge, type ApiConversation, type ApiMessage } from '@/lib/api-client';
 import ChatMessageList from './components/ChatMessageList';
 import ChatInputArea from './components/ChatInputArea';

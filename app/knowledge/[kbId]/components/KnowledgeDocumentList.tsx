@@ -2,18 +2,9 @@
 
 import { DeleteOutlined } from '@ant-design/icons';
 import { Button, Empty, Progress } from 'antd';
-import type { DocumentStatus, FileType, KnowledgeDocument } from '@/types';
-import { formatSize } from '@/lib/document';
+import type { FileType, KnowledgeDocument } from '@/types';
+import { formatSize, statusMeta } from '@/lib/document';
 import KnowledgeDocumentDetail from './KnowledgeDocumentDetail';
-
-const statusMeta: Record<DocumentStatus, { label: string; color: string }> = {
-  uploading: { label: '上传中', color: 'processing' },
-  parsing: { label: '解析中', color: 'blue' },
-  chunking: { label: '切片中', color: 'gold' },
-  embedding: { label: '向量化中', color: 'purple' },
-  completed: { label: '已完成', color: 'green' },
-  failed: { label: '失败', color: 'red' },
-};
 
 const fileIconMap: Record<FileType, string> = {
   pdf: '📄',

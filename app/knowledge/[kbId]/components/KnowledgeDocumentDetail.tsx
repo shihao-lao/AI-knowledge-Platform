@@ -1,19 +1,10 @@
 'use client';
 
-import { ExportOutlined } from '@ant-design/icons';
-import { Button, Progress, Tag, Typography } from 'antd';
+import { Progress, Tag, Typography } from 'antd';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { DocumentStatus, KnowledgeDocument } from '@/types';
-
-const statusMeta: Record<DocumentStatus, { label: string; color: string }> = {
-  uploading: { label: '上传中', color: 'processing' },
-  parsing: { label: '解析中', color: 'blue' },
-  chunking: { label: '切片中', color: 'gold' },
-  embedding: { label: '向量化中', color: 'purple' },
-  completed: { label: '已完成', color: 'green' },
-  failed: { label: '失败', color: 'red' },
-};
+import type { KnowledgeDocument } from '@/types';
+import { statusMeta } from '@/lib/document';
 
 interface KnowledgeDocumentDetailProps {
   document: KnowledgeDocument;

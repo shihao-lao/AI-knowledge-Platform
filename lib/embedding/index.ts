@@ -1,30 +1,56 @@
 import { OpenAIEmbeddings } from '@langchain/openai';
 import type { Embeddings } from '@langchain/core/embeddings';
 
-export type EmbeddingProvider = 'openai' | 'deepseek' | 'tensorflow';
+type EmbeddingProvider = 'openai' | 'deepseek' | 'local';
 
-const PROVIDER: EmbeddingProvider = (process.env.EMBEDDING_PROVIDER as EmbeddingProvider) || 'tensorflow';
-
-/** 每个 provider 对应的向量维度 */
-export const EMBEDDING_DIMENSION_MAP: Record<EmbeddingProvider, number> = {
-  openai: 1536,
-  deepseek: 1536,
-  tensorflow: 512,
-};
+const PROVIDER: EmbeddingProvider = (process.env.EMBEDDING_PROVIDER as EmbeddingProvider) || 'local';
 
 let cachedEmbeddings: Embeddings | null = null;
 let cachedProvider: EmbeddingProvider | null = null;
 
+/**
+ * 基于 @xenova/transformers 的本地 Embeddings
+ * 使用 all-MiniLM-L6-v2 模型，384 维，CPU 推理 ~50ms/chunk
+ */
+type PipelineFn = (text: string, options: { pooling: string; normalize: boolean }) => Promise<{ data: Float32Array }>;
+
+class LocalEmbeddings implements Embeddings {
+  private pipeline: PipelineFn | null = null;
+  private modelName = 'Xenova/all-MiniLM-L6-v2';
+
+  private async getPipeline() {
+    if (!this.pipeline) {
+      const { pipeline } = await import('@xenova/transformers');
+      this.pipeline = await pipeline('feature-extraction', this.modelName);
+      console.log(`[Embedding] local model loaded: ${this.modelName}`);
+    }
+    return this.pipeline;
+  }
+
+  async embedQuery(text: string): Promise<number[]> {
+    const pipe = await this.getPipeline();
+    const output = await pipe(text, { pooling: 'mean', normalize: true });
+    return Array.from(output.data) as number[];
+  }
+
+  async embedDocuments(texts: string[]): Promise<number[][]> {
+    const pipe = await this.getPipeline();
+    const results: number[][] = [];
+    // 逐条处理，避免内存峰值过高
+    for (const text of texts) {
+      const output = await pipe(text, { pooling: 'mean', normalize: true });
+      results.push(Array.from(output.data) as number[]);
+    }
+    return results;
+  }
+}
+
 export async function getEmbeddingProvider(): Promise<Embeddings> {
   if (cachedEmbeddings && cachedProvider === PROVIDER) return cachedEmbeddings;
 
-  if (PROVIDER === 'tensorflow') {
-    // 先加载 TensorFlow.js CPU backend，再加载 embeddings
-    const tf = await import('@tensorflow/tfjs');
-    await tf.setBackend('cpu');
-    const { TensorFlowEmbeddings } = await import('@langchain/community/embeddings/tensorflow');
-    console.log(`[Embedding] provider=tensorflow, model=universal-sentence-encoder, dim=512 (local)`);
-    cachedEmbeddings = new TensorFlowEmbeddings();
+  if (PROVIDER === 'local') {
+    console.log(`[Embedding] provider=local, model=all-MiniLM-L6-v2, dim=384`);
+    cachedEmbeddings = new LocalEmbeddings();
     cachedProvider = PROVIDER;
     return cachedEmbeddings;
   }
@@ -55,12 +81,6 @@ export async function getEmbeddingProvider(): Promise<Embeddings> {
   });
   cachedProvider = PROVIDER;
   return cachedEmbeddings;
-}
-
-export async function embedText(text: string): Promise<number[]> {
-  const embeddings = await getEmbeddingProvider();
-  const result = await embeddings.embedQuery(text);
-  return result;
 }
 
 export async function embedBatch(texts: string[]): Promise<number[][]> {

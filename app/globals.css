@@ -319,22 +319,6 @@ textarea {
   overflow: hidden;
 }
 
-.hub-topbar {
-  height: 64px;
-  flex-shrink: 0;
-  padding: 0 24px;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.hub-global-search {
-  max-width: 430px;
-}
-
 /* ── Knowledge Workspace ──────────────────────────────────────── */
 .knowledge-workspace,
 .chat-workspace {
@@ -496,6 +480,16 @@ textarea {
 }
 
 .file-icon--text {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.file-icon--word {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.file-icon--excel {
   background: #f0fdf4;
   color: #16a34a;
 }
@@ -986,18 +980,6 @@ textarea {
     overflow-y: auto;
   }
 
-  .hub-topbar {
-    height: auto;
-    padding: 12px;
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .hub-global-search {
-    max-width: none;
-    width: 100%;
-  }
-
   .knowledge-main,
   .chat-main {
     padding: 14px;
@@ -1345,13 +1327,6 @@ textarea {
   .html-content h3 {
     font-size: 16px;
   }
-}
-
-/* ── KB Card Enhanced Styles ─────────────────────────────────── */
-.kb-card__files {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--color-border);
 }
 
 /* ── Skill Code Block (extracted from inline styles) ─────────── */
