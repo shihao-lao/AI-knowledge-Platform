@@ -1,11 +1,9 @@
 import type { FileType } from '@/types';
 
 export const fileTypeText: Record<FileType, string> = {
-  pdf: 'PDF 文档',
   markdown: '标记文档',
   text: '纯文本文档',
   word: 'Word 文档',
-  excel: 'Excel 表格',
 };
 
 export function formatSize(size: number) {

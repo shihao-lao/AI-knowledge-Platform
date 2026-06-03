@@ -1,4 +1,3 @@
-import { PDFLoader } from '@langchain/community/document_loaders/fs/pdf';
 import { DocxLoader } from '@langchain/community/document_loaders/fs/docx';
 import { BaseDocumentLoader } from '@langchain/core/document_loaders/base';
 import type { Document } from '@langchain/core/documents';
@@ -13,7 +12,6 @@ class CustomTextLoader extends BaseDocumentLoader {
 
   async load(): Promise<Document[]> {
     let content = await readFile(this.filepath, 'utf-8');
-    // Strip BOM if present
     if (content.charCodeAt(0) === 0xFEFF) {
       content = content.slice(1);
     }
@@ -31,6 +29,24 @@ class CustomJSONLoader extends BaseDocumentLoader {
     const parsed = JSON.parse(content);
     const text = typeof parsed === 'string' ? parsed : JSON.stringify(parsed, null, 2);
     return [{ pageContent: text, metadata: { source: this.filepath } }];
+  }
+}
+
+async function loadPdf(filepath: string): Promise<Document[]> {
+  const { PDFParse } = await import('pdf-parse');
+  const buffer = await readFile(filepath);
+  const parser = new PDFParse({ data: new Uint8Array(buffer.buffer) });
+  try {
+    const textResult = await parser.getText();
+    const docs: Document[] = [];
+    for (const page of textResult.pages) {
+      if (page.text && page.text.trim().length > 0) {
+        docs.push({ pageContent: page.text, metadata: { source: filepath, pageNumber: page.num } });
+      }
+    }
+    return docs;
+  } finally {
+    await parser.destroy();
   }
 }
 
@@ -76,7 +92,7 @@ export async function parseFile(filepath: string, format: SupportedFormat): Prom
     case 'md':
       return new CustomTextLoader(filepath).load();
     case 'pdf':
-      return new PDFLoader(filepath).load();
+      return loadPdf(filepath);
     case 'docx':
       return new DocxLoader(filepath).load();
     case 'json':

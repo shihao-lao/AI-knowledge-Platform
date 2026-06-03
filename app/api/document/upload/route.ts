@@ -6,12 +6,10 @@ const ALLOWED_MIMES = [
   'text/plain',
   'text/markdown',
   'text/x-markdown',
-  'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/json',
 ];
 
-const ALLOWED_EXTENSIONS = ['.txt', '.md', '.markdown', '.pdf', '.docx', '.json'];
+const ALLOWED_EXTENSIONS = ['.txt', '.md', '.markdown', '.docx'];
 
 export async function POST(request: NextRequest) {
   try {

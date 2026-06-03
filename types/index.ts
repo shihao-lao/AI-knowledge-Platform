@@ -1,5 +1,5 @@
 export type Role = 'admin' | 'editor' | 'viewer';
-export type FileType = 'pdf' | 'markdown' | 'text' | 'word' | 'excel';
+export type FileType = 'markdown' | 'text' | 'word';
 export type DocumentStatus = 'uploading' | 'parsing' | 'chunking' | 'embedding' | 'completed' | 'failed';
 
 export interface User {

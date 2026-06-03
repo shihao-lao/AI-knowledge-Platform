@@ -51,7 +51,7 @@ export const documentService = {
       console.log(`[Ingest] ${docId}: parsed ${docs.length} docs, ${fullText.length} chars`);
 
       if (!fullText || fullText.trim().length === 0) {
-        console.warn(`[Ingest] ${docId}: parsed content is empty`);
+        console.warn(`[Ingest] ${docId}: parsed content is empty (format=${format})`);
         await documentRepo.updateParseStatus(docId, {
           parseStatus: 'failed',
           charCount: 0,
@@ -79,7 +79,7 @@ export const documentService = {
         return;
       }
 
-      console.log(`[Ingest] ${docId}: embedding ${chunks.length} chunks`);
+      console.log(`[Ingest] ${docId}: saving ${chunks.length} chunks to DB`);
       await documentRepo.updateParseStatus(docId, { parseStatus: 'embedding' });
 
       await chunkRepo.createMany(
@@ -91,12 +91,14 @@ export const documentService = {
           tokenCount: chunk.tokenCount,
         })),
       );
+      console.log(`[Ingest] ${docId}: chunks saved, generating embeddings`);
 
       const embeddings = await getEmbeddingProvider();
       const texts = chunks.map((c) => c.content);
       const vectors = await embedBatch(texts);
       console.log(`[Ingest] ${docId}: embedded ${vectors.length} vectors (dim=${vectors[0]?.length})`);
 
+      console.log(`[Ingest] ${docId}: inserting vectors into LanceDB`);
       await insertVectors(
         embeddings,
         chunks.map((chunk, i) => ({
@@ -120,7 +122,11 @@ export const documentService = {
     } catch (err) {
       const errMsg = err instanceof Error ? `${err.message}\n${err.stack}` : String(err);
       console.error(`[Ingest] ${docId} FAILED:`, errMsg);
-      await documentRepo.updateParseStatus(docId, { parseStatus: 'failed' });
+      try {
+        await documentRepo.updateParseStatus(docId, { parseStatus: 'failed' });
+      } catch (updateErr) {
+        console.error(`[Ingest] ${docId}: failed to update status:`, updateErr);
+      }
     }
   },
 

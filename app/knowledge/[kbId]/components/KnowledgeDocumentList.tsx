@@ -8,11 +8,9 @@ import { statusMeta } from '@/lib/constants';
 import KnowledgeDocumentDetail from './KnowledgeDocumentDetail';
 
 const fileIconMap: Record<FileType, string> = {
-  pdf: '📄',
   markdown: '📝',
   text: '📃',
   word: '📘',
-  excel: '📊',
 };
 
 interface KnowledgeDocumentListProps {

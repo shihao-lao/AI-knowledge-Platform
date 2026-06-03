@@ -1,5 +1,5 @@
 import type { Embeddings } from '@langchain/core/embeddings';
-import { getVectorStore, getLanceDB } from './client';
+import { getLanceDB } from './client';
 import { VECTOR_TABLE_NAME, type VectorRecord } from './schema';
 
 function sanitizeId(id: string): string {
@@ -327,18 +327,20 @@ export async function searchKnowledge(embeddings: Embeddings, params: SearchPara
 }
 
 export async function insertVectors(embeddings: Embeddings, records: VectorRecord[]): Promise<void> {
-  const store = await getVectorStore(embeddings);
-  const docs = records.map((r) => ({
-    pageContent: r.text,
-    metadata: {
-      id: r.id,
-      chunkId: r.chunkId,
-      documentId: r.metadata.documentId,
-      filename: r.metadata.filename,
-      knowledgeId: r.metadata.knowledgeId,
-    },
+  const db = await getLanceDB();
+  const table = await db.openTable(VECTOR_TABLE_NAME);
+
+  const rows = records.map((r) => ({
+    vector: r.vector,
+    text: r.text,
+    id: r.id,
+    chunkId: r.chunkId,
+    documentId: r.metadata.documentId,
+    filename: r.metadata.filename,
+    knowledgeId: r.metadata.knowledgeId,
   }));
-  await store.addDocuments(docs);
+
+  await table.add(rows);
 }
 
 export async function deleteVectors(documentId: string): Promise<void> {
