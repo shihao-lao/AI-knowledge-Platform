@@ -196,7 +196,8 @@ export default function KnowledgeWorkspacePage() {
   );
 
   const lastExpandedId = expandedDocIds[expandedDocIds.length - 1];
-  const sidebarDoc = lastExpandedId ? toKnowledgeDocument(documents.find((d) => d.id === lastExpandedId) ?? documents[0]) : null;
+  const sidebarDocRaw = lastExpandedId ? documents.find((d) => d.id === lastExpandedId) ?? documents[0] : undefined;
+  const sidebarDoc = sidebarDocRaw ? toKnowledgeDocument(sidebarDocRaw) : null;
 
   return (
     <div className="hub-shell">
