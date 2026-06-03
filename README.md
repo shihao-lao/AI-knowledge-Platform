@@ -123,7 +123,7 @@ npm run dev
 ## RAG 数据流
 
 ```
-上传文档 → 解析 (txt/md/pdf/docx/json)
+上传文档 → 解析 (txt/md/docx/json)
          → 分块 (1000 字符, 200 重叠)
          → 向量化 (Embedding)
          → 存储 (LanceDB)
