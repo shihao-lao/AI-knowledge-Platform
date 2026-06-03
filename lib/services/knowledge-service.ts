@@ -10,12 +10,12 @@ export const knowledgeService = {
     return knowledgeRepo.findById(id);
   },
 
-  create(data: { name: string; description?: string; visibility?: string }) {
+  create(data: { name: string; description?: string }) {
     const id = `kb_${crypto.randomUUID().slice(0, 8)}`;
     return knowledgeRepo.create({ id, ...data });
   },
 
-  update(id: string, data: { name?: string; description?: string; visibility?: string }) {
+  update(id: string, data: { name?: string; description?: string }) {
     return knowledgeRepo.update(id, data);
   },
 

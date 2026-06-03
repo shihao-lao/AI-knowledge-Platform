@@ -393,10 +393,6 @@ ${context}
         </div>
 
         <div className="hub-sidebar__bottom">
-          <button type="button" className="hub-nav__item">
-            <span>⚙️</span>
-            <span>系统设置</span>
-          </button>
           <button
             type="button"
             className="ant-btn ant-btn-primary ant-btn-block"

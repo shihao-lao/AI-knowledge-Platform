@@ -1,5 +1,4 @@
 export type Role = 'admin' | 'editor' | 'viewer';
-export type Visibility = 'public' | 'private';
 export type FileType = 'pdf' | 'markdown' | 'text' | 'word' | 'excel';
 export type DocumentStatus = 'uploading' | 'parsing' | 'chunking' | 'embedding' | 'completed' | 'failed';
 
@@ -16,7 +15,6 @@ export interface KnowledgeBase {
   id: string;
   name: string;
   description: string;
-  visibility: Visibility;
   stats: {
     documentCount: number;
     conversationCount: number;

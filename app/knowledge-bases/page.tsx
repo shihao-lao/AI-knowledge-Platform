@@ -19,7 +19,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, type ApiKnowledge } from '@/lib/api-client';
 import CreateKnowledgeBaseModal from '@/components/create-kb-modal';
 import { knowledgePath } from '@/lib/paths';
-import type { Visibility } from '@/types';
 
 function formatRelativeTime(dateStr: string): string {
   const now = Date.now();
@@ -74,7 +73,7 @@ export default function KnowledgeBasesPage() {
     );
   }, [knowledgeBases, search]);
 
-  const handleCreateKb = async (values: { name: string; description: string; visibility: Visibility }) => {
+  const handleCreateKb = async (values: { name: string; description: string }) => {
     const hide = message.loading('正在创建知识库...', 0);
     try {
       const result = await api.createKnowledge(values);
@@ -175,9 +174,6 @@ export default function KnowledgeBasesPage() {
                           <Tag color="blue">
                             <FileOutlined /> {docCount} 份文档
                           </Tag>
-                          <Tag color={kb.visibility === 'public' ? 'green' : 'default'}>
-                            {kb.visibility === 'public' ? '公开' : '私有'}
-                          </Tag>
                         </Space>
                       </div>
                     </Space>
@@ -218,11 +214,6 @@ export default function KnowledgeBasesPage() {
                     >
                       <Descriptions column={2} size="small" bordered>
                         <Descriptions.Item label="知识库 ID">{kb.id}</Descriptions.Item>
-                        <Descriptions.Item label="可见性">
-                          <Tag color={kb.visibility === 'public' ? 'green' : 'default'}>
-                            {kb.visibility === 'public' ? '公开' : '私有'}
-                          </Tag>
-                        </Descriptions.Item>
                         <Descriptions.Item label="状态">
                           <Tag color={kb.status === 'active' ? 'green' : 'default'}>{kb.status}</Tag>
                         </Descriptions.Item>

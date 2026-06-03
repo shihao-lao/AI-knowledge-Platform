@@ -1,11 +1,10 @@
 'use client';
 
-import { App, Input, Space, Typography, Spin, Popover, List, Tag, Empty as AntEmpty } from 'antd';
-import { SearchOutlined, FileTextOutlined } from '@ant-design/icons';
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { App, Space, Typography, Spin } from 'antd';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { knowledgePath, chatPath } from '@/lib/paths';
-import { api, type ApiKnowledge, type ApiDocument, type SearchResult } from '@/lib/api-client';
+import { api, type ApiKnowledge, type ApiDocument } from '@/lib/api-client';
 import { useExpandedDocIds, useKnowledgeStore } from '@/stores/knowledge-store';
 import CreateDocumentModal from './components/CreateDocumentModal';
 import KnowledgeDocumentList from './components/KnowledgeDocumentList';
@@ -31,15 +30,10 @@ export default function KnowledgeWorkspacePage() {
   const removeDocumentFromStore = useKnowledgeStore((s) => s.removeDocument);
   const toggleExpandedDocId = useKnowledgeStore((s) => s.toggleExpandedDocId);
 
-  const [keyword, setKeyword] = useState('');
   const [knowledgeBases, setKnowledgeBases] = useState<ApiKnowledge[]>([]);
   const [documents, setDocuments] = useState<ApiDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [docModalOpen, setDocModalOpen] = useState(false);
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [searchPopoverOpen, setSearchPopoverOpen] = useState(false);
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeKbId =
     kbIdParam && knowledgeBases.some((kb) => kb.id === kbIdParam) ? kbIdParam : (knowledgeBases[0]?.id ?? '');
@@ -168,51 +162,6 @@ export default function KnowledgeWorkspacePage() {
     await handleUpload(file);
   };
 
-  const doSemanticSearch = useCallback(
-    async (query: string) => {
-      if (!query.trim() || !activeKbId) {
-        setSearchResults([]);
-        setSearchPopoverOpen(false);
-        return;
-      }
-      setSearching(true);
-      try {
-        const res = await api.search({ query: query.trim(), knowledgeId: activeKbId, topK: 8 });
-        setSearchResults(res.chunks);
-        setSearchPopoverOpen(res.chunks.length > 0);
-      } catch {
-        setSearchResults([]);
-      } finally {
-        setSearching(false);
-      }
-    },
-    [activeKbId],
-  );
-
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setKeyword(value);
-      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-      if (!value.trim()) {
-        setSearchResults([]);
-        setSearchPopoverOpen(false);
-        return;
-      }
-      searchTimerRef.current = setTimeout(() => doSemanticSearch(value), 600);
-    },
-    [doSemanticSearch],
-  );
-
-  const handleSearchKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-        doSemanticSearch(keyword);
-      }
-    },
-    [keyword, doSemanticSearch],
-  );
-
   const toKnowledgeDocument = useCallback(
     (doc: ApiDocument & { _content?: string }) => ({
       id: doc.id,
@@ -245,12 +194,6 @@ export default function KnowledgeWorkspacePage() {
     }),
     [],
   );
-
-  const filteredDocuments = useMemo(() => {
-    const kw = keyword.trim().toLowerCase();
-    if (!kw) return documents;
-    return documents.filter((d) => d.filename.toLowerCase().includes(kw));
-  }, [documents, keyword]);
 
   const lastExpandedId = expandedDocIds[expandedDocIds.length - 1];
   const sidebarDoc = lastExpandedId ? toKnowledgeDocument(documents.find((d) => d.id === lastExpandedId) ?? documents[0]) : null;
@@ -297,10 +240,6 @@ export default function KnowledgeWorkspacePage() {
             <span>📦</span>
             <span>知识库管理</span>
           </button>
-          <button type="button" className="hub-nav__item">
-            <span>⚙️</span>
-            <span>系统设置</span>
-          </button>
         </div>
       </aside>
 
@@ -314,48 +253,11 @@ export default function KnowledgeWorkspacePage() {
               </div>
               <Space wrap>
                 <KnowledgeUploader onUpload={handleUpload} onCreateManual={() => setDocModalOpen(true)} />
-                <Popover
-                  open={searchPopoverOpen}
-                  placement="bottom"
-                  content={
-                    searchResults.length > 0 ? (
-                      <div className="search-results">
-                        <div className="search-results__header">
-                          <Typography.Text type="secondary">
-                            找到 {searchResults.length} 条相关内容
-                          </Typography.Text>
-                        </div>
-                        <List
-                          size="small"
-                          dataSource={searchResults}
-                          renderItem={(item) => (
-                            <List.Item className="search-results__item">
-                              <div className="search-results__item-inner">
-                                <div className="search-results__meta">
-                                  <FileTextOutlined />
-                                  <span className="search-results__source">{item.source}</span>
-                                  <Tag color={item.score >= 0.8 ? 'green' : item.score >= 0.5 ? 'orange' : 'default'}>
-                                    {(item.score * 100).toFixed(0)}% 匹配
-                                  </Tag>
-                                </div>
-                                <div className="search-results__content">{item.content}</div>
-                              </div>
-                            </List.Item>
-                          )}
-                        />
-                      </div>
-                    ) : (
-                      <AntEmpty description="未找到相关内容" image={AntEmpty.PRESENTED_IMAGE_SIMPLE} />
-                    )
-                  }
-                >
-     
-                </Popover>
               </Space>
             </div>
             <Spin spinning={loading}>
               <KnowledgeDocumentList
-                documents={filteredDocuments.map(toKnowledgeDocument)}
+                documents={documents.map(toKnowledgeDocument)}
                 expandedDocIds={expandedDocIds}
                 onToggleExpand={handleToggleExpand}
                 onDelete={removeDocument}

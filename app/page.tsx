@@ -88,7 +88,7 @@ export default function HomePage() {
                 <TeamOutlined className="feature-icon" />
                 <Typography.Title level={4}>团队协作</Typography.Title>
                 <Typography.Paragraph type="secondary">
-                  支持私有和公开知识库，团队成员共享知识资产，统一的问答入口提升工作效率。
+                  团队成员共享知识资产，统一的问答入口提升工作效率。
                 </Typography.Paragraph>
                 <Link href="/register">
                   <Button type="link">加入团队 →</Button>

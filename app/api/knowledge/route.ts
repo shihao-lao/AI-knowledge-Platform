@@ -14,7 +14,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, description, visibility } = body;
+    const { name, description } = body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return NextResponse.json({ error: '知识库名称不能为空' }, { status: 400 });
@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
     const kb = await knowledgeService.create({
       name: name.trim(),
       description: description?.slice(0, 1000) ?? '',
-      visibility: visibility === 'public' ? 'public' : 'private',
     });
 
     return NextResponse.json({ data: kb }, { status: 201 });

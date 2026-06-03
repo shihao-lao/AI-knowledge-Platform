@@ -4,7 +4,6 @@ export interface ApiKnowledge {
   id: string;
   name: string;
   description: string;
-  visibility: string;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -96,7 +95,7 @@ export const api = {
     return request(`${BASE}/knowledge/${id}`);
   },
 
-  createKnowledge(data: { name: string; description?: string; visibility?: string }): Promise<{ data: ApiKnowledge }> {
+  createKnowledge(data: { name: string; description?: string }): Promise<{ data: ApiKnowledge }> {
     return request(`${BASE}/knowledge`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -106,7 +105,7 @@ export const api = {
 
   updateKnowledge(
     id: string,
-    data: { name?: string; description?: string; visibility?: string },
+    data: { name?: string; description?: string },
   ): Promise<{ data: ApiKnowledge }> {
     return request(`${BASE}/knowledge/${id}`, {
       method: 'PUT',

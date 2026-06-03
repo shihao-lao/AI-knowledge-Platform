@@ -1,13 +1,11 @@
 'use client';
 
-import { Button, Form, Input, Modal, Radio } from 'antd';
+import { Button, Form, Input, Modal } from 'antd';
 import { useState } from 'react';
-import type { Visibility } from '@/types';
 
 export interface CreateKbValues {
   name: string;
   description: string;
-  visibility: Visibility;
 }
 
 interface CreateKnowledgeBaseModalProps {
@@ -27,7 +25,6 @@ export default function CreateKnowledgeBaseModal({ open, onClose, onCreate }: Cr
       onCreate({
         name: values.name,
         description: values.description || '',
-        visibility: values.visibility,
       });
       form.resetFields();
       onClose();
@@ -61,12 +58,6 @@ export default function CreateKnowledgeBaseModal({ open, onClose, onCreate }: Cr
         </Form.Item>
         <Form.Item label="描述" name="description">
           <Input.TextArea placeholder="简要描述知识库用途（可选）" rows={2} />
-        </Form.Item>
-        <Form.Item label="可见性" name="visibility" initialValue="private">
-          <Radio.Group>
-            <Radio value="private">私有</Radio>
-            <Radio value="public">公开</Radio>
-          </Radio.Group>
         </Form.Item>
       </Form>
     </Modal>

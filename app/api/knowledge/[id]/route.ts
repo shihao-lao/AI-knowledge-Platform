@@ -19,7 +19,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, description, visibility } = body;
+    const { name, description } = body;
 
     const existing = await knowledgeService.findById(id);
     if (!existing) {
@@ -35,9 +35,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
     if (description !== undefined) {
       patch.description = String(description).slice(0, 1000);
-    }
-    if (visibility !== undefined) {
-      patch.visibility = visibility === 'public' ? 'public' : 'private';
     }
 
     const updated = await knowledgeService.update(id, patch);

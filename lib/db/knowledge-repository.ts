@@ -19,11 +19,11 @@ export const knowledgeRepo = {
     });
   },
 
-  create(data: { id: string; name: string; description?: string; visibility?: string }): Promise<Knowledge> {
+  create(data: { id: string; name: string; description?: string }): Promise<Knowledge> {
     return prisma.knowledge.create({ data });
   },
 
-  update(id: string, data: { name?: string; description?: string; visibility?: string }): Promise<Knowledge> {
+  update(id: string, data: { name?: string; description?: string }): Promise<Knowledge> {
     return prisma.knowledge.update({ where: { id }, data });
   },
 
