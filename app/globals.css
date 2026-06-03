@@ -384,7 +384,66 @@ textarea {
 }
 
 .knowledge-head .ant-input-affix-wrapper {
-  width: 260px;
+  width: 320px;
+}
+
+/* ── Search Results Popover ─────────────────────────────────── */
+.search-results-popover .ant-popover-inner {
+  padding: 0;
+}
+
+.search-results {
+  width: 420px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.search-results__header {
+  padding: 10px 14px 6px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.search-results .ant-list-item {
+  padding: 0 !important;
+}
+
+.search-results__item {
+  cursor: default;
+}
+
+.search-results__item-inner {
+  width: 100%;
+  padding: 10px 14px;
+}
+
+.search-results__item-inner:hover {
+  background: var(--color-surface-hover, #f5f5f5);
+}
+
+.search-results__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--color-text-secondary, #999);
+}
+
+.search-results__source {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-results__content {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .knowledge-list {
@@ -422,12 +481,6 @@ textarea {
   align-items: center;
   gap: 12px;
   text-align: left;
-  cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-out);
-}
-
-.knowledge-card__summary:hover {
-  background: rgba(79, 70, 229, 0.015);
 }
 
 .knowledge-card__title {
@@ -1126,6 +1179,10 @@ textarea {
 
   .knowledge-head .ant-input-affix-wrapper {
     width: 100%;
+  }
+
+  .search-results {
+    width: 320px;
   }
 
   .knowledge-card__summary {

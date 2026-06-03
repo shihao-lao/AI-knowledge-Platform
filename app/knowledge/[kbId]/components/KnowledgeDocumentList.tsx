@@ -17,15 +17,15 @@ const fileIconMap: Record<FileType, string> = {
 
 interface KnowledgeDocumentListProps {
   documents: KnowledgeDocument[];
-  expandedDocId: string;
-  onExpand: (docId: string) => void;
+  expandedDocIds: string[];
+  onToggleExpand: (docId: string) => void;
   onDelete: (docId: string) => void;
 }
 
 export default function KnowledgeDocumentList({
   documents,
-  expandedDocId,
-  onExpand,
+  expandedDocIds,
+  onToggleExpand,
   onDelete,
 }: KnowledgeDocumentListProps) {
   const { modal } = App.useApp();
@@ -37,21 +37,10 @@ export default function KnowledgeDocumentList({
   return (
     <div className="knowledge-list">
       {documents.map((doc) => {
-        const expanded = expandedDocId === doc.id;
+        const expanded = expandedDocIds.includes(doc.id);
         return (
           <article key={doc.id} className={`knowledge-card ${expanded ? 'is-expanded' : ''}`}>
-            <div
-              className="knowledge-card__summary"
-              onClick={() => onExpand(doc.id)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  onExpand(doc.id);
-                }
-              }}
-              role="button"
-              tabIndex={0}
-            >
+            <div className="knowledge-card__summary">
               <span className={`file-icon file-icon--${doc.fileType}`}>{fileIconMap[doc.fileType]}</span>
               <span className="knowledge-card__title">
                 <strong>{doc.title}</strong>
@@ -67,7 +56,7 @@ export default function KnowledgeDocumentList({
                 </span>
               )}
               <span className="knowledge-card__actions">
-                <Button size="small" onClick={(event) => event.stopPropagation()}>
+                <Button size="small" onClick={() => onToggleExpand(doc.id)}>
                   {expanded ? '收起详情' : '查看详情'}
                 </Button>
                 <Button

@@ -15,22 +15,22 @@ function recalcDocStats(kbList: KnowledgeBase[], documents: KnowledgeDocument[])
 interface KnowledgeState {
   knowledgeBases: KnowledgeBase[];
   documents: KnowledgeDocument[];
-  expandedDocId: string;
+  expandedDocIds: string[];
 
   addKnowledgeBase: (kb: KnowledgeBase) => void;
   updateKnowledgeBase: (kbId: string, patch: Partial<KnowledgeBase>) => void;
   removeKnowledgeBase: (kbId: string) => void;
   addDocument: (doc: KnowledgeDocument) => void;
   updateDocument: (documentId: string, patch: Partial<KnowledgeDocument>) => void;
-  removeDocument: (documentId: string, activeKbId: string) => void;
-  setExpandedDocId: (documentId: string) => void;
-  resolveExpandedDocForKb: (kbId: string) => void;
+  removeDocument: (documentId: string) => void;
+  toggleExpandedDocId: (documentId: string) => void;
+  collapseAllDocs: () => void;
 }
 
-export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
+export const useKnowledgeStore = create<KnowledgeState>((set) => ({
   knowledgeBases: [],
   documents: [],
-  expandedDocId: '',
+  expandedDocIds: [],
 
   addKnowledgeBase: (kb) => {
     set((state) => ({
@@ -58,7 +58,7 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
       const documents = [doc, ...state.documents];
       return {
         documents,
-        expandedDocId: doc.id,
+        expandedDocIds: [doc.id],
         knowledgeBases: recalcDocStats(state.knowledgeBases, documents),
       };
     });
@@ -76,30 +76,26 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
     });
   },
 
-  removeDocument: (documentId, activeKbId) => {
+  removeDocument: (documentId) => {
     set((state) => {
       const documents = state.documents.filter((doc) => doc.id !== documentId);
-      let expandedDocId = state.expandedDocId;
-      if (expandedDocId === documentId) {
-        expandedDocId = documents.find((doc) => doc.knowledgeBaseId === activeKbId)?.id ?? '';
-      }
       return {
         documents,
-        expandedDocId,
+        expandedDocIds: state.expandedDocIds.filter((id) => id !== documentId),
         knowledgeBases: recalcDocStats(state.knowledgeBases, documents),
       };
     });
   },
 
-  setExpandedDocId: (documentId) => set({ expandedDocId: documentId }),
-
-  resolveExpandedDocForKb: (kbId) => {
-    const { documents, expandedDocId } = get();
-    const current = documents.find((doc) => doc.id === expandedDocId);
-    if (current?.knowledgeBaseId === kbId) return;
-    const firstDoc = documents.find((doc) => doc.knowledgeBaseId === kbId);
-    set({ expandedDocId: firstDoc?.id ?? '' });
+  toggleExpandedDocId: (documentId) => {
+    set((state) => {
+      const ids = state.expandedDocIds;
+      const next = ids.includes(documentId) ? ids.filter((id) => id !== documentId) : [...ids, documentId];
+      return { expandedDocIds: next };
+    });
   },
+
+  collapseAllDocs: () => set({ expandedDocIds: [] }),
 }));
 
-export const useExpandedDocId = () => useKnowledgeStore((s) => s.expandedDocId);
+export const useExpandedDocIds = () => useKnowledgeStore((s) => s.expandedDocIds);

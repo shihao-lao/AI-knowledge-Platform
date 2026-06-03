@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
+  url      = "file:./dev.db?connection_limit=1&socket_timeout=30"
 }
 
 model Knowledge {
