@@ -544,11 +544,6 @@ textarea {
   object-fit: cover;
 }
 
-.file-icon--pdf {
-  background: #fef2f2;
-  color: #dc2626;
-}
-
 .file-icon--markdown {
   background: #eff6ff;
   color: #2563eb;
@@ -1068,6 +1063,15 @@ textarea {
 
 .sidebar-error {
   font-size: 13px;
+}
+
+.sidebar-summary-content {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  max-height: 240px;
+  overflow-y: auto;
 }
 
 .sidebar-summary {

@@ -209,9 +209,11 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
                 )}
 
                 {summary && (
-                  <Typography.Paragraph className="sidebar-summary">
-                    {summary}
-                  </Typography.Paragraph>
+                  <div className="sidebar-summary-content">
+                    <Typography.Paragraph className="sidebar-summary">
+                      {summary}
+                    </Typography.Paragraph>
+                  </div>
                 )}
 
                 {!summaryLoading && !summaryError && !summary && (

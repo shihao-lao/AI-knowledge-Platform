@@ -64,7 +64,7 @@ export default function HomePage() {
                 <BookOutlined className="feature-icon" />
                 <Typography.Title level={4}>知识库管理</Typography.Title>
                 <Typography.Paragraph type="secondary">
-                  创建多个知识库，导入 PDF、Word、Excel、Markdown 等文档，自动解析并构建可检索的知识片段。
+                  创建多个知识库，导入 Word、Markdown 等文档，自动解析并构建可检索的知识片段。
                 </Typography.Paragraph>
                 <Link href="/knowledge-bases">
                   <Button type="link">了解更多 →</Button>

@@ -1,6 +1,6 @@
 'use client';
 
-import { FileMarkdownOutlined, FilePdfOutlined, FileTextOutlined } from '@ant-design/icons';
+import { FileMarkdownOutlined, FileTextOutlined } from '@ant-design/icons';
 import { Progress, Typography } from 'antd';
 import type { Citation } from '@/types';
 
@@ -17,11 +17,9 @@ function getRelevanceTier(score: number): { label: string; color: string } {
 }
 
 function CitationCard({ citation, active, onOpen }: CitationCardProps) {
-  const Icon = citation.documentTitle.endsWith('.pdf')
-    ? FilePdfOutlined
-    : citation.documentTitle.endsWith('.md')
-      ? FileMarkdownOutlined
-      : FileTextOutlined;
+  const Icon = citation.documentTitle.endsWith('.md')
+    ? FileMarkdownOutlined
+    : FileTextOutlined;
 
   const percent = Math.round(citation.confidenceScore * 100);
   const tier = getRelevanceTier(citation.confidenceScore);
