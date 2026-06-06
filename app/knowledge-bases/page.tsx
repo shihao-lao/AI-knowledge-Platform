@@ -63,6 +63,7 @@ export default function KnowledgeBasesPage() {
 
   useEffect(() => {
     fetchKnowledgeBases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filteredKbs = useMemo(() => {

@@ -1,4 +1,4 @@
-import { knowledgeRepo, documentRepo, chunkRepo } from '@/lib/db/knowledge-repository';
+import { knowledgeRepo } from '@/lib/db/knowledge-repository';
 import { deleteVectorsByKnowledgeId } from '@/lib/lancedb/search';
 
 export const knowledgeService = {
@@ -20,7 +20,6 @@ export const knowledgeService = {
   },
 
   async delete(id: string) {
-    const docs = await documentRepo.list(id);
     try {
       await deleteVectorsByKnowledgeId(id);
     } catch {

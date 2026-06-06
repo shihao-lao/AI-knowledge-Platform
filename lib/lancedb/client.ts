@@ -18,7 +18,7 @@ export async function getLanceDB(): Promise<Connection> {
   return dbInstance;
 }
 
-export async function ensureTable(embeddings: Embeddings) {
+export async function ensureTable(_embeddings?: unknown) {
   const db = await getLanceDB();
   const tableNames = await db.tableNames();
   if (!tableNames.includes(VECTOR_TABLE_NAME)) {

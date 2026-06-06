@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     const embeddings = await getEmbeddingProvider();
-    await ensureTable(embeddings as any);
+    await ensureTable();
 
     // 查询已禁用的文档 ID，排除其切片
     let excludeDocumentIds: string[] = [];
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       excludeDocumentIds = docs.filter((d) => !d.enabled).map((d) => d.id);
     }
 
-    const results = await searchKnowledge(embeddings as any, {
+    const results = await searchKnowledge(embeddings, {
       query: query.trim(),
       knowledgeId: knowledgeId || undefined,
       topK: Math.min(topK ?? 8, 20),

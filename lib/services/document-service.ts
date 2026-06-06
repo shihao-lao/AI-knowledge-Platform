@@ -100,7 +100,7 @@ export const documentService = {
 
       console.log(`[Ingest] ${docId}: inserting vectors into LanceDB`);
       await insertVectors(
-        embeddings as any,
+        embeddings,
         chunks.map((chunk, i) => ({
           id: crypto.randomUUID(),
           chunkId: chunk.id,

@@ -225,18 +225,14 @@ ${context}
       },
     ]);
 
-    let fullContent = '';
-
     await sendChatMessage(
       { messages: chatMessages, stream: true },
       (content) => {
-        fullContent = content;
         setMessages((prev) =>
           prev.map((item) => (item.id === assistantId ? { ...item, content, streaming: true } : item)),
         );
       },
       async (content) => {
-        fullContent = content;
         setMessages((prev) =>
           prev.map((item) => (item.id === assistantId ? { ...item, content, streaming: false } : item)),
         );

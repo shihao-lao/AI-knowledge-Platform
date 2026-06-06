@@ -1,9 +1,8 @@
-import type { Embeddings } from '@langchain/core/embeddings';
 import { getLanceDB } from './client';
 import { VECTOR_TABLE_NAME, type VectorRecord } from './schema';
 
 function sanitizeId(id: string): string {
-  if (!/^[\w.\-]+$/.test(id)) {
+  if (!/^[\w.-]+$/.test(id)) {
     throw new Error('Invalid ID format');
   }
   return id;
@@ -194,7 +193,7 @@ function extractKeywords(query: string): string[] {
   // 按空白和中英文标点分词
   const tokens = query
     .toLowerCase()
-    .split(/[\s,.;:!?　、。！，．；：？‘’“”《》]+/)
+    .split(/[\s,.;:!?。！，．；：？‘’“”《》]+/)
     .filter((t) => t.length >= 2 && !stopWords.has(t));
 
   return [...new Set(tokens)];
@@ -216,7 +215,10 @@ function keywordMatchScore(text: string, keywords: string[]): number {
 /**
  * 混合搜索：向量语义搜索 + 关键词匹配，通过 RRF 融合排名
  */
-export async function searchKnowledge(embeddings: Embeddings, params: SearchParams): Promise<SearchResult[]> {
+export async function searchKnowledge(
+  embeddings: { embedQuery(text: string): Promise<number[]> },
+  params: SearchParams,
+): Promise<SearchResult[]> {
   const { query, topK = 5, scoreThreshold = 0, knowledgeId, excludeDocumentIds } = params;
 
   const queryEmbedding = await embeddings.embedQuery(query);
@@ -332,7 +334,7 @@ export async function searchKnowledge(embeddings: Embeddings, params: SearchPara
   return results;
 }
 
-export async function insertVectors(embeddings: Embeddings, records: VectorRecord[]): Promise<void> {
+export async function insertVectors(_embeddings: unknown, records: VectorRecord[]): Promise<void> {
   const db = await getLanceDB();
   const table = await db.openTable(VECTOR_TABLE_NAME);
 
