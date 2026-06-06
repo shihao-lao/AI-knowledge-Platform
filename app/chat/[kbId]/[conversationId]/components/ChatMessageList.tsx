@@ -21,9 +21,7 @@ export default function ChatMessageList({ messages, userAvatar }: ChatMessageLis
     <div className="message-list">
       {messages.map((item) => (
         <article className={`message-row ${item.role === 'user' ? 'is-user' : ''}`} key={item.id}>
-          <Avatar src={item.role === 'user' ? userAvatar : undefined}>
-            {item.role === 'user' ? '我' : 'AI'}
-          </Avatar>
+          <Avatar src={item.role === 'user' ? userAvatar : undefined}>{item.role === 'user' ? '我' : 'AI'}</Avatar>
           <div className="message-bubble">
             {item.streaming && !item.content ? (
               <span className="thinking-dots">

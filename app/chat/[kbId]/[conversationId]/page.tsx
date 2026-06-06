@@ -134,8 +134,9 @@ export default function ChatConversationPage() {
       content: question,
     });
 
-    // 如果是第一条消息，更新对话标题
-    if (messages.length === 0) {
+    // 如果是第一条用户消息，更新对话标题
+    const hasUserMessage = messages.some((m) => m.role === 'user');
+    if (!hasUserMessage) {
       const title = question.length > 24 ? `${question.slice(0, 24)}…` : question;
       await api.updateConversation(activeConversationId, { title });
       setConversations((prev) => prev.map((c) => (c.id === activeConversationId ? { ...c, title } : c)));
@@ -153,17 +154,13 @@ export default function ChatConversationPage() {
       });
 
       if (searchResults.chunks.length > 0) {
-        context = searchResults.chunks
-          .map((r, i) => `[${i + 1}] [来源: ${r.source}]\n${r.content}`)
-          .join('\n\n');
+        context = searchResults.chunks.map((r, i) => `[${i + 1}] [来源: ${r.source}]\n${r.content}`).join('\n\n');
 
         citations = searchResults.chunks.map((r, i) => ({
           documentId: r.documentId,
           documentTitle: r.source,
           chunkIndex: i,
-          preview: r.content
-            .replace(/^\[文档:.*?\]\n/, '')
-            .substring(0, 100) + (r.content.length > 100 ? '...' : ''),
+          preview: r.content.replace(/^\[文档:.*?\]\n/, '').substring(0, 100) + (r.content.length > 100 ? '...' : ''),
           confidenceScore: r.score,
           color: `hsl(${(i * 60) % 360}, 70%, 50%)`,
         }));
@@ -189,6 +186,17 @@ ${context}
 1. **只使用参考资料中的信息**回答，不要编造或推测参考资料未提及的内容
 2. 回答时标注引用来源，格式：[1]、[2] 等，对应参考资料中的编号
 3. 如果参考资料中没有相关信息，直接回答"根据现有知识库资料，未找到与此问题相关的内容"，不要尝试自行回答
+4. 回答简洁准确，使用中文`,
+      });
+    } else {
+      chatMessages.push({
+        role: 'system',
+        content: `你是一个知识库问答助手。当前知识库中没有可用的参考资料（文档可能为空或全部已禁用）。
+
+## 回答规则
+1. 请根据你的通用知识尽力回答用户问题
+2. 在回答开头说明：「当前知识库暂无可用文档，以下回答基于通用知识，仅供参考」
+3. 建议用户上传相关文档或启用已有文档以获得更精准的知识库问答体验
 4. 回答简洁准确，使用中文`,
       });
     }
@@ -353,15 +361,8 @@ ${context}
           </div>
           {kbConversations.length ? (
             kbConversations.map((chat) => (
-              <div
-                key={chat.id}
-                className={`hub-chat-record ${activeConversationId === chat.id ? 'is-active' : ''}`}
-              >
-                <button
-                  type="button"
-                  className="hub-chat-record__btn"
-                  onClick={() => openConversation(chat.id)}
-                >
+              <div key={chat.id} className={`hub-chat-record ${activeConversationId === chat.id ? 'is-active' : ''}`}>
+                <button type="button" className="hub-chat-record__btn" onClick={() => openConversation(chat.id)}>
                   <span>💬</span>
                   <span>
                     <strong>{chat.title}</strong>

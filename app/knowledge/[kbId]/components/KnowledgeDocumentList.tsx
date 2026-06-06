@@ -1,7 +1,7 @@
 'use client';
 
 import { DeleteOutlined } from '@ant-design/icons';
-import { App, Button, Empty, Progress } from 'antd';
+import { App, Button, Empty, Progress, Switch, Tooltip } from 'antd';
 import type { FileType, KnowledgeDocument } from '@/types';
 import { formatSize } from '@/lib/document';
 import { statusMeta } from '@/lib/constants';
@@ -18,6 +18,7 @@ interface KnowledgeDocumentListProps {
   expandedDocIds: string[];
   onToggleExpand: (docId: string) => void;
   onDelete: (docId: string) => void;
+  onToggleEnabled: (docId: string, enabled: boolean) => void;
 }
 
 export default function KnowledgeDocumentList({
@@ -25,6 +26,7 @@ export default function KnowledgeDocumentList({
   expandedDocIds,
   onToggleExpand,
   onDelete,
+  onToggleEnabled,
 }: KnowledgeDocumentListProps) {
   const { modal } = App.useApp();
 
@@ -36,15 +38,23 @@ export default function KnowledgeDocumentList({
     <div className="knowledge-list">
       {documents.map((doc) => {
         const expanded = expandedDocIds.includes(doc.id);
+        const disabled = doc.enabled === false;
         return (
-          <article key={doc.id} className={`knowledge-card ${expanded ? 'is-expanded' : ''}`}>
+          <article
+            key={doc.id}
+            className={`knowledge-card ${expanded ? 'is-expanded' : ''} ${disabled ? 'is-disabled' : ''}`}
+          >
             <div className="knowledge-card__summary">
               <span className={`file-icon file-icon--${doc.fileType}`}>{fileIconMap[doc.fileType]}</span>
               <span className="knowledge-card__title">
-                <strong>{doc.title}</strong>
+                <strong>
+                  {doc.title}
+                  {disabled && <span className="knowledge-card__disabled-badge">已禁用</span>}
+                </strong>
                 <small>
                   创建于 {new Date(doc.createdAt).toLocaleDateString('zh-CN')} · 大小 {formatSize(doc.fileSize)} ·{' '}
                   {statusMeta[doc.status].label}
+                  {doc.chunkCount > 0 && ` · ${doc.chunkCount} 个切片`}
                 </small>
               </span>
               {doc.status !== 'completed' && (
@@ -54,8 +64,11 @@ export default function KnowledgeDocumentList({
                 </span>
               )}
               <span className="knowledge-card__actions">
+                <Tooltip title={disabled ? '启用后 AI 检索可见' : '禁用后 AI 检索不可见'}>
+                  <Switch size="small" checked={!disabled} onChange={(checked) => onToggleEnabled(doc.id, checked)} />
+                </Tooltip>
                 <Button size="small" onClick={() => onToggleExpand(doc.id)}>
-                  {expanded ? '收起详情' : '查看详情'}
+                  {expanded ? '收起' : '详情'}
                 </Button>
                 <Button
                   size="small"
@@ -72,9 +85,7 @@ export default function KnowledgeDocumentList({
                       onOk: () => onDelete(doc.id),
                     });
                   }}
-                >
-                  删除
-                </Button>
+                />
               </span>
             </div>
             {expanded && <KnowledgeDocumentDetail document={doc} />}

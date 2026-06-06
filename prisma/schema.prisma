@@ -29,6 +29,7 @@ model Document {
   parseStatus String   @default("pending")
   chunkCount  Int      @default(0)
   charCount   Int      @default(0)
+  enabled     Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

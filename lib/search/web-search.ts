@@ -84,7 +84,5 @@ function stripHtml(html: string): string {
  */
 export function formatSearchResults(results: SearchResult[]): string {
   if (results.length === 0) return '';
-  return results
-    .map((r, i) => `[${i + 1}] ${r.title}\n${r.url}\n${r.snippet}`)
-    .join('\n\n');
+  return results.map((r, i) => `[${i + 1}] ${r.title}\n${r.url}\n${r.snippet}`).join('\n\n');
 }

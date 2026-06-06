@@ -4,15 +4,15 @@
 
 ## 技术栈
 
-| 层级 | 技术 |
-|------|------|
-| 前端框架 | Next.js 16 (App Router) + React 18 + TypeScript |
-| UI 组件库 | Ant Design 5 (zh_CN) |
-| 状态管理 | Zustand 5 |
-| 数据库 | Prisma + SQLite |
-| 向量数据库 | LanceDB |
-| 文档解析 | LangChain (pdf-parse / mammoth / exceljs) |
-| LLM | 小米 MiMo (mimo-v2.5)，支持 SSE 流式输出 |
+| 层级          | 技术                                            |
+| ------------- | ----------------------------------------------- |
+| 前端框架      | Next.js 16 (App Router) + React 18 + TypeScript |
+| UI 组件库     | Ant Design 5 (zh_CN)                            |
+| 状态管理      | Zustand 5                                       |
+| 数据库        | Prisma + SQLite                                 |
+| 向量数据库    | LanceDB                                         |
+| 文档解析      | LangChain (pdf-parse / mammoth / exceljs)       |
+| LLM           | 小米 MiMo (mimo-v2.5)，支持 SSE 流式输出        |
 | Markdown 渲染 | react-markdown + remark-gfm + rehype-prism-plus |
 
 ## 功能特性
@@ -80,15 +80,15 @@ npm run dev
 
 ## 可用脚本
 
-| 命令 | 说明 |
-|------|------|
-| `npm run dev` | 启动开发服务器 (0.0.0.0) |
-| `npm run build` | 生产构建 |
-| `npm start` | 启动生产服务器 (0.0.0.0) |
-| `npm run lint` | ESLint 检查 |
-| `npm run lint:fix` | ESLint 自动修复 |
-| `npm run format` | Prettier 格式化 |
-| `npm run format:check` | Prettier 检查 |
+| 命令                   | 说明                     |
+| ---------------------- | ------------------------ |
+| `npm run dev`          | 启动开发服务器 (0.0.0.0) |
+| `npm run build`        | 生产构建                 |
+| `npm start`            | 启动生产服务器 (0.0.0.0) |
+| `npm run lint`         | ESLint 检查              |
+| `npm run lint:fix`     | ESLint 自动修复          |
+| `npm run format`       | Prettier 格式化          |
+| `npm run format:check` | Prettier 检查            |
 
 ## 项目结构
 
@@ -133,23 +133,23 @@ npm run dev
 
 ## Embedding 方案
 
-| 方案 | 维度 | 说明 |
-|------|------|------|
-| `local` | 512 | 基于字符 n-gram 哈希，无需下载模型 |
-| `tensorflow` | 512 | Universal Sentence Encoder |
-| `openai` | 1536 | text-embedding-3-small |
-| `deepseek` | 1536 | deepseek-embedding |
+| 方案         | 维度 | 说明                               |
+| ------------ | ---- | ---------------------------------- |
+| `local`      | 512  | 基于字符 n-gram 哈希，无需下载模型 |
+| `tensorflow` | 512  | Universal Sentence Encoder         |
+| `openai`     | 1536 | text-embedding-3-small             |
+| `deepseek`   | 1536 | deepseek-embedding                 |
 
 通过 `EMBEDDING_PROVIDER` 环境变量切换。本地开发推荐使用 `tensorflow` 方案，无需 API Key。
 
 ## 路由说明
 
-| 路径 | 说明 |
-|------|------|
-| `/` | 首页，重定向到默认知识库 |
-| `/knowledge/:kbId` | 知识管理工作区（三栏布局） |
-| `/chat/:kbId/:conversationId` | 对话工作区（三栏布局） |
-| `/knowledge-bases` | 知识库管理网格 |
+| 路径                          | 说明                       |
+| ----------------------------- | -------------------------- |
+| `/`                           | 首页，重定向到默认知识库   |
+| `/knowledge/:kbId`            | 知识管理工作区（三栏布局） |
+| `/chat/:kbId/:conversationId` | 对话工作区（三栏布局）     |
+| `/knowledge-bases`            | 知识库管理网格             |
 
 ## 许可
 

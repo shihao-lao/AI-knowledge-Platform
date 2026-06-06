@@ -100,7 +100,7 @@ export const documentService = {
 
       console.log(`[Ingest] ${docId}: inserting vectors into LanceDB`);
       await insertVectors(
-        embeddings,
+        embeddings as any,
         chunks.map((chunk, i) => ({
           id: crypto.randomUUID(),
           chunkId: chunk.id,
@@ -128,6 +128,10 @@ export const documentService = {
         console.error(`[Ingest] ${docId}: failed to update status:`, updateErr);
       }
     }
+  },
+
+  async updateEnabled(id: string, enabled: boolean) {
+    return documentRepo.updateEnabled(id, enabled);
   },
 
   list(knowledgeId: string) {

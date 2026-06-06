@@ -163,11 +163,7 @@ export default function KnowledgeBasesPage() {
                         <Typography.Title level={4} className="kb-card__name">
                           {kb.name}
                         </Typography.Title>
-                        <Typography.Paragraph
-                          type="secondary"
-                          ellipsis={{ rows: 2 }}
-                          className="kb-card__desc"
-                        >
+                        <Typography.Paragraph type="secondary" ellipsis={{ rows: 2 }} className="kb-card__desc">
                           {kb.description || '暂无描述'}
                         </Typography.Paragraph>
                         <Space size={4} wrap>
@@ -205,12 +201,7 @@ export default function KnowledgeBasesPage() {
                           <span>{kb.name} — 详细信息</span>
                         </Space>
                       }
-                      extra={
-                        <CloseOutlined
-                          className="kb-card__detail-close"
-                          onClick={() => toggleExpand(kb.id)}
-                        />
-                      }
+                      extra={<CloseOutlined className="kb-card__detail-close" onClick={() => toggleExpand(kb.id)} />}
                     >
                       <Descriptions column={2} size="small" bordered>
                         <Descriptions.Item label="知识库 ID">{kb.id}</Descriptions.Item>
@@ -237,11 +228,7 @@ export default function KnowledgeBasesPage() {
         )}
       </Spin>
 
-      <CreateKnowledgeBaseModal
-        open={kbModalOpen}
-        onClose={() => setKbModalOpen(false)}
-        onCreate={handleCreateKb}
-      />
+      <CreateKnowledgeBaseModal open={kbModalOpen} onClose={() => setKbModalOpen(false)} onCreate={handleCreateKb} />
     </main>
   );
 }

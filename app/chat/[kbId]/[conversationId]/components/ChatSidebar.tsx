@@ -29,7 +29,11 @@ export default function ChatSidebar({
       <div className="chat-side__citations">
         {liveCitations.length > 0 ? (
           liveCitations.map((citation) => (
-            <CitationCard key={`${citation.documentId}-${citation.chunkIndex}`} citation={citation} onOpen={onCitationOpen} />
+            <CitationCard
+              key={`${citation.documentId}-${citation.chunkIndex}`}
+              citation={citation}
+              onOpen={onCitationOpen}
+            />
           ))
         ) : (
           <Typography.Text type="secondary" style={{ fontSize: 13 }}>

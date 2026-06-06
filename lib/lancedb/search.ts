@@ -15,6 +15,7 @@ export interface SearchParams {
   topK?: number;
   scoreThreshold?: number;
   metadataFilter?: Partial<VectorRecord['metadata']>;
+  excludeDocumentIds?: string[];
 }
 
 export interface SearchResult {
@@ -216,7 +217,7 @@ function keywordMatchScore(text: string, keywords: string[]): number {
  * 混合搜索：向量语义搜索 + 关键词匹配，通过 RRF 融合排名
  */
 export async function searchKnowledge(embeddings: Embeddings, params: SearchParams): Promise<SearchResult[]> {
-  const { query, topK = 5, scoreThreshold = 0, knowledgeId } = params;
+  const { query, topK = 5, scoreThreshold = 0, knowledgeId, excludeDocumentIds } = params;
 
   const queryEmbedding = await embeddings.embedQuery(query);
   const keywords = extractKeywords(query);
@@ -321,6 +322,11 @@ export async function searchKnowledge(embeddings: Embeddings, params: SearchPara
       filename: (item.filename as string) ?? '',
       knowledgeId: (item.knowledgeId as string) ?? '',
     });
+  }
+
+  // 过滤掉已禁用文档的切片
+  if (excludeDocumentIds && excludeDocumentIds.length > 0) {
+    return results.filter((r) => !excludeDocumentIds.includes(r.documentId));
   }
 
   return results;

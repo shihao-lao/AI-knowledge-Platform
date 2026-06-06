@@ -157,6 +157,16 @@ export default function KnowledgeWorkspacePage() {
     router.push(chatPath(activeKbId));
   };
 
+  const handleToggleEnabled = async (docId: string, enabled: boolean) => {
+    try {
+      await api.updateDocumentEnabled(docId, enabled);
+      setDocuments((prev) => prev.map((d) => (d.id === docId ? { ...d, enabled } : d)));
+      message.success(enabled ? '文档已启用' : '文档已禁用');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '更新失败');
+    }
+  };
+
   const handleCreateDoc = async (title: string, content: string) => {
     const file = new File([content], `${title}.txt`, { type: 'text/plain' });
     await handleUpload(file);
@@ -187,6 +197,7 @@ export default function KnowledgeWorkspacePage() {
                 : 8,
       chunkCount: doc.chunkCount,
       charCount: doc.charCount,
+      enabled: doc.enabled ?? true,
       uploadedBy: { id: '', name: '', email: '', role: 'viewer' as const, createdAt: '' },
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
@@ -196,7 +207,7 @@ export default function KnowledgeWorkspacePage() {
   );
 
   const lastExpandedId = expandedDocIds[expandedDocIds.length - 1];
-  const sidebarDocRaw = lastExpandedId ? documents.find((d) => d.id === lastExpandedId) ?? documents[0] : undefined;
+  const sidebarDocRaw = lastExpandedId ? (documents.find((d) => d.id === lastExpandedId) ?? documents[0]) : undefined;
   const sidebarDoc = sidebarDocRaw ? toKnowledgeDocument(sidebarDocRaw) : null;
 
   return (
@@ -262,6 +273,7 @@ export default function KnowledgeWorkspacePage() {
                 expandedDocIds={expandedDocIds}
                 onToggleExpand={handleToggleExpand}
                 onDelete={removeDocument}
+                onToggleEnabled={handleToggleEnabled}
               />
             </Spin>
           </div>
@@ -269,11 +281,7 @@ export default function KnowledgeWorkspacePage() {
         </section>
       </main>
 
-      <CreateDocumentModal
-        open={docModalOpen}
-        onClose={() => setDocModalOpen(false)}
-        onSubmit={handleCreateDoc}
-      />
+      <CreateDocumentModal open={docModalOpen} onClose={() => setDocModalOpen(false)} onSubmit={handleCreateDoc} />
     </div>
   );
 }

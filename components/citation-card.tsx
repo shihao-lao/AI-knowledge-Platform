@@ -17,13 +17,12 @@ function getRelevanceTier(score: number): { label: string; color: string } {
 }
 
 function CitationCard({ citation, active, onOpen }: CitationCardProps) {
-  const Icon = citation.documentTitle.endsWith('.md')
-    ? FileMarkdownOutlined
-    : FileTextOutlined;
+  const Icon = citation.documentTitle.endsWith('.md') ? FileMarkdownOutlined : FileTextOutlined;
 
   const percent = Math.round(citation.confidenceScore * 100);
   const tier = getRelevanceTier(citation.confidenceScore);
-  const barColor = citation.confidenceScore >= 0.85 ? '#52c41a' : citation.confidenceScore >= 0.65 ? '#faad14' : '#ff7a45';
+  const barColor =
+    citation.confidenceScore >= 0.85 ? '#52c41a' : citation.confidenceScore >= 0.65 ? '#faad14' : '#ff7a45';
 
   return (
     <button
@@ -47,13 +46,7 @@ function CitationCard({ citation, active, onOpen }: CitationCardProps) {
           {tier.label} {percent}%
         </span>
       </span>
-      <Progress
-        percent={percent}
-        showInfo={false}
-        size="small"
-        strokeColor={barColor}
-        trailColor="rgba(0,0,0,0.06)"
-      />
+      <Progress percent={percent} showInfo={false} size="small" strokeColor={barColor} trailColor="rgba(0,0,0,0.06)" />
       <span className="citation-card__action">点击查看原文</span>
     </button>
   );

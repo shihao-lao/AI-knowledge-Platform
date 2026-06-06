@@ -103,7 +103,7 @@ async function main() {
     const db = await getLanceDB();
     console.log('LanceDB 连接成功');
     const embeddings = await (await import('../lib/embedding/index')).getEmbeddingProvider();
-    await ensureTable(embeddings);
+    await ensureTable(embeddings as any);
     console.log('ensureTable 成功');
     const tableNames = await db.tableNames();
     console.log('表列表:', tableNames);

@@ -13,7 +13,11 @@ interface ChatMessage {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { messages, stream = true, enableSearch = true } = body as {
+    const {
+      messages,
+      stream = true,
+      enableSearch = true,
+    } = body as {
       messages: ChatMessage[];
       stream?: boolean;
       enableSearch?: boolean;

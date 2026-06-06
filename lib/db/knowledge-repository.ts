@@ -65,6 +65,10 @@ export const documentRepo = {
     return prisma.document.update({ where: { id }, data });
   },
 
+  updateEnabled(id: string, enabled: boolean): Promise<Document> {
+    return prisma.document.update({ where: { id }, data: { enabled } as any });
+  },
+
   async delete(id: string): Promise<Document> {
     return prisma.document.delete({ where: { id } });
   },

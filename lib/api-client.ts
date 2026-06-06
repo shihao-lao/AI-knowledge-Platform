@@ -20,6 +20,7 @@ export interface ApiDocument {
   parseStatus: string;
   chunkCount: number;
   charCount: number;
+  enabled: boolean;
   createdAt: string;
   updatedAt: string;
   chunks?: ApiChunk[];
@@ -103,10 +104,7 @@ export const api = {
     });
   },
 
-  updateKnowledge(
-    id: string,
-    data: { name?: string; description?: string },
-  ): Promise<{ data: ApiKnowledge }> {
+  updateKnowledge(id: string, data: { name?: string; description?: string }): Promise<{ data: ApiKnowledge }> {
     return request(`${BASE}/knowledge/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -165,6 +163,14 @@ export const api = {
 
   deleteDocument(id: string): Promise<{ data: { deleted: boolean } }> {
     return request(`${BASE}/document/${id}`, { method: 'DELETE' });
+  },
+
+  updateDocumentEnabled(id: string, enabled: boolean): Promise<{ data: ApiDocument }> {
+    return request(`${BASE}/document/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled }),
+    });
   },
 
   // Search

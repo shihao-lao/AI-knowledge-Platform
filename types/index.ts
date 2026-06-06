@@ -36,6 +36,7 @@ export interface KnowledgeDocument {
   processingProgress: number;
   chunkCount: number;
   charCount?: number;
+  enabled: boolean;
   embeddingModel?: string;
   uploadedBy: User;
   createdAt: string;

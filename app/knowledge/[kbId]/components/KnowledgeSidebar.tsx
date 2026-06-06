@@ -210,9 +210,7 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
 
                 {summary && (
                   <div className="sidebar-summary-content">
-                    <Typography.Paragraph className="sidebar-summary">
-                      {summary}
-                    </Typography.Paragraph>
+                    <Typography.Paragraph className="sidebar-summary">{summary}</Typography.Paragraph>
                   </div>
                 )}
 
@@ -260,9 +258,7 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
 
                 {skill && (
                   <div className="sidebar-skill-content">
-                    <Typography.Paragraph className="sidebar-skill-text">
-                      {skill}
-                    </Typography.Paragraph>
+                    <Typography.Paragraph className="sidebar-skill-text">{skill}</Typography.Paragraph>
                   </div>
                 )}
 

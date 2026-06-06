@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getEmbeddingProvider } from '@/lib/embedding';
 import { searchKnowledge } from '@/lib/lancedb/search';
 import { ensureTable } from '@/lib/lancedb/client';
+import { documentRepo } from '@/lib/db/knowledge-repository';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,13 +17,22 @@ export async function POST(request: NextRequest) {
     }
 
     const embeddings = await getEmbeddingProvider();
-    await ensureTable(embeddings);
-    const results = await searchKnowledge(embeddings, {
+    await ensureTable(embeddings as any);
+
+    // 查询已禁用的文档 ID，排除其切片
+    let excludeDocumentIds: string[] = [];
+    if (knowledgeId) {
+      const docs = await documentRepo.list(knowledgeId);
+      excludeDocumentIds = docs.filter((d) => !d.enabled).map((d) => d.id);
+    }
+
+    const results = await searchKnowledge(embeddings as any, {
       query: query.trim(),
       knowledgeId: knowledgeId || undefined,
       topK: Math.min(topK ?? 8, 20),
       scoreThreshold: scoreThreshold ?? 0,
       metadataFilter: metadataFilter || undefined,
+      excludeDocumentIds,
     });
 
     return NextResponse.json({
