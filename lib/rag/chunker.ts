@@ -20,6 +20,7 @@ const DEFAULT_CONFIG: Required<ChunkerConfig> = {
   chunkSize: 1000,
   chunkOverlap: 200,
   separators: ['\n\n', '\n', '。', '！', '？', '；', '，', '.', '!', '?', ';', ',', ' ', ''],
+  contextPrefix: '',
 };
 
 function estimateTokens(text: string): number {

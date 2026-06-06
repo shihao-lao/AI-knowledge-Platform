@@ -48,6 +48,24 @@ export interface SearchResponse {
   chunks: SearchResult[];
 }
 
+export interface CitationDocStat {
+  documentId: string;
+  documentTitle: string;
+  citationCount: number;
+  averageConfidence: number;
+  chunkBreakdown: Array<{ chunkIndex: number; count: number }>;
+}
+
+export interface CitationStatsData {
+  summary: {
+    totalCitations: number;
+    uniqueDocumentsCited: number;
+    totalConversations: number;
+    totalAssistantMessages: number;
+  };
+  documents: CitationDocStat[];
+}
+
 export interface ApiConversation {
   id: string;
   knowledgeId: string;
@@ -171,6 +189,11 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ enabled }),
     });
+  },
+
+  // Citation Stats
+  getCitationStats(knowledgeId: string): Promise<{ data: CitationStatsData }> {
+    return request(`${BASE}/knowledge/${encodeURIComponent(knowledgeId)}/citation-stats`);
   },
 
   // Search

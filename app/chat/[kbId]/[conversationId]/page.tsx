@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Citation, Message } from '@/types';
 import { currentUser } from '@/data/mock';
-import { chatPath, knowledgePath } from '@/lib/paths';
+import { chatPath, knowledgePath, statisticsPath } from '@/lib/paths';
 import { createWelcomeMessage } from '@/lib/chat';
 import { sendChatMessage } from '@/app/api/chat';
 import { api, type ApiKnowledge, type ApiConversation } from '@/lib/api-client';
@@ -331,6 +331,10 @@ ${context}
     router.push(knowledgePath(activeKbId));
   };
 
+  const goToStatistics = () => {
+    router.push(statisticsPath(activeKbId));
+  };
+
   return (
     <div className="hub-shell">
       <aside className="hub-sidebar">
@@ -347,6 +351,10 @@ ${context}
           <button type="button" className="hub-nav__item is-active">
             <span>💬</span>
             <span>AI 对话</span>
+          </button>
+          <button type="button" className="hub-nav__item" onClick={goToStatistics}>
+            <span>📊</span>
+            <span>引用统计</span>
           </button>
         </nav>
 

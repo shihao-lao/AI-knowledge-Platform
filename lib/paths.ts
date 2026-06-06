@@ -6,3 +6,7 @@ export function chatPath(kbId: string, conversationId?: string) {
   if (conversationId) return `/chat/${kbId}/${conversationId}`;
   return `/chat/${kbId}`;
 }
+
+export function statisticsPath(kbId: string) {
+  return `/statistics/${kbId}`;
+}
