@@ -637,7 +637,7 @@ sequenceDiagram
 
 ### 13.1 功能验收
 
-- [ ] 用户可以注册/登录 (邮箱密码 + OAuth)
+- [√] 用户可以注册/登录 (邮箱密码 + OAuth)
 - [ ] 可以创建/编辑/删除知识库
 - [ ] 可以拖拽/点击上传 PDF/MD/TXT 文件
 - [ ] 上传后可以实时看到处理状态 (上传→解析→切片→向量化→完成)
@@ -731,8 +731,219 @@ sequenceDiagram
 
 ---
 
-**文档版本**: v2.0 (RAG 聚焦版)  
-**项目代号**: ai-kb  
-**创建日期**: 2026-05-21  
-**最后更新**: 2026-05-21  
+**文档版本**: v2.0 (RAG 聚焦版)
+**项目代号**: ai-kb
+**创建日期**: 2026-05-21
+**最后更新**: 2026-05-21
 **基于方案**: 用户提供的《AI 知识库平台方案》
+
+---
+
+## 16. 上线优化 TodoList (PRD vs 实际实现差距分析)
+
+> 基于 2026-06-15 对项目代码的全面审查，按优先级排列。
+
+### P0 — 阻塞上线（必须修复）
+
+- [ ] **用户认证系统完全缺失**
+  - 登录页 `login/page.tsx` 仅做 UI 跳转，无实际认证逻辑
+  - Prisma schema 中无 User 模型
+  - 无 JWT/Session 管理、无 middleware 路由守卫
+  - 聊天页直接 `import { currentUser } from '@/data/mock'` 硬编码用户
+  - **需要**: 添加 User 模型、注册/登录 API、JWT 中间件、路由守卫
+
+- [ ] **API 路由无鉴权保护**
+  - 所有 `/api/*` 路由均可未登录直接访问
+  - 无请求来源校验，任何人可调用创建/删除接口
+  - **需要**: middleware 校验 token、API 路由内校验用户身份
+
+- [ ] **数据隔离缺失**
+  - 知识库/文档/对话查询无 `userId` 过滤，所有用户共享全部数据
+  - **需要**: 所有 CRUD 接口加 `ownerId` 过滤
+
+- [ ] **chat-store.ts 缺失**
+  - CLAUDE.md 记录应有 `stores/chat-store.ts`，但文件不存在
+  - 对话状态散落在页面组件的 `useState` 中，无法复用
+  - **需要**: 提取对话/消息状态到独立 Zustand store
+
+- [ ] **workspace-page.tsx 缺失**
+  - CLAUDE.md 记录 `components/workspace-page.tsx` 为核心三栏布局组件
+  - 实际布局代码在各页面内重复（knowledge/page.tsx 和 chat/page.tsx 各写一遍）
+  - **需要**: 抽取共享布局组件，消除重复
+
+- [ ] **dev.db 和 data/ 目录不应提交到 Git**
+  - `prisma/dev.db` 二进制文件在仓库中
+  - `data/uploads/` 用户上传文件在仓库中
+  - `data/lancedb/` 向量数据库文件在仓库中
+  - **需要**: 添加到 `.gitignore`，从 git 历史中移除
+
+### P1 — 影响核心体验（上线前应完成）
+
+- [ ] **文档类型识别不完整**
+  - PRD 要求支持 PDF/Markdown/TXT，实际 `FileType` 仅 `'markdown' | 'text' | 'word'`
+  - 无 PDF 文件类型标识，无对应图标
+  - **需要**: 补充 `pdf` 类型，上传时根据 mimeType 正确分类
+
+- [ ] **文档列表缺少筛选/排序**
+  - PRD 要求按状态筛选、按类型筛选、按时间排序
+  - 当前列表无任何筛选排序功能
+  - **需要**: 添加状态/类型筛选 + 时间排序控件
+
+- [ ] **文档详情/预览不完整**
+  - PRD 要求：只读预览、自动生成 TOC、全文搜索高亮、元信息面板
+  - 当前仅显示 chunks 拼接的纯文本，无 TOC、无搜索、无元信息
+  - **需要**: 实现文档预览组件
+
+- [ ] **引用卡片交互缺失**
+  - `citation-card.tsx` 存在但缺少：左侧竖线颜色编码、hover 上浮效果、点击跳转到文档预览并高亮
+  - **需要**: 完善 CitationCard 样式和交互
+
+- [ ] **右侧面板引用来源未实时同步**
+  - PRD 要求 AI 生成回答时右侧面板实时显示引用
+  - 当前 `liveCitations` 在 RAG 检索完成后一次性设置，非流式同步
+  - **需要**: 在 SSE 流式过程中实时更新引用面板
+
+- [ ] **对话重命名功能缺失**
+  - PRD 要求支持修改对话标题
+  - API 有 `PUT /api/conversation/[id]` 但前端无重命名 UI
+  - **需要**: 在对话列表添加重命名交互
+
+- [ ] **@提及文档功能缺失**
+  - PRD 要求输入框支持 `@` 触发文档/知识库快速选择
+  - **需要**: 实现 @mention 组件
+
+- [ ] **输入框字符限制缺失**
+  - PRD 要求单次最大 2000 字符
+  - 当前无限制
+  - **需要**: 添加 maxLength 校验
+
+- [ ] **知识库缺少封面图和可见性**
+  - PRD 要求 coverImage、visibility(public/private)
+  - Knowledge 模型和类型均无此字段
+  - **需要**: schema + 类型 + UI 补充
+
+- [ ] **成员管理功能缺失**
+  - PRD 要求邀请成员、设置角色、移除成员
+  - 当前无任何成员相关实现
+  - **需要**: 新增 Member 模型 + API + UI（P1 可先做基础版）
+
+### P2 — 影响产品质量（应尽快完善）
+
+- [ ] **对话列表无时间相对显示**
+  - PRD 要求 "3小时前" 等相对时间格式
+  - 当前显示原始时间字符串
+  - **需要**: 添加相对时间格式化工具函数
+
+- [ ] **流式输出缺少思考动画**
+  - PRD 要求 "AI 开始思考（显示加载动画: 三个点跳动）"
+  - 当前仅显示空的 assistant 消息
+  - **需要**: 添加 typing indicator / thinking animation
+
+- [ ] **Markdown 渲染缺少代码块复制按钮**
+  - 代码块无复制功能
+  - **需要**: 添加代码块右上角复制按钮
+
+- [ ] **错误提示不够友好**
+  - API 错误直接显示英文 HTTP 状态码
+  - **需要**: 统一错误码映射为中文提示
+
+- [ ] **无全局 Loading 状态**
+  - 页面切换无加载指示器
+  - **需要**: 添加页面级 loading skeleton
+
+- [ ] **knowledge-store 与实际 API 数据不同步**
+  - store 管理 `KnowledgeBase[]` 和 `KnowledgeDocument[]`
+  - 但页面组件自行用 `useState` 管理 API 数据，store 形同虚设
+  - **需要**: 统一数据流，store 作为 single source of truth
+
+- [ ] **Prisma schema 字段命名不一致**
+  - Prisma 用 `knowledgeId`，类型定义用 `knowledgeBaseId`
+  - Prisma 用 `filename`，类型定义用 `fileName`
+  - Prisma 用 `parseStatus`，类型定义用 `status`
+  - **需要**: 统一命名规范
+
+- [ ] **搜索功能不完整**
+  - PRD 要求按名称搜索知识库
+  - `/api/knowledge/search` 是向量搜索，非知识库名称搜索
+  - **需要**: 补充知识库列表的前端筛选功能
+
+### P3 — 体验优化（上线后迭代）
+
+- [ ] **响应式适配缺失**
+  - PRD 要求 Desktop/Tablet/Mobile 三档响应式
+  - 当前仅适配桌面端，移动端布局完全错乱
+  - **需要**: 添加媒体查询，右侧面板折叠为抽屉，左侧边栏抽屉化
+
+- [ ] **暗色主题缺失**
+  - PRD 提到亮色/暗色主题
+  - 当前仅亮色
+  - **需要**: 使用 CSS 变量 + Ant Design ConfigProvider 实现主题切换
+
+- [ ] **键盘快捷键不完整**
+  - PRD 要求 `/` 聚焦输入框
+  - 当前仅有 Enter 发送
+  - **需要**: 添加全局快捷键
+
+- [ ] **长对话虚拟滚动缺失**
+  - 消息列表无虚拟滚动，长对话性能差
+  - **需要**: 引入虚拟滚动（如 react-virtuoso）
+
+- [ ] **粘贴图片提问缺失**
+  - PRD 要求支持粘贴截图提问
+  - **需要**: 监听 paste 事件，处理图片上传
+
+- [ ] **文档上传拖拽体验不完整**
+  - KnowledgeUploader 存在但需确认拖拽区样式、文件类型校验提示
+
+### P4 — 工程质量（技术债清理）
+
+- [ ] **清理未使用的重型依赖**
+  - `@tensorflow/tfjs` + `@tensorflow/tfjs-node` + `@tensorflow-models/universal-sentence-encoder`：约 500MB，检查是否实际使用
+  - `@langchain/*` 四个包：检查是否被直接调用
+  - `vectordb`：已有 `@lancedb/lancedb`，旧包是否冗余
+  - **需要**: 审查后移除未使用的依赖，减小构建体积
+
+- [ ] **双包管理器冲突**
+  - 同时存在 `package-lock.json` (npm) 和 `pnpm-lock.yaml` (pnpm)
+  - **需要**: 选定一个，删除另一个的 lock 文件
+
+- [ ] **移除 mock 数据引用**
+  - `app/chat/[kbId]/[conversationId]/page.tsx` 仍 `import { currentUser } from '@/data/mock'`
+  - **需要**: 接入真实用户系统后移除
+
+- [ ] **`prisma` 包误放在 dependencies**
+  - `prisma` CLI 应在 `devDependencies`
+  - **需要**: 移到 devDependencies
+
+- [ ] **next.config.ts 缺少安全头**
+  - 无 CSP、X-Frame-Options、CORS 等安全配置
+  - **需要**: 添加 `headers()` 配置
+
+- [ ] **无 ESLint `no-explicit-any` 规则**
+  - 代码中可能存在隐式 any
+  - **需要**: 开启 strict any 检查
+
+- [ ] **无自动化测试**
+  - 仅有 `scripts/test-pipeline.ts` 手动测试脚本
+  - 无单元测试、无集成测试、无 E2E 测试
+  - **需要**: 至少覆盖核心 RAG 流程和 API 路由
+
+- [ ] **环境变量校验缺失**
+  - `.env` 中 `MIMO_API_KEY` 等关键变量无启动时校验
+  - **需要**: 添加 env schema 校验（如 zod）
+
+- [ ] **CLAUDE.md 与实际代码不一致**
+  - 记录了不存在的文件（workspace-page.tsx、chat-store.ts）
+  - 技术栈描述为 Next.js 但 PRD 写 Vite/React Router
+  - **需要**: 更新 CLAUDE.md 使其准确反映当前代码
+
+---
+
+### 执行建议
+
+```
+Phase 1 (Week 1-2): P0 全部完成 → 核心链路可跑通
+Phase 2 (Week 3):   P1 完成 → 核心体验达标
+Phase 3 (Week 4):   P2 完成 + P4 依赖清理 → 质量过关
+Phase 4 (持续):     P3 体验优化 → 持续迭代
+```
