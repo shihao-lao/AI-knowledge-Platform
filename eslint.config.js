@@ -27,7 +27,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['components/create-knowledge-base-modal.tsx', 'lib/**'],
+    files: ['app/layout.tsx', 'components/create-knowledge-base-modal.tsx', 'lib/**'],
     rules: {
       'react-refresh/only-export-components': 'off',
     },
