@@ -28,13 +28,7 @@ async function main() {
 
   // 1. 环境变量
   console.log('--- 1. 环境变量 ---');
-  console.log('EMBEDDING_PROVIDER:', process.env.EMBEDDING_PROVIDER);
-  console.log(
-    'OPENAI_API_KEY:',
-    process.env.OPENAI_API_KEY ? `${process.env.OPENAI_API_KEY.slice(0, 8)}...` : 'MISSING',
-  );
-  console.log('OPENAI_BASE_URL:', process.env.OPENAI_BASE_URL);
-  console.log('OPENAI_EMBEDDING_MODEL:', process.env.OPENAI_EMBEDDING_MODEL);
+  console.log('EMBEDDING_PROVIDER:', process.env.EMBEDDING_PROVIDER || 'tensorflow (default)');
   console.log();
 
   // 2. Embedding API

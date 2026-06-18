@@ -1,6 +1,14 @@
 'use client';
 
-import { ArrowLeftOutlined, BarChartOutlined, FileOutlined, MessageOutlined, PieChartOutlined, ReloadOutlined, TeamOutlined } from '@ant-design/icons';
+import {
+  ArrowLeftOutlined,
+  BarChartOutlined,
+  FileOutlined,
+  MessageOutlined,
+  PieChartOutlined,
+  ReloadOutlined,
+  TeamOutlined,
+} from '@ant-design/icons';
 import { App, Button, Card, Col, Empty, Row, Select, Space, Spin, Statistic, Typography } from 'antd';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
@@ -20,21 +28,27 @@ export default function StatisticsPage() {
   const [knowledgeBases, setKnowledgeBases] = useState<ApiKnowledge[]>([]);
   const [stats, setStats] = useState<CitationStatsData | null>(null);
 
-  const fetchStats = useCallback(async (id: string) => {
-    setLoading(true);
-    try {
-      const result = await api.getCitationStats(id);
-      setStats(result.data);
-    } catch (err) {
-      console.error('获取引用统计失败:', err);
-      message.error('获取引用统计失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [message]);
+  const fetchStats = useCallback(
+    async (id: string) => {
+      setLoading(true);
+      try {
+        const result = await api.getCitationStats(id);
+        setStats(result.data);
+      } catch (err) {
+        console.error('获取引用统计失败:', err);
+        message.error('获取引用统计失败');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [message],
+  );
 
   useEffect(() => {
-    api.listKnowledge().then((r) => setKnowledgeBases(r.data)).catch(() => {});
+    api
+      .listKnowledge()
+      .then((r) => setKnowledgeBases(r.data))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -108,18 +122,39 @@ export default function StatisticsPage() {
           <>
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
               <Col xs={24} lg={14}>
-                <Card title={<><BarChartOutlined style={{ marginRight: 8 }} />文档引用次数</>}>
+                <Card
+                  title={
+                    <>
+                      <BarChartOutlined style={{ marginRight: 8 }} />
+                      文档引用次数
+                    </>
+                  }
+                >
                   <CitationBarChart documents={documents} />
                 </Card>
               </Col>
               <Col xs={24} lg={10}>
-                <Card title={<><PieChartOutlined style={{ marginRight: 8 }} />引用分布占比</>}>
+                <Card
+                  title={
+                    <>
+                      <PieChartOutlined style={{ marginRight: 8 }} />
+                      引用分布占比
+                    </>
+                  }
+                >
                   <CitationPieChart documents={documents} />
                 </Card>
               </Col>
             </Row>
 
-            <Card title={<><FileOutlined style={{ marginRight: 8 }} />文档引用明细</>}>
+            <Card
+              title={
+                <>
+                  <FileOutlined style={{ marginRight: 8 }} />
+                  文档引用明细
+                </>
+              }
+            >
               <CitationStatsTable documents={documents} />
             </Card>
           </>
