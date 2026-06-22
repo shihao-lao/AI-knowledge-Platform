@@ -82,6 +82,14 @@ export const chunkRepo = {
     });
   },
 
+  listByIds(ids: string[]): Promise<Pick<Chunk, 'id' | 'chunkIndex'>[]> {
+    if (ids.length === 0) return Promise.resolve([]);
+    return prisma.chunk.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, chunkIndex: true },
+    });
+  },
+
   createMany(
     chunks: Array<{ id: string; documentId: string; chunkIndex: number; content: string; tokenCount: number }>,
   ) {

@@ -21,6 +21,7 @@ export interface SearchResult {
   content: string;
   score: number;
   chunkId: string;
+  chunkIndex: number;
   documentId: string;
   filename: string;
   knowledgeId: string;
@@ -30,173 +31,193 @@ export interface SearchResult {
 const RRF_K = 60;
 
 /**
- * 从查询中提取关键词（去停用词、按长度过滤）
+ * 使用 Intl.Segmenter 进行中文分词 + 停用词过滤（Node.js 内置，无需额外依赖）
  */
+const segmenter = new Intl.Segmenter('zh', { granularity: 'word' });
+
+const stopWords = new Set([
+  '的',
+  '了',
+  '是',
+  '在',
+  '我',
+  '有',
+  '和',
+  '就',
+  '不',
+  '人',
+  '都',
+  '一',
+  '一个',
+  '上',
+  '也',
+  '很',
+  '到',
+  '说',
+  '要',
+  '去',
+  '你',
+  '会',
+  '着',
+  '没有',
+  '看',
+  '好',
+  '自己',
+  '这',
+  '他',
+  '吗',
+  '那',
+  '么',
+  '什么',
+  '怎么',
+  '如何',
+  '哪些',
+  '哪个',
+  '请',
+  '能',
+  '可以',
+  '被',
+  '把',
+  '给',
+  '让',
+  '用',
+  '为',
+  '对',
+  '中',
+  'the',
+  'a',
+  'an',
+  'is',
+  'are',
+  'was',
+  'were',
+  'be',
+  'been',
+  'being',
+  'have',
+  'has',
+  'had',
+  'do',
+  'does',
+  'did',
+  'will',
+  'would',
+  'could',
+  'should',
+  'may',
+  'might',
+  'can',
+  'shall',
+  'it',
+  'its',
+  'this',
+  'that',
+  'these',
+  'those',
+  'i',
+  'you',
+  'he',
+  'she',
+  'we',
+  'they',
+  'me',
+  'him',
+  'her',
+  'us',
+  'them',
+  'my',
+  'your',
+  'his',
+  'our',
+  'their',
+  'what',
+  'which',
+  'who',
+  'whom',
+  'how',
+  'when',
+  'where',
+  'why',
+  'and',
+  'but',
+  'or',
+  'nor',
+  'not',
+  'so',
+  'yet',
+  'both',
+  'either',
+  'neither',
+  'each',
+  'every',
+  'all',
+  'any',
+  'few',
+  'more',
+  'most',
+  'other',
+  'some',
+  'such',
+  'no',
+  'only',
+  'own',
+  'same',
+  'than',
+  'too',
+  'very',
+  'just',
+  'because',
+  'as',
+  'until',
+  'while',
+  'of',
+  'at',
+  'by',
+  'for',
+  'with',
+  'about',
+  'against',
+  'between',
+  'through',
+  'during',
+  'before',
+  'after',
+  'above',
+  'below',
+  'to',
+  'from',
+  'up',
+  'down',
+  'in',
+  'out',
+  'on',
+  'off',
+  'over',
+  'under',
+  'again',
+  'further',
+  'then',
+  'once',
+]);
+
 function extractKeywords(query: string): string[] {
-  const stopWords = new Set([
-    '的',
-    '了',
-    '是',
-    '在',
-    '我',
-    '有',
-    '和',
-    '就',
-    '不',
-    '人',
-    '都',
-    '一',
-    '一个',
-    '上',
-    '也',
-    '很',
-    '到',
-    '说',
-    '要',
-    '去',
-    '你',
-    '会',
-    '着',
-    '没有',
-    '看',
-    '好',
-    '自己',
-    '这',
-    '他',
-    '吗',
-    '那',
-    '么',
-    '什么',
-    '怎么',
-    '如何',
-    '哪些',
-    '哪个',
-    '请',
-    '能',
-    '可以',
-    'the',
-    'a',
-    'an',
-    'is',
-    'are',
-    'was',
-    'were',
-    'be',
-    'been',
-    'being',
-    'have',
-    'has',
-    'had',
-    'do',
-    'does',
-    'did',
-    'will',
-    'would',
-    'could',
-    'should',
-    'may',
-    'might',
-    'can',
-    'shall',
-    'it',
-    'its',
-    'this',
-    'that',
-    'these',
-    'those',
-    'i',
-    'you',
-    'he',
-    'she',
-    'we',
-    'they',
-    'me',
-    'him',
-    'her',
-    'us',
-    'them',
-    'my',
-    'your',
-    'his',
-    'our',
-    'their',
-    'what',
-    'which',
-    'who',
-    'whom',
-    'how',
-    'when',
-    'where',
-    'why',
-    'and',
-    'but',
-    'or',
-    'nor',
-    'not',
-    'so',
-    'yet',
-    'both',
-    'either',
-    'neither',
-    'each',
-    'every',
-    'all',
-    'any',
-    'few',
-    'more',
-    'most',
-    'other',
-    'some',
-    'such',
-    'no',
-    'only',
-    'own',
-    'same',
-    'than',
-    'too',
-    'very',
-    'just',
-    'because',
-    'as',
-    'until',
-    'while',
-    'of',
-    'at',
-    'by',
-    'for',
-    'with',
-    'about',
-    'against',
-    'between',
-    'through',
-    'during',
-    'before',
-    'after',
-    'above',
-    'below',
-    'to',
-    'from',
-    'up',
-    'down',
-    'in',
-    'out',
-    'on',
-    'off',
-    'over',
-    'under',
-    'again',
-    'further',
-    'then',
-    'once',
-  ]);
+  const lower = query.toLowerCase();
 
-  // 按空白和中英文标点分词
-  const tokens = query
-    .toLowerCase()
-    .split(/[\s,.;:!?。！，．；：？‘’“”《》]+/)
-    .filter((t) => t.length >= 2 && !stopWords.has(t));
+  // 1. Intl.Segmenter 分词
+  const segmented = [...segmenter.segment(lower)]
+    .filter((s) => s.isWordLike && s.segment.trim().length > 0)
+    .map((s) => s.segment);
 
-  return [...new Set(tokens)];
+  // 2. 从 segmenter 产生的中文单字重建 bigram（修复"监控"→"监"+"控"→"监控"）
+  const cjkUnigrams = segmented.filter((t) => /^[一-鿿]$/.test(t));
+  const reconstructed: string[] = [];
+  for (let i = 0; i < cjkUnigrams.length - 1; i++) {
+    reconstructed.push(cjkUnigrams[i] + cjkUnigrams[i + 1]);
+  }
+
+  // 3. 合并去重，过滤停用词
+  const all = [...segmented, ...reconstructed];
+  return [...new Set(all.filter((t) => !stopWords.has(t) && t.length >= 2))];
 }
 
 /**
@@ -219,7 +240,7 @@ export async function searchKnowledge(
   embeddings: { embedQuery(text: string): Promise<number[]> },
   params: SearchParams,
 ): Promise<SearchResult[]> {
-  const { query, topK = 5, scoreThreshold = 0, knowledgeId, excludeDocumentIds } = params;
+  const { query, topK = 10, scoreThreshold = 0.2, knowledgeId, excludeDocumentIds } = params;
 
   const queryEmbedding = await embeddings.embedQuery(query);
   const keywords = extractKeywords(query);
@@ -227,13 +248,23 @@ export async function searchKnowledge(
   const db = await getLanceDB();
   const table = await db.openTable(VECTOR_TABLE_NAME);
 
-  // 获取较宽的候选池（用于向量搜索和关键词匹配）
-  const candidateLimit = Math.max(topK * 4, 30);
+  // 扩大候选池：topK * 20 或至少 100
+  const candidateLimit = Math.max(topK * 20, 100);
   const queryBuilder = table.query().nearestTo(queryEmbedding).limit(candidateLimit);
 
+  // 构建 WHERE 条件
+  const conditions: string[] = [];
   if (knowledgeId) {
     const safeId = sanitizeId(knowledgeId);
-    queryBuilder.where(`knowledgeId = '${safeId}'`);
+    conditions.push(`knowledgeId = '${safeId}'`);
+  }
+  // 排除禁用文档的切片
+  if (excludeDocumentIds && excludeDocumentIds.length > 0) {
+    const safeIds = excludeDocumentIds.map(sanitizeId);
+    conditions.push(`documentId NOT IN (${safeIds.map((id) => `'${id}'`).join(',')})`);
+  }
+  if (conditions.length > 0) {
+    queryBuilder.where(conditions.join(' AND '));
   }
 
   const rawResults = await queryBuilder.toArray();
@@ -261,7 +292,10 @@ export async function searchKnowledge(
       ? [...rawResults]
           .map((item: Record<string, unknown>) => ({
             item,
-            score: keywordMatchScore((item.text as string) ?? '', keywords),
+            score: Math.max(
+              keywordMatchScore((item.text as string) ?? '', keywords),
+              keywordMatchScore((item.filename as string) ?? '', keywords),
+            ),
           }))
           .filter((r) => r.score > 0)
           .sort((a, b) => b.score - a.score)
@@ -292,43 +326,76 @@ export async function searchKnowledge(
     rrfScores.set(id, score);
   }
 
-  // 按 RRF 分数降序排列，取 top-K
-  const itemMap = new Map<string, Record<string, unknown>>();
+  // 按 RRF 分数降序排列
+  // 同时保存 distance 信息用于计算相似度
+  const itemWithDistanceMap = new Map<string, { item: Record<string, unknown>; distance: number }>();
   for (const r of vectorRanked) {
     const id = (r.item.chunkId as string) || (r.item.id as string);
-    itemMap.set(id, r.item);
+    itemWithDistanceMap.set(id, { item: r.item, distance: r.distance });
   }
 
   const sortedIds = [...rrfScores.entries()].sort((a, b) => b[1] - a[1]);
 
-  // 归一化 RRF 分数到 0-1 区间
-  const maxRrf = sortedIds[0]?.[1] ?? 1;
+  // 计算绝对相似度：结合向量距离和关键词匹配
+  const candidates: { id: string; score: number; item: Record<string, unknown> }[] = [];
+  for (const [id] of sortedIds) {
+    const entry = itemWithDistanceMap.get(id);
+    if (!entry) continue;
+    const { item, distance } = entry;
 
-  const results: SearchResult[] = [];
-  for (const [id, rrfScore] of sortedIds) {
-    if (results.length >= topK) break;
+    // 向量距离转相似度（L2 归一化向量的精确公式：cos(θ) = 1 - d²/2）
+    const vectorSimilarity = Math.max(0, 1 - (distance * distance) / 2);
 
-    const normalizedScore = maxRrf > 0 ? rrfScore / maxRrf : 0;
+    // 关键词匹配：分别计算内容和文件名的匹配度
+    const contentKeywordScore = keywordMatchScore((item.text as string) ?? '', keywords);
+    const filenameKeywordScore = keywordMatchScore((item.filename as string) ?? '', keywords);
+    const keywordScore = Math.max(contentKeywordScore, filenameKeywordScore);
 
-    // 应用分数阈值
-    if (normalizedScore < scoreThreshold) continue;
+    // 文件名关键词高度命中 → 直接判定高度相关（用户明确在问某个文档）
+    const FILENAME_BOOST_THRESHOLD = 0.6;
+    if (filenameKeywordScore >= FILENAME_BOOST_THRESHOLD) {
+      candidates.push({ id, score: Math.max(0.85, vectorSimilarity), item });
+      continue;
+    }
 
-    const item = itemMap.get(id);
-    if (!item) continue;
+    // 综合分数：向量 80%，关键词 20%
+    const absoluteScore = keywords.length > 0 ? vectorSimilarity * 0.8 + keywordScore * 0.2 : vectorSimilarity;
 
-    results.push({
-      content: (item.text as string) ?? '',
-      score: Number(normalizedScore.toFixed(4)),
-      chunkId: (item.chunkId as string) ?? '',
-      documentId: (item.documentId as string) ?? '',
-      filename: (item.filename as string) ?? '',
-      knowledgeId: (item.knowledgeId as string) ?? '',
-    });
+    if (absoluteScore < scoreThreshold) continue;
+    candidates.push({ id, score: absoluteScore, item });
   }
 
-  // 过滤掉已禁用文档的切片
-  if (excludeDocumentIds && excludeDocumentIds.length > 0) {
-    return results.filter((r) => !excludeDocumentIds.includes(r.documentId));
+  // 文档级去重：同一文档保留 top-3 chunk（避免丢失正确答案）
+  const chunksPerDoc = new Map<string, typeof candidates>();
+  for (const c of candidates) {
+    const docId = (c.item.documentId as string) ?? c.id;
+    const arr = chunksPerDoc.get(docId) ?? [];
+    arr.push(c);
+    chunksPerDoc.set(docId, arr);
+  }
+  const dedupedCandidates = [...chunksPerDoc.values()]
+    .flatMap((arr) => arr.sort((a, b) => b.score - a.score).slice(0, 3))
+    .sort((a, b) => b.score - a.score);
+
+  // 自适应截断：过滤低质量结果
+  const MIN_TOP_SCORE = 0.15;
+  const CLIFF_RATIO = 0.5;
+  if (dedupedCandidates.length === 0 || dedupedCandidates[0].score < MIN_TOP_SCORE) return [];
+
+  const results: SearchResult[] = [];
+  for (const c of dedupedCandidates) {
+    if (results.length >= topK) break;
+    // 分数断崖：如果比前一条低 50% 以上，截断
+    if (results.length > 0 && c.score < results[results.length - 1].score * CLIFF_RATIO) break;
+    results.push({
+      content: (c.item.text as string) ?? '',
+      score: Number(Math.min(c.score, 1).toFixed(4)),
+      chunkId: (c.item.chunkId as string) ?? '',
+      chunkIndex: Number(c.item.chunkIndex ?? 0),
+      documentId: (c.item.documentId as string) ?? '',
+      filename: (c.item.filename as string) ?? '',
+      knowledgeId: (c.item.knowledgeId as string) ?? '',
+    });
   }
 
   return results;

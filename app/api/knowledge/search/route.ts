@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getEmbeddingProvider } from '@/lib/embedding';
 import { searchKnowledge } from '@/lib/lancedb/search';
 import { ensureTable } from '@/lib/lancedb/client';
-import { documentRepo } from '@/lib/db/knowledge-repository';
+import { chunkRepo, documentRepo } from '@/lib/db/knowledge-repository';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,10 +30,13 @@ export async function POST(request: NextRequest) {
       query: query.trim(),
       knowledgeId: knowledgeId || undefined,
       topK: Math.min(topK ?? 8, 20),
-      scoreThreshold: scoreThreshold ?? 0,
+      ...(scoreThreshold != null && { scoreThreshold }),
       metadataFilter: metadataFilter || undefined,
       excludeDocumentIds,
     });
+
+    const chunks = await chunkRepo.listByIds(results.map((r) => r.chunkId).filter(Boolean));
+    const chunkIndexById = new Map(chunks.map((chunk) => [chunk.id, chunk.chunkIndex]));
 
     return NextResponse.json({
       chunks: results.map((r) => ({
@@ -41,6 +44,7 @@ export async function POST(request: NextRequest) {
         score: r.score,
         source: r.filename,
         chunkId: r.chunkId,
+        chunkIndex: chunkIndexById.get(r.chunkId) ?? r.chunkIndex,
         documentId: r.documentId,
         knowledgeId: r.knowledgeId,
       })),

@@ -14,6 +14,27 @@ import ChatMessageList from './components/ChatMessageList';
 import ChatInputArea from './components/ChatInputArea';
 import ChatSidebar from './components/ChatSidebar';
 
+function getCitedNumbers(content: string): Set<number> {
+  const citedNumbers = new Set<number>();
+  const citePattern = /\[(\d+)\]/g;
+  let match;
+
+  while ((match = citePattern.exec(content)) !== null) {
+    const index = Number.parseInt(match[1], 10);
+    if (Number.isFinite(index) && index > 0) {
+      citedNumbers.add(index);
+    }
+  }
+
+  return citedNumbers;
+}
+
+function getActuallyCited(citations: Citation[], content: string): Citation[] {
+  const citedNumbers = getCitedNumbers(content);
+  if (citedNumbers.size === 0) return [];
+  return citations.filter((_, i) => citedNumbers.has(i + 1));
+}
+
 export default function ChatConversationPage() {
   const router = useRouter();
   const params = useParams();
@@ -149,8 +170,7 @@ export default function ChatConversationPage() {
       const searchResults = await api.search({
         query: question,
         knowledgeId: activeKbId,
-        topK: 5,
-        scoreThreshold: 0,
+        topK: 10,
       });
 
       if (searchResults.chunks.length > 0) {
@@ -159,13 +179,11 @@ export default function ChatConversationPage() {
         citations = searchResults.chunks.map((r, i) => ({
           documentId: r.documentId,
           documentTitle: r.source,
-          chunkIndex: i,
+          chunkIndex: r.chunkIndex,
           preview: r.content.replace(/^\[文档:.*?\]\n/, '').substring(0, 100) + (r.content.length > 100 ? '...' : ''),
           confidenceScore: r.score,
           color: `hsl(${(i * 60) % 360}, 70%, 50%)`,
         }));
-
-        setLiveCitations(citations);
       }
     } catch (err) {
       console.error('[RAG] 检索失败:', err);
@@ -219,7 +237,7 @@ ${context}
         id: assistantId,
         role: 'assistant',
         content: '',
-        citations,
+        citations: [],
         createdAt: new Date().toISOString(),
         streaming: true,
       },
@@ -228,25 +246,22 @@ ${context}
     await sendChatMessage(
       { messages: chatMessages, stream: true, enableSearch: false },
       (content) => {
+        const actualCitations = getActuallyCited(citations, content);
+        setLiveCitations(actualCitations);
         setMessages((prev) =>
-          prev.map((item) => (item.id === assistantId ? { ...item, content, streaming: true } : item)),
+          prev.map((item) =>
+            item.id === assistantId ? { ...item, content, citations: actualCitations, streaming: true } : item,
+          ),
         );
       },
       async (content) => {
+        const actualCitations = getActuallyCited(citations, content);
+        setLiveCitations(actualCitations);
         setMessages((prev) =>
-          prev.map((item) => (item.id === assistantId ? { ...item, content, streaming: false } : item)),
+          prev.map((item) =>
+            item.id === assistantId ? { ...item, content, citations: actualCitations, streaming: false } : item,
+          ),
         );
-
-        // 解析 LLM 实际引用的编号，只保存被引用的切片
-        const citedNumbers = new Set<number>();
-        const citePattern = /\[(\d+)\]/g;
-        let match;
-        while ((match = citePattern.exec(content)) !== null) {
-          citedNumbers.add(parseInt(match[1], 10));
-        }
-
-        // 只保留 LLM 实际引用的 citations
-        const actualCitations = citations.filter((_, i) => citedNumbers.has(i + 1));
 
         // 保存助手消息到数据库
         await api.createMessage(activeConversationId, {

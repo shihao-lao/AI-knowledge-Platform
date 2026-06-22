@@ -83,7 +83,7 @@ export default function HomePage() {
                 </Link>
               </Card>
             </Col>
-            <Col xs={24} md={8}>
+            {/* <Col xs={24} md={8}>
               <Card className="feature-card" hoverable>
                 <TeamOutlined className="feature-icon" />
                 <Typography.Title level={4}>团队协作</Typography.Title>
@@ -94,7 +94,7 @@ export default function HomePage() {
                   <Button type="link">加入团队 →</Button>
                 </Link>
               </Card>
-            </Col>
+            </Col> */}
           </Row>
         </section>
 

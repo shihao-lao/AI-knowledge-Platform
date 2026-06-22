@@ -40,6 +40,7 @@ export interface SearchResult {
   score: number;
   source: string;
   chunkId: string;
+  chunkIndex: number;
   documentId: string;
   knowledgeId: string;
 }

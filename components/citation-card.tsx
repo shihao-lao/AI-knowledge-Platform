@@ -11,18 +11,23 @@ interface CitationCardProps {
 }
 
 function getRelevanceTier(score: number): { label: string; color: string } {
-  if (score >= 0.85) return { label: '高度相关', color: '#52c41a' };
-  if (score >= 0.65) return { label: '较为相关', color: '#faad14' };
+  if (score >= 0.6) return { label: '高度相关', color: '#52c41a' };
+  if (score >= 0.4) return { label: '较为相关', color: '#faad14' };
   return { label: '一般相关', color: '#ff7a45' };
+}
+
+function clampScore(score: number): number {
+  if (!Number.isFinite(score)) return 0;
+  return Math.min(Math.max(score, 0), 1);
 }
 
 function CitationCard({ citation, active, onOpen }: CitationCardProps) {
   const Icon = citation.documentTitle.endsWith('.md') ? FileMarkdownOutlined : FileTextOutlined;
 
-  const percent = Math.round(citation.confidenceScore * 100);
-  const tier = getRelevanceTier(citation.confidenceScore);
-  const barColor =
-    citation.confidenceScore >= 0.85 ? '#52c41a' : citation.confidenceScore >= 0.65 ? '#faad14' : '#ff7a45';
+  const score = clampScore(citation.confidenceScore);
+  const percent = Math.round(score * 100);
+  const tier = getRelevanceTier(score);
+  const barColor = score >= 0.6 ? '#52c41a' : score >= 0.4 ? '#faad14' : '#ff7a45';
 
   return (
     <button
