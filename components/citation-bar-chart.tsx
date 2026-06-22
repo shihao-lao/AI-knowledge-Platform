@@ -20,7 +20,7 @@ export default function CitationBarChart({ documents }: Props) {
     xField: 'documentTitle',
     yField: 'citationCount',
     color: '#4f46e5',
-    label: { position: 'middle' as const, style: { fill: '#fff', fontSize: 12 } },
+    label: { position: 'inside' as const, style: { fill: '#fff', fontSize: 12 } },
     xAxis: { label: { autoRotate: true } },
     yAxis: { title: { text: '引用次数' } },
     height: 360,

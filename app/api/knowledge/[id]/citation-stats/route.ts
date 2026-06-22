@@ -20,7 +20,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     });
 
     type DocAcc = {
-      title: string;
+      documentIds: Set<string>;
       count: number;
       totalScore: number;
       chunkCounts: Map<number, number>;
@@ -44,10 +44,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
       for (const c of citations) {
         totalCitations++;
-        const key = c.documentId;
+        const key = c.documentTitle;
         if (!docMap.has(key)) {
           docMap.set(key, {
-            title: c.documentTitle,
+            documentIds: new Set(),
             count: 0,
             totalScore: 0,
             chunkCounts: new Map(),
@@ -55,6 +55,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
           });
         }
         const acc = docMap.get(key)!;
+        acc.documentIds.add(c.documentId);
         acc.count++;
         acc.totalScore += c.confidenceScore;
         acc.chunkCounts.set(c.chunkIndex, (acc.chunkCounts.get(c.chunkIndex) ?? 0) + 1);
@@ -63,14 +64,14 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     }
 
     const documents = Array.from(docMap.entries())
-      .map(([documentId, acc]) => {
+      .map(([documentTitle, acc]) => {
         const chunkBreakdown = Array.from(acc.chunkCounts.entries())
           .map(([chunkIndex, count]) => ({ chunkIndex, count }))
           .sort((a, b) => b.count - a.count);
 
         return {
-          documentId,
-          documentTitle: acc.title,
+          documentId: Array.from(acc.documentIds).join(','),
+          documentTitle,
           citationCount: acc.count,
           averageConfidence: acc.count > 0 ? Math.round((acc.totalScore / acc.count) * 1000) / 1000 : 0,
           chunkBreakdown,

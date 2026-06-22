@@ -149,8 +149,8 @@ export default function ChatConversationPage() {
       const searchResults = await api.search({
         query: question,
         knowledgeId: activeKbId,
-        topK: 8,
-        scoreThreshold: 0.1,
+        topK: 5,
+        scoreThreshold: 0,
       });
 
       if (searchResults.chunks.length > 0) {
@@ -226,7 +226,7 @@ ${context}
     ]);
 
     await sendChatMessage(
-      { messages: chatMessages, stream: true },
+      { messages: chatMessages, stream: true, enableSearch: false },
       (content) => {
         setMessages((prev) =>
           prev.map((item) => (item.id === assistantId ? { ...item, content, streaming: true } : item)),
@@ -237,11 +237,22 @@ ${context}
           prev.map((item) => (item.id === assistantId ? { ...item, content, streaming: false } : item)),
         );
 
+        // 解析 LLM 实际引用的编号，只保存被引用的切片
+        const citedNumbers = new Set<number>();
+        const citePattern = /\[(\d+)\]/g;
+        let match;
+        while ((match = citePattern.exec(content)) !== null) {
+          citedNumbers.add(parseInt(match[1], 10));
+        }
+
+        // 只保留 LLM 实际引用的 citations
+        const actualCitations = citations.filter((_, i) => citedNumbers.has(i + 1));
+
         // 保存助手消息到数据库
         await api.createMessage(activeConversationId, {
           role: 'assistant',
           content,
-          citations,
+          citations: actualCitations,
         });
       },
       (error) => {

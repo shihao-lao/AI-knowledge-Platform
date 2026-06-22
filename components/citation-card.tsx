@@ -41,7 +41,7 @@ function CitationCard({ citation, active, onOpen }: CitationCardProps) {
         {citation.preview}
       </Typography.Paragraph>
       <span className="citation-card__meta">
-        <span>第 {citation.chunkIndex} 段</span>
+        <span>第 {citation.chunkIndex + 1} 段</span>
         <span className="citation-card__score" style={{ color: barColor }}>
           {tier.label} {percent}%
         </span>
