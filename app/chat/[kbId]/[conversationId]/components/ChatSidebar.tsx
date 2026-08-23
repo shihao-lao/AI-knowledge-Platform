@@ -1,6 +1,6 @@
 'use client';
 
-import { Typography } from 'antd';
+import { Card, List, Typography } from 'antd';
 import type { Citation, Conversation } from '@/types';
 import CitationCard from '@/components/citation-card';
 import ConversationHistory from './ConversationHistory';
@@ -24,23 +24,24 @@ export default function ChatSidebar({
 }: ChatSidebarProps) {
   return (
     <aside className="chat-side">
-      <Typography.Title level={5}>引用来源</Typography.Title>
-      <Typography.Text type="secondary">回答生成时实时同步</Typography.Text>
-      <div className="chat-side__citations">
+      <Card size="small" title="引用来源" className="chat-side__card" styles={{ body: { paddingTop: 12 } }}>
         {liveCitations.length > 0 ? (
-          liveCitations.map((citation) => (
-            <CitationCard
-              key={`${citation.documentId}-${citation.chunkIndex}`}
-              citation={citation}
-              onOpen={onCitationOpen}
-            />
-          ))
+          <List
+            size="small"
+            split={false}
+            dataSource={liveCitations}
+            renderItem={(citation) => (
+              <List.Item style={{ padding: '6px 0' }}>
+                <CitationCard citation={citation} onOpen={onCitationOpen} />
+              </List.Item>
+            )}
+          />
         ) : (
           <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-            发送问题后，相关引用会在这里显示
+            发送问题后，回答引用的资料会显示在这里
           </Typography.Text>
         )}
-      </div>
+      </Card>
       <ConversationHistory
         conversations={conversations}
         activeConversationId={activeConversationId}

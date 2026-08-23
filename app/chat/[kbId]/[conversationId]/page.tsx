@@ -355,7 +355,7 @@ export default function ChatConversationPage() {
                 options={knowledgeBases.map((kb) => ({ value: kb.id, label: kb.name }))}
               />
             </div>
-            <ChatMessageList messages={messages} userAvatar={me?.avatar} />
+            <ChatMessageList messages={messages} userAvatar={me?.avatar} onCitationOpen={goToKnowledge} />
             <ChatInputArea value={input} onChange={setInput} onSend={sendMessage} sending={sending} />
           </div>
           <ChatSidebar
