@@ -1,6 +1,6 @@
 import 'server-only';
 import { prisma } from '@/lib/db/prisma';
-import { llmChat } from '@/lib/server/llm/client';
+import { llmChatStream } from '@/lib/server/llm/client';
 import { questionRepo } from '@/lib/db/question-repository';
 
 export class PracticeNotFoundError extends Error {}
@@ -12,7 +12,7 @@ export interface EvaluationResult {
   referenceSummary: string;
 }
 
-const EVALUATION_PROMPT = `你是一位面试官，请评估候选人的回答质量。
+const EVALUATION_PROMPT = `你是一位面试官，请评估候选人的回答质量。不要输出任何思考过程，直接输出最终结果。
 
 题目：{question}
 参考答案：{answer}
@@ -72,21 +72,32 @@ export const practiceService = {
     const kb = await prisma.knowledge.findFirst({ where: { id: question.knowledgeId, userId } });
     if (!kb) throw new PracticeNotFoundError('题目不存在');
 
-    const raw = await llmChat(
-      [
-        {
-          role: 'system',
-          content: EVALUATION_PROMPT.replace('{question}', question.question)
-            .replace('{answer}', question.answer)
-            .replace('{userAnswer}', userAnswer.slice(0, 4000)),
-        },
-        { role: 'user', content: '请开始评估。' },
-      ],
-      { temperature: 0.2, maxTokens: 800 },
-    );
-
-    const result = parseEvaluation(raw);
+    // 注意：MiMo 等模型偶发进入深度推理模式，把输出全部耗在 reasoning_content
+    // 导致 content 为空，因此评估提示词整体放入 user 消息、用流式收集，并重试。
+    let raw = '';
+    let result: EvaluationResult | null = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      raw = '';
+      for await (const delta of llmChatStream(
+        [
+          { role: 'system', content: '你是一位面试官，请严格按用户要求输出。' },
+          {
+            role: 'user',
+            content: EVALUATION_PROMPT.replace('{question}', question.question)
+              .replace('{answer}', question.answer)
+              .replace('{userAnswer}', userAnswer.slice(0, 4000)),
+          },
+        ],
+        { temperature: 0.2, maxTokens: 1600 },
+      )) {
+        raw += delta;
+      }
+      result = parseEvaluation(raw);
+      if (result) break;
+      console.warn(`[Practice] 评估输出为空或解析失败（attempt ${attempt}），重试... rawLen=${raw.length}`);
+    }
     if (!result) {
+      console.error('[Practice] 评估解析失败，原始内容:', JSON.stringify(raw).slice(0, 800));
       throw new Error('评估结果解析失败，请重试');
     }
 

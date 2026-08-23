@@ -122,7 +122,7 @@ export async function* llmChatStream(
         const trimmed = line.trim();
         if (!trimmed || !trimmed.startsWith('data:')) continue;
         const dataStr = trimmed.slice(5).trim();
-        if (dataStr === '[DONE]') return;
+        if (dataStr === '[DONE]') break;
         try {
           const data = JSON.parse(dataStr) as { choices?: Array<{ delta?: { content?: string } }> };
           const delta = data.choices?.[0]?.delta;
