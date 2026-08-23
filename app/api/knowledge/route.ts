@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { knowledgeService } from '@/lib/services/knowledge-service';
+import { requireUser, AuthError } from '@/lib/server/auth';
 
 export async function GET() {
   try {
-    const list = await knowledgeService.list();
+    const user = await requireUser();
+    const list = await knowledgeService.list(user.id);
     return NextResponse.json({ data: list });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     console.error('[Knowledge API] list error:', err);
     return NextResponse.json({ error: '获取知识库列表失败' }, { status: 500 });
   }
@@ -13,6 +18,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireUser();
     const body = await request.json();
     const { name, description } = body;
 
@@ -23,13 +29,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '知识库名称不能超过200个字符' }, { status: 400 });
     }
 
-    const kb = await knowledgeService.create({
+    const kb = await knowledgeService.create(user.id, {
       name: name.trim(),
       description: description?.slice(0, 1000) ?? '',
     });
 
     return NextResponse.json({ data: kb }, { status: 201 });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     console.error('[Knowledge API] create error:', err);
     return NextResponse.json({ error: '创建知识库失败' }, { status: 500 });
   }

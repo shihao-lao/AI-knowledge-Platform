@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { documentService } from '@/lib/services/document-service';
+import { requireUser, isKnowledgeOwnedBy, AuthError } from '@/lib/server/auth';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const ALLOWED_MIMES = [
@@ -13,6 +14,7 @@ const ALLOWED_EXTENSIONS = ['.txt', '.md', '.markdown', '.docx'];
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireUser();
     const formData = await request.formData();
     const file = formData.get('file');
     const knowledgeId = formData.get('knowledgeId');
@@ -23,6 +25,11 @@ export async function POST(request: NextRequest) {
 
     if (!knowledgeId || typeof knowledgeId !== 'string') {
       return NextResponse.json({ error: 'knowledgeId 不能为空' }, { status: 400 });
+    }
+
+    // 归属校验：只能上传到自己名下的知识库
+    if (!(await isKnowledgeOwnedBy(knowledgeId, user.id))) {
+      return NextResponse.json({ error: '知识库不存在' }, { status: 404 });
     }
 
     // Size check
@@ -59,10 +66,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '文件名包含非法字符' }, { status: 400 });
     }
 
-    const doc = await documentService.upload(knowledgeId, file);
+    const doc = await documentService.upload(knowledgeId, user.id, file);
 
     return NextResponse.json({ data: doc }, { status: 201 });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     console.error('[Document API] upload error:', err);
     return NextResponse.json({ error: '文件上传失败' }, { status: 500 });
   }

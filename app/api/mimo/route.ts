@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateDocSummary, generateExpertSkill } from '@/lib/mimo-api';
+import { requireUser, AuthError } from '@/lib/server/auth';
 
 export async function POST(request: NextRequest) {
   try {
+    await requireUser();
     const body = await request.json();
     const { action, title, content } = body as { action: string; title: string; content: string };
 
@@ -26,6 +28,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ data: result });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     const message = err instanceof Error ? err.message : 'AI 生成失败';
     return NextResponse.json({ error: message }, { status: 500 });
   }

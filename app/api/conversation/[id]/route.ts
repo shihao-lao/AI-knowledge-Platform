@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { requireUser, isConversationOwnedBy, AuthError } from '@/lib/server/auth';
 
 // GET /api/conversation/[id]
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireUser();
     const { id } = await params;
+
+    if (!(await isConversationOwnedBy(id, user.id))) {
+      return NextResponse.json({ error: '对话不存在' }, { status: 404 });
+    }
 
     const conversation = await prisma.conversation.findUnique({
       where: { id },
@@ -19,6 +25,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     return NextResponse.json({ data: conversation });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     console.error('[Conversation API] GET error:', err);
     return NextResponse.json({ error: '获取对话失败' }, { status: 500 });
   }
@@ -27,9 +36,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 // PUT /api/conversation/[id]
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireUser();
     const { id } = await params;
     const body = await request.json();
     const { title } = body;
+
+    if (!(await isConversationOwnedBy(id, user.id))) {
+      return NextResponse.json({ error: '对话不存在' }, { status: 404 });
+    }
 
     const conversation = await prisma.conversation.update({
       where: { id },
@@ -38,6 +52,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     return NextResponse.json({ data: conversation });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     console.error('[Conversation API] PUT error:', err);
     return NextResponse.json({ error: '更新对话失败' }, { status: 500 });
   }
@@ -46,7 +63,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 // DELETE /api/conversation/[id]
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireUser();
     const { id } = await params;
+
+    if (!(await isConversationOwnedBy(id, user.id))) {
+      return NextResponse.json({ error: '对话不存在' }, { status: 404 });
+    }
 
     await prisma.conversation.delete({
       where: { id },
@@ -54,6 +76,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     return NextResponse.json({ data: { deleted: true } });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     console.error('[Conversation API] DELETE error:', err);
     return NextResponse.json({ error: '删除对话失败' }, { status: 500 });
   }

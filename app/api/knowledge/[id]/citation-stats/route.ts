@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { requireUser, AuthError } from '@/lib/server/auth';
 import type { Citation } from '@/types';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireUser();
     const { id } = await params;
 
-    const kb = await prisma.knowledge.findUnique({ where: { id } });
+    const kb = await prisma.knowledge.findFirst({ where: { id, userId: user.id } });
     if (!kb) {
       return NextResponse.json({ error: '知识库不存在' }, { status: 404 });
     }
@@ -98,6 +100,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       },
     });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     console.error('[CitationStats API] error:', err);
     return NextResponse.json({ error: '获取引用统计失败' }, { status: 500 });
   }

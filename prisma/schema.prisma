@@ -7,16 +7,30 @@ datasource db {
   url      = "file:./dev.db?connection_limit=1&socket_timeout=30"
 }
 
+model User {
+  id           String   @id
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  knowledgeBases Knowledge[]
+}
+
 model Knowledge {
   id          String   @id
+  userId      String
   name        String
   description String   @default("")
   status      String   @default("active")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   documents     Document[]
   conversations Conversation[]
+
+  @@index([userId])
 }
 
 model Document {
@@ -49,12 +63,14 @@ model Chunk {
 }
 
 model Conversation {
-  id            String    @id
-  knowledgeId   String
-  title         String    @default("新对话")
-  messageCount  Int       @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id
+  knowledgeId  String
+  title        String    @default("新对话")
+  messageCount Int       @default(0)
+  /// 超出滑动窗口的早期对话摘要（懒生成并缓存，避免每次请求重复总结）
+  summary      String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   knowledge Knowledge @relation(fields: [knowledgeId], references: [id], onDelete: Cascade)
   messages  Message[]

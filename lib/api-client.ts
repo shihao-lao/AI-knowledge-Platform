@@ -92,6 +92,13 @@ export interface ApiMessage {
   createdAt: string;
 }
 
+export interface ApiUser {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
 const BASE = '/api';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -106,6 +113,39 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  // Auth
+  login(email: string, password: string): Promise<{ data: ApiUser }> {
+    return request(`${BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+  },
+
+  register(name: string, email: string, password: string): Promise<{ data: ApiUser }> {
+    return request(`${BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password }),
+    });
+  },
+
+  logout(): Promise<{ data: { loggedOut: boolean } }> {
+    return request(`${BASE}/auth/logout`, { method: 'POST' });
+  },
+
+  /** 获取当前登录用户；未登录返回 null（不抛错） */
+  async me(): Promise<ApiUser | null> {
+    try {
+      const res = await fetch(`${BASE}/auth/me`);
+      if (!res.ok) return null;
+      const body = await res.json();
+      return body.data ?? null;
+    } catch {
+      return null;
+    }
+  },
+
   // Knowledge CRUD
   listKnowledge(): Promise<{ data: ApiKnowledge[] }> {
     return request(`${BASE}/knowledge`);

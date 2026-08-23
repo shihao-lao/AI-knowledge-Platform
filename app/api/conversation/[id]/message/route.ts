@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import { requireUser, isConversationOwnedBy, AuthError } from '@/lib/server/auth';
 
 // GET /api/conversation/[id]/message
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireUser();
     const { id } = await params;
+
+    if (!(await isConversationOwnedBy(id, user.id))) {
+      return NextResponse.json({ error: '对话不存在' }, { status: 404 });
+    }
 
     const messages = await prisma.message.findMany({
       where: { conversationId: id },
@@ -18,6 +24,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       })),
     });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     console.error('[Message API] GET error:', err);
     return NextResponse.json({ error: '获取消息失败' }, { status: 500 });
   }
@@ -26,12 +35,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 // POST /api/conversation/[id]/message
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireUser();
     const { id } = await params;
     const body = await request.json();
     const { role, content, citations } = body;
 
     if (!role || !content) {
       return NextResponse.json({ error: 'role and content are required' }, { status: 400 });
+    }
+    if (!(await isConversationOwnedBy(id, user.id))) {
+      return NextResponse.json({ error: '对话不存在' }, { status: 404 });
     }
 
     const message = await prisma.message.create({
@@ -60,6 +73,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       },
     });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     console.error('[Message API] POST error:', err);
     return NextResponse.json({ error: '保存消息失败' }, { status: 500 });
   }

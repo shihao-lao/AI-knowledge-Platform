@@ -49,19 +49,17 @@ cp .env.example .env
 编辑 `.env`，填入以下配置：
 
 ```bash
-# Embedding 提供商 (openai | deepseek | tensorflow 库处理 )
-EMBEDDING_PROVIDER=openai
-OPENAI_API_KEY=your_openai_api_key
+# Embedding 提供商（当前仅 local 哈希方案，后续将升级本地 BGE 中文模型）
+EMBEDDING_PROVIDER=local
 
-# 小米 MiMo 大模型
+# 小米 MiMo 大模型（服务端专用，切勿使用 NEXT_PUBLIC_ 前缀）
 MIMO_BASE_URL=https://token-plan-cn.xiaomimimo.com/v1
 MIMO_API_KEY=your_mimo_api_key
 MIMO_MODEL=mimo-v2.5
 
-# 客户端同上（用于 lib/mimo-api.ts）
-NEXT_PUBLIC_MIMO_BASE_URL=https://token-plan-cn.xiaomimimo.com/v1
-NEXT_PUBLIC_MIMO_API_KEY=your_mimo_api_key
-NEXT_PUBLIC_MIMO_MODEL=mimo-v2.5
+# 会话签名密钥（登录 cookie），用任意长随机字符串替换：
+#   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+AUTH_SECRET=please-change-me-to-a-long-random-string
 ```
 
 ### 初始化数据库

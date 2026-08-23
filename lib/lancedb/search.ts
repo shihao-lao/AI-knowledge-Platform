@@ -1,8 +1,13 @@
 import { getLanceDB } from './client';
 import { VECTOR_TABLE_NAME, type VectorRecord } from './schema';
 
+/**
+ * 严格校验 ID 格式（服务端生成的 ID 形如 `kb_xxxxxxxx` / `doc_xxxxxxxx`）。
+ * 只允许字母、数字、下划线，杜绝注入 LanceDB SQL 过滤串的可能。
+ * 校验失败直接抛错（fail-closed），绝不静默放行。
+ */
 function sanitizeId(id: string): string {
-  if (!/^[\w.-]+$/.test(id)) {
+  if (typeof id !== 'string' || !/^[A-Za-z0-9_]+$/.test(id)) {
     throw new Error('Invalid ID format');
   }
   return id;
@@ -10,6 +15,8 @@ function sanitizeId(id: string): string {
 
 export interface SearchParams {
   query: string;
+  /** 数据归属用户，多用户隔离的强制条件 */
+  userId?: string;
   knowledgeId?: string;
   topK?: number;
   scoreThreshold?: number;
@@ -240,7 +247,7 @@ export async function searchKnowledge(
   embeddings: { embedQuery(text: string): Promise<number[]> },
   params: SearchParams,
 ): Promise<SearchResult[]> {
-  const { query, topK = 10, scoreThreshold = 0.2, knowledgeId, excludeDocumentIds } = params;
+  const { query, topK = 10, scoreThreshold = 0.2, userId, knowledgeId, excludeDocumentIds } = params;
 
   const queryEmbedding = await embeddings.embedQuery(query);
   const keywords = extractKeywords(query);
@@ -254,6 +261,11 @@ export async function searchKnowledge(
 
   // 构建 WHERE 条件
   const conditions: string[] = [];
+  // 用户隔离：永远先按 userId 过滤（配合知识库归属校验，双保险）
+  if (userId) {
+    const safeUserId = sanitizeId(userId);
+    conditions.push(`userId = '${safeUserId}'`);
+  }
   if (knowledgeId) {
     const safeId = sanitizeId(knowledgeId);
     conditions.push(`knowledgeId = '${safeId}'`);
@@ -410,6 +422,7 @@ export async function insertVectors(_embeddings: unknown, records: VectorRecord[
     text: r.text,
     id: r.id,
     chunkId: r.chunkId,
+    userId: r.metadata.userId,
     documentId: r.metadata.documentId,
     filename: r.metadata.filename,
     knowledgeId: r.metadata.knowledgeId,
@@ -418,16 +431,24 @@ export async function insertVectors(_embeddings: unknown, records: VectorRecord[
   await table.add(rows);
 }
 
-export async function deleteVectors(documentId: string): Promise<void> {
+export async function deleteVectors(documentId: string, userId?: string): Promise<void> {
   const db = await getLanceDB();
   const table = await db.openTable(VECTOR_TABLE_NAME);
   const safeId = sanitizeId(documentId);
-  await table.delete(`documentId = '${safeId}'`);
+  const conditions = [`documentId = '${safeId}'`];
+  if (userId) {
+    conditions.push(`userId = '${sanitizeId(userId)}'`);
+  }
+  await table.delete(conditions.join(' AND '));
 }
 
-export async function deleteVectorsByKnowledgeId(knowledgeId: string): Promise<void> {
+export async function deleteVectorsByKnowledgeId(knowledgeId: string, userId?: string): Promise<void> {
   const db = await getLanceDB();
   const table = await db.openTable(VECTOR_TABLE_NAME);
   const safeId = sanitizeId(knowledgeId);
-  await table.delete(`knowledgeId = '${safeId}'`);
+  const conditions = [`knowledgeId = '${safeId}'`];
+  if (userId) {
+    conditions.push(`userId = '${sanitizeId(userId)}'`);
+  }
+  await table.delete(conditions.join(' AND '));
 }

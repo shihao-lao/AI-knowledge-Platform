@@ -4,6 +4,7 @@ export interface VectorRecord {
   text: string;
   vector: number[];
   metadata: {
+    userId: string;
     knowledgeId: string;
     documentId: string;
     filename: string;

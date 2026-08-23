@@ -4,7 +4,6 @@ import {
   BookOutlined,
   MessageOutlined,
   RocketOutlined,
-  TeamOutlined,
   SafetyOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';

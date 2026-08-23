@@ -3,7 +3,6 @@ CREATE TABLE "Knowledge" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
     "description" TEXT NOT NULL DEFAULT '',
-    "visibility" TEXT NOT NULL DEFAULT 'private',
     "status" TEXT NOT NULL DEFAULT 'active',
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL
@@ -20,6 +19,7 @@ CREATE TABLE "Document" (
     "parseStatus" TEXT NOT NULL DEFAULT 'pending',
     "chunkCount" INTEGER NOT NULL DEFAULT 0,
     "charCount" INTEGER NOT NULL DEFAULT 0,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "Document_knowledgeId_fkey" FOREIGN KEY ("knowledgeId") REFERENCES "Knowledge" ("id") ON DELETE CASCADE ON UPDATE CASCADE
@@ -37,10 +37,23 @@ CREATE TABLE "Chunk" (
 );
 
 -- CreateTable
-CREATE TABLE "ChatReference" (
+CREATE TABLE "Conversation" (
     "id" TEXT NOT NULL PRIMARY KEY,
-    "chatId" TEXT NOT NULL,
-    "chunkId" TEXT NOT NULL,
-    "score" REAL NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "knowledgeId" TEXT NOT NULL,
+    "title" TEXT NOT NULL DEFAULT '新对话',
+    "messageCount" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Conversation_knowledgeId_fkey" FOREIGN KEY ("knowledgeId") REFERENCES "Knowledge" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "Message" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "conversationId" TEXT NOT NULL,
+    "role" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "citations" TEXT NOT NULL DEFAULT '[]',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Message_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );

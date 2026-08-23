@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { knowledgeService } from '@/lib/services/knowledge-service';
+import { requireUser, AuthError } from '@/lib/server/auth';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireUser();
     const { id } = await params;
     const kb = await knowledgeService.findById(id);
-    if (!kb) {
+    if (!kb || kb.userId !== user.id) {
       return NextResponse.json({ error: '知识库不存在' }, { status: 404 });
     }
     return NextResponse.json({ data: kb });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     console.error('[Knowledge API] get error:', err);
     return NextResponse.json({ error: '获取知识库失败' }, { status: 500 });
   }
@@ -17,12 +22,13 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireUser();
     const { id } = await params;
     const body = await request.json();
     const { name, description } = body;
 
     const existing = await knowledgeService.findById(id);
-    if (!existing) {
+    if (!existing || existing.userId !== user.id) {
       return NextResponse.json({ error: '知识库不存在' }, { status: 404 });
     }
 
@@ -40,6 +46,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const updated = await knowledgeService.update(id, patch);
     return NextResponse.json({ data: updated });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     console.error('[Knowledge API] update error:', err);
     return NextResponse.json({ error: '更新知识库失败' }, { status: 500 });
   }
@@ -47,14 +56,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const user = await requireUser();
     const { id } = await params;
     const existing = await knowledgeService.findById(id);
-    if (!existing) {
+    if (!existing || existing.userId !== user.id) {
       return NextResponse.json({ error: '知识库不存在' }, { status: 404 });
     }
-    await knowledgeService.delete(id);
+    await knowledgeService.delete(id, user.id);
     return NextResponse.json({ data: { deleted: true } });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     console.error('[Knowledge API] delete error:', err);
     return NextResponse.json({ error: '删除知识库失败' }, { status: 500 });
   }

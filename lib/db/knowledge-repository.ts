@@ -5,8 +5,9 @@ export type KnowledgeWithCount = Knowledge & { _count: { documents: number } };
 export type DocumentWithChunks = Document & { chunks: Chunk[] };
 
 export const knowledgeRepo = {
-  list(): Promise<KnowledgeWithCount[]> {
+  list(userId: string): Promise<KnowledgeWithCount[]> {
     return prisma.knowledge.findMany({
+      where: { userId },
       include: { _count: { select: { documents: true } } },
       orderBy: { updatedAt: 'desc' },
     });
@@ -19,7 +20,7 @@ export const knowledgeRepo = {
     });
   },
 
-  create(data: { id: string; name: string; description?: string }): Promise<Knowledge> {
+  create(data: { id: string; userId: string; name: string; description?: string }): Promise<Knowledge> {
     return prisma.knowledge.create({ data });
   },
 

@@ -1,7 +1,10 @@
-// 小米 mimo 大模型 API 配置
-const MIMO_BASE_URL = process.env.NEXT_PUBLIC_MIMO_BASE_URL!;
-const MIMO_API_KEY = process.env.NEXT_PUBLIC_MIMO_API_KEY!;
-const MIMO_MODEL = process.env.NEXT_PUBLIC_MIMO_MODEL!;
+// 小米 mimo 大模型 API 配置（服务端专用，绝不暴露 NEXT_PUBLIC_ 前缀的密钥）
+// 该模块只允许在 Server Components / Route Handlers 中使用
+import 'server-only';
+
+const MIMO_BASE_URL = process.env.MIMO_BASE_URL || 'https://api.xiaomimimo.com/v1';
+const MIMO_API_KEY = process.env.MIMO_API_KEY || '';
+const MIMO_MODEL = process.env.MIMO_MODEL || 'mimo-v2.5';
 
 // ==================== 类型定义 ====================
 

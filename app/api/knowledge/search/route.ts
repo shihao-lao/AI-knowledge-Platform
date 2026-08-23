@@ -3,9 +3,13 @@ import { getEmbeddingProvider } from '@/lib/embedding';
 import { searchKnowledge } from '@/lib/lancedb/search';
 import { ensureTable } from '@/lib/lancedb/client';
 import { chunkRepo, documentRepo } from '@/lib/db/knowledge-repository';
+import { requireUser, isKnowledgeOwnedBy, AuthError } from '@/lib/server/auth';
+
+const ID_PATTERN = /^[A-Za-z0-9_]+$/;
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireUser();
     const body = await request.json();
     const { query, knowledgeId, topK, scoreThreshold, metadataFilter } = body;
 
@@ -14,6 +18,14 @@ export async function POST(request: NextRequest) {
     }
     if (query.length > 2000) {
       return NextResponse.json({ error: '查询内容过长' }, { status: 400 });
+    }
+    if (knowledgeId !== undefined && (typeof knowledgeId !== 'string' || !ID_PATTERN.test(knowledgeId))) {
+      return NextResponse.json({ error: 'knowledgeId 格式不合法' }, { status: 400 });
+    }
+
+    // 归属校验：只允许检索自己名下的知识库
+    if (knowledgeId && !(await isKnowledgeOwnedBy(knowledgeId, user.id))) {
+      return NextResponse.json({ error: '知识库不存在' }, { status: 404 });
     }
 
     const embeddings = await getEmbeddingProvider();
@@ -28,6 +40,7 @@ export async function POST(request: NextRequest) {
 
     const results = await searchKnowledge(embeddings, {
       query: query.trim(),
+      userId: user.id,
       knowledgeId: knowledgeId || undefined,
       topK: Math.min(topK ?? 8, 20),
       ...(scoreThreshold != null && { scoreThreshold }),
@@ -50,6 +63,9 @@ export async function POST(request: NextRequest) {
       })),
     });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: 401 });
+    }
     console.error('[Search API] error:', err);
     return NextResponse.json({ error: '知识搜索失败' }, { status: 500 });
   }
