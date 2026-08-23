@@ -38,6 +38,7 @@ export default function ChatConversationPage() {
 
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [chatMode, setChatMode] = useState<'question' | 'interview'>('question');
 
   // 当前展示的引用：取最后一条有内容的助手消息（引用由服务端校验后随消息落库）
   const lastAssistantMessage = [...messages].reverse().find((m) => m.role === 'assistant' && m.content.length > 0);
@@ -144,7 +145,7 @@ export default function ChatConversationPage() {
 
     // 服务端完成：RAG 检索、历史管理、引用校验、消息落库、标题生成
     await sendChatMessage(
-      { conversationId: activeConversationId, question, enableSearch: false },
+      { conversationId: activeConversationId, question, enableSearch: false, mode: chatMode },
       {
         onDelta: (content) => {
           setMessages((prev) =>
@@ -337,6 +338,15 @@ export default function ChatConversationPage() {
                 <Typography.Title level={2}>AI 对话</Typography.Title>
                 <Typography.Text type="secondary">当前问答范围：{activeKb?.name}</Typography.Text>
               </div>
+              <Select
+                value={chatMode}
+                onChange={(m) => setChatMode(m)}
+                style={{ width: 130 }}
+                options={[
+                  { value: 'question', label: '💬 知识问答' },
+                  { value: 'interview', label: '🎤 模拟面试' },
+                ]}
+              />
               <Select
                 value={activeKbId}
                 onChange={(kbId) => {

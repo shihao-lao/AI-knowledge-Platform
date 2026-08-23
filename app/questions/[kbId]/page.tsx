@@ -5,6 +5,7 @@ import {
   ImportOutlined,
   MessageOutlined,
   SearchOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import {
   App,
@@ -14,6 +15,7 @@ import {
   Input,
   Modal,
   Popconfirm,
+  Progress,
   Select,
   Space,
   Spin,
@@ -22,7 +24,7 @@ import {
 } from 'antd';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { api, type ApiQuestion } from '@/lib/api-client';
+import { api, type ApiQuestion, type PracticeResult } from '@/lib/api-client';
 import { chatPath } from '@/lib/paths';
 
 const DIFFICULTY_META: Record<string, { label: string; color: string }> = {
@@ -57,6 +59,12 @@ export default function QuestionBankPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [importing, setImporting] = useState(false);
+
+  // 练习模式
+  const [practiceQuestion, setPracticeQuestion] = useState<ApiQuestion | null>(null);
+  const [practiceAnswer, setPracticeAnswer] = useState('');
+  const [practicing, setPracticing] = useState(false);
+  const [practiceResult, setPracticeResult] = useState<PracticeResult | null>(null);
 
   const fetchQuestions = async (extra?: { category?: string; difficulty?: string }) => {
     setLoading(true);
@@ -114,6 +122,29 @@ export default function QuestionBankPage() {
       setQuestions((prev) => prev.filter((q) => q.id !== id));
     } catch (err) {
       message.error(err instanceof Error ? err.message : '删除失败');
+    }
+  };
+
+  const openPractice = (q: ApiQuestion) => {
+    setPracticeQuestion(q);
+    setPracticeAnswer('');
+    setPracticeResult(null);
+  };
+
+  const handlePractice = async () => {
+    if (!practiceQuestion) return;
+    if (!practiceAnswer.trim()) {
+      message.warning('请先写下你的回答');
+      return;
+    }
+    setPracticing(true);
+    try {
+      const res = await api.evaluatePractice(practiceQuestion.id, practiceAnswer.trim());
+      setPracticeResult(res.data);
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '评估失败');
+    } finally {
+      setPracticing(false);
     }
   };
 
@@ -193,9 +224,26 @@ export default function QuestionBankPage() {
                       {q.answer.length > 200 ? `${q.answer.slice(0, 200)}…` : q.answer}
                     </Typography.Paragraph>
                   </div>
-                  <Popconfirm title="确定删除此题？" onConfirm={() => handleDelete(q.id)} okText="删除" cancelText="取消" okButtonProps={{ danger: true }}>
-                    <Button type="text" danger icon={<DeleteOutlined />} />
-                  </Popconfirm>
+                  <Space>
+                    <Button
+                      type="primary"
+                      size="small"
+                      ghost
+                      icon={<EditOutlined />}
+                      onClick={() => openPractice(q)}
+                    >
+                      练习
+                    </Button>
+                    <Popconfirm
+                      title="确定删除此题？"
+                      onConfirm={() => handleDelete(q.id)}
+                      okText="删除"
+                      cancelText="取消"
+                      okButtonProps={{ danger: true }}
+                    >
+                      <Button type="text" danger icon={<DeleteOutlined />} />
+                    </Popconfirm>
+                  </Space>
                 </div>
               </Card>
             ))}
@@ -223,6 +271,83 @@ export default function QuestionBankPage() {
           autoSize={{ minRows: 10, maxRows: 20 }}
           style={{ fontFamily: 'monospace', fontSize: 13 }}
         />
+      </Modal>
+
+      <Modal
+        title="练习此题"
+        open={practiceQuestion !== null}
+        onCancel={() => setPracticeQuestion(null)}
+        footer={null}
+        width={680}
+      >
+        {practiceQuestion && (
+          <>
+            <Typography.Paragraph strong style={{ fontSize: 16 }}>
+              {practiceQuestion.question}
+            </Typography.Paragraph>
+            <Input.TextArea
+              value={practiceAnswer}
+              onChange={(e) => setPracticeAnswer(e.target.value)}
+              placeholder="写下你的回答（越完整，评估越准确）……"
+              autoSize={{ minRows: 4, maxRows: 10 }}
+              disabled={practicing || practiceResult !== null}
+            />
+            {!practiceResult && (
+              <Button
+                type="primary"
+                block
+                style={{ marginTop: 12 }}
+                loading={practicing}
+                onClick={handlePractice}
+              >
+                提交并评估
+              </Button>
+            )}
+            {practiceResult && (
+              <div style={{ marginTop: 16 }}>
+                <Space align="center" size={16}>
+                  <Progress type="circle" percent={practiceResult.score} size={80} />
+                  <div>
+                    <Typography.Text strong>AI 评分：{practiceResult.score} / 100</Typography.Text>
+                    <br />
+                    <Typography.Text type="secondary">评估已记录，可在「引用统计」页查看掌握度</Typography.Text>
+                  </div>
+                </Space>
+                <Typography.Paragraph style={{ marginTop: 12 }}>
+                  <Typography.Text strong>点评：</Typography.Text>
+                  <br />
+                  {practiceResult.feedback}
+                </Typography.Paragraph>
+                {practiceResult.keyPoints.length > 0 && (
+                  <Typography.Paragraph>
+                    <Typography.Text strong>建议补充：</Typography.Text>
+                    <Space size={4} wrap style={{ marginTop: 4 }}>
+                      {practiceResult.keyPoints.map((p) => (
+                        <Tag key={p} color="orange">
+                          {p}
+                        </Tag>
+                      ))}
+                    </Space>
+                  </Typography.Paragraph>
+                )}
+                <Typography.Paragraph>
+                  <Typography.Text strong>参考答案要点：</Typography.Text>
+                  <br />
+                  <Typography.Text type="secondary">{practiceResult.referenceSummary}</Typography.Text>
+                </Typography.Paragraph>
+                <Button
+                  block
+                  onClick={() => {
+                    setPracticeResult(null);
+                    setPracticeAnswer('');
+                  }}
+                >
+                  再练一次
+                </Button>
+              </div>
+            )}
+          </>
+        )}
       </Modal>
     </main>
   );

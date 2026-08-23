@@ -112,6 +112,31 @@ export interface ApiQuestion {
   updatedAt: string;
 }
 
+export interface PracticeResult {
+  recordId: string;
+  score: number;
+  feedback: string;
+  keyPoints: string[];
+  referenceSummary: string;
+}
+
+export interface PracticeStats {
+  total: number;
+  averageScore: number;
+  maxScore: number;
+  minScore: number;
+  byCategory: Array<{ key: string; count: number; averageScore: number }>;
+  byDifficulty: Array<{ key: string; count: number; averageScore: number }>;
+  recent: Array<{
+    id: string;
+    score: number;
+    question: string;
+    category: string;
+    difficulty: string;
+    evaluatedAt: string;
+  }>;
+}
+
 const BASE = '/api';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -347,5 +372,18 @@ export const api = {
 
   deleteQuestion(id: string): Promise<{ data: { deleted: boolean } }> {
     return request(`${BASE}/question/${id}`, { method: 'DELETE' });
+  },
+
+  // Practice
+  evaluatePractice(questionId: string, userAnswer: string): Promise<{ data: PracticeResult }> {
+    return request(`${BASE}/practice/evaluate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ questionId, userAnswer }),
+    });
+  },
+
+  getPracticeStats(knowledgeId: string): Promise<{ data: PracticeStats }> {
+    return request(`${BASE}/practice/stats?knowledgeId=${encodeURIComponent(knowledgeId)}`);
   },
 };

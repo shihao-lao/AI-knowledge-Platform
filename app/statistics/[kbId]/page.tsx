@@ -3,20 +3,25 @@
 import {
   ArrowLeftOutlined,
   BarChartOutlined,
+  EditOutlined,
   FileOutlined,
   MessageOutlined,
   PieChartOutlined,
   ReloadOutlined,
   TeamOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
-import { App, Button, Card, Col, Empty, Row, Select, Space, Spin, Statistic, Typography } from 'antd';
+import { App, Button, Card, Col, Empty, Progress, Row, Select, Space, Spin, Statistic, Table, Tag, Typography } from 'antd';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { api, type ApiKnowledge, type CitationStatsData } from '@/lib/api-client';
+import { api, type ApiKnowledge, type CitationStatsData, type PracticeStats } from '@/lib/api-client';
 import { knowledgePath, statisticsPath } from '@/lib/paths';
 import CitationBarChart from '@/components/citation-bar-chart';
 import CitationPieChart from '@/components/citation-pie-chart';
 import CitationStatsTable from '@/components/citation-stats-table';
+
+const DIFFICULTY_COLOR: Record<string, string> = { easy: 'green', medium: 'orange', hard: 'red' };
+const DIFFICULTY_LABEL: Record<string, string> = { easy: '简单', medium: '中等', hard: '困难' };
 
 export default function StatisticsPage() {
   const params = useParams();
@@ -27,13 +32,18 @@ export default function StatisticsPage() {
   const [loading, setLoading] = useState(false);
   const [knowledgeBases, setKnowledgeBases] = useState<ApiKnowledge[]>([]);
   const [stats, setStats] = useState<CitationStatsData | null>(null);
+  const [practiceStats, setPracticeStats] = useState<PracticeStats | null>(null);
 
   const fetchStats = useCallback(
     async (id: string) => {
       setLoading(true);
       try {
-        const result = await api.getCitationStats(id);
-        setStats(result.data);
+        const [citation, practice] = await Promise.all([
+          api.getCitationStats(id),
+          api.getPracticeStats(id).catch(() => null),
+        ]);
+        setStats(citation.data);
+        setPracticeStats(practice?.data ?? null);
       } catch (err) {
         console.error('获取引用统计失败:', err);
         message.error('获取引用统计失败');
@@ -156,6 +166,105 @@ export default function StatisticsPage() {
               }
             >
               <CitationStatsTable documents={documents} />
+            </Card>
+          </>
+        )}
+
+        {practiceStats && practiceStats.total > 0 && (
+          <>
+            <Typography.Title level={4} style={{ marginTop: 32 }}>
+              <ThunderboltOutlined style={{ marginRight: 8 }} />
+              练习掌握度
+            </Typography.Title>
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+              <Col xs={24} sm={12} lg={6}>
+                <Card>
+                  <Statistic title="练习次数" value={practiceStats.total} prefix={<EditOutlined />} />
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} lg={6}>
+                <Card>
+                  <Statistic title="平均分" value={practiceStats.averageScore} suffix="/ 100" />
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} lg={6}>
+                <Card>
+                  <Statistic title="最高分" value={practiceStats.maxScore} valueStyle={{ color: '#10b981' }} />
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} lg={6}>
+                <Card>
+                  <Statistic title="最低分" value={practiceStats.minScore} valueStyle={{ color: '#ef4444' }} />
+                </Card>
+              </Col>
+            </Row>
+
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+              <Col xs={24} lg={12}>
+                <Card title="按类目掌握度" size="small">
+                  {practiceStats.byCategory.length === 0 ? (
+                    <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  ) : (
+                    practiceStats.byCategory.map((c) => (
+                      <div key={c.key} style={{ marginBottom: 12 }}>
+                        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                          <Typography.Text>
+                            {c.key}
+                            <Typography.Text type="secondary">（{c.count} 次）</Typography.Text>
+                          </Typography.Text>
+                          <Typography.Text strong>{c.averageScore} 分</Typography.Text>
+                        </Space>
+                        <Progress percent={c.averageScore} showInfo={false} strokeColor={c.averageScore >= 80 ? '#10b981' : c.averageScore >= 60 ? '#f59e0b' : '#ef4444'} />
+                      </div>
+                    ))
+                  )}
+                </Card>
+              </Col>
+              <Col xs={24} lg={12}>
+                <Card title="按难度掌握度" size="small">
+                  {practiceStats.byDifficulty.length === 0 ? (
+                    <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  ) : (
+                    practiceStats.byDifficulty.map((d) => (
+                      <div key={d.key} style={{ marginBottom: 12 }}>
+                        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                          <Typography.Text>
+                            <Tag color={DIFFICULTY_COLOR[d.key] ?? 'default'}>{DIFFICULTY_LABEL[d.key] ?? d.key}</Tag>
+                            <Typography.Text type="secondary">（{d.count} 次）</Typography.Text>
+                          </Typography.Text>
+                          <Typography.Text strong>{d.averageScore} 分</Typography.Text>
+                        </Space>
+                        <Progress percent={d.averageScore} showInfo={false} strokeColor={d.averageScore >= 80 ? '#10b981' : d.averageScore >= 60 ? '#f59e0b' : '#ef4444'} />
+                      </div>
+                    ))
+                  )}
+                </Card>
+              </Col>
+            </Row>
+
+            <Card title="最近练习记录" size="small">
+              <Table
+                rowKey="id"
+                size="small"
+                dataSource={practiceStats.recent}
+                pagination={false}
+                columns={[
+                  { title: '题目', dataIndex: 'question', ellipsis: true },
+                  {
+                    title: '类目',
+                    dataIndex: 'category',
+                    width: 100,
+                    render: (v: string) => <Tag color="blue">{v}</Tag>,
+                  },
+                  {
+                    title: '难度',
+                    dataIndex: 'difficulty',
+                    width: 80,
+                    render: (v: string) => <Tag color={DIFFICULTY_COLOR[v]}>{DIFFICULTY_LABEL[v] ?? v}</Tag>,
+                  },
+                  { title: '得分', dataIndex: 'score', width: 80, render: (v: number) => <b>{v}</b> },
+                ]}
+              />
             </Card>
           </>
         )}
