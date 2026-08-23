@@ -1,4 +1,6 @@
 import { getLanceDB } from './client';
+import { Index } from '@lancedb/lancedb';
+import type { Table } from '@lancedb/lancedb';
 import { VECTOR_TABLE_NAME, type VectorRecord } from './schema';
 
 /**
@@ -240,6 +242,45 @@ function keywordMatchScore(text: string, keywords: string[]): number {
   return hits / keywords.length;
 }
 
+/** FTS 索引是否已确认存在（进程内缓存，避免每次查询都 listIndices） */
+let ftsIndexChecked = false;
+
+/**
+ * 确保 text 列存在 FTS（BM25）索引；中文使用 ngram tokenizer（2-3 字切分）。
+ * 索引创建失败不抛错，调用方回退到旧的关键词打分。
+ */
+async function ensureFtsIndex(table: Table): Promise<void> {
+  if (ftsIndexChecked) return;
+  ftsIndexChecked = true;
+  try {
+    const indices = await table.listIndices();
+    const hasFts = indices.some(
+      (i) =>
+        (i.indexType ?? '').toUpperCase().includes('FTS') ||
+        (Array.isArray(i.columns) && i.columns.includes('text')),
+    );
+    if (hasFts) return;
+    await table.createIndex('text', {
+      config: Index.fts({
+        baseTokenizer: 'ngram',
+        ngramMinLength: 2,
+        ngramMaxLength: 3,
+        lowercase: true,
+        removeStopWords: false,
+      }),
+      replace: true,
+      waitTimeoutSeconds: 120,
+    });
+    console.log('[Search] FTS index created on text column');
+  } catch (err) {
+    console.warn('[Search] FTS index unavailable, falling back to keyword scoring:', err);
+  }
+}
+
+function rowId(item: Record<string, unknown>): string {
+  return (item.chunkId as string) || (item.id as string);
+}
+
 /**
  * 混合搜索：向量语义搜索 + 关键词匹配，通过 RRF 融合排名
  */
@@ -294,13 +335,24 @@ export async function searchKnowledge(
   // 构建 chunkId → vector rank 的映射
   const vectorRankMap = new Map<string, number>();
   vectorRanked.forEach((r, rank) => {
-    const id = (r.item.chunkId as string) || (r.item.id as string);
-    vectorRankMap.set(id, rank);
+    vectorRankMap.set(rowId(r.item), rank);
   });
 
-  // --- 关键词匹配排名（按匹配度降序） ---
+  // --- FTS（BM25）排名：优先使用，索引不可用时回退旧关键词打分 ---
+  let ftsRanked: Record<string, unknown>[] = [];
+  try {
+    await ensureFtsIndex(table);
+    const ftsQuery = table.search(query, 'fts', ['text']).limit(candidateLimit);
+    if (conditions.length > 0) {
+      ftsQuery.where(conditions.join(' AND '));
+    }
+    ftsRanked = (await ftsQuery.toArray()) as Record<string, unknown>[];
+  } catch (err) {
+    console.warn('[Search] FTS query failed, using keyword fallback:', err);
+  }
+
   const keywordRanked =
-    keywords.length > 0
+    ftsRanked.length === 0 && keywords.length > 0
       ? [...rawResults]
           .map((item: Record<string, unknown>) => ({
             item,
@@ -313,19 +365,26 @@ export async function searchKnowledge(
           .sort((a, b) => b.score - a.score)
       : [];
 
+  const ftsRankMap = new Map<string, number>();
+  ftsRanked.forEach((item, rank) => {
+    ftsRankMap.set(rowId(item), rank);
+  });
+
   const keywordRankMap = new Map<string, number>();
   keywordRanked.forEach((r, rank) => {
-    const id = (r.item.chunkId as string) || (r.item.id as string);
-    keywordRankMap.set(id, rank);
+    keywordRankMap.set(rowId(r.item), rank);
   });
 
   // --- RRF 融合 ---
   const allIds = new Set<string>();
   for (const r of vectorRanked) {
-    allIds.add((r.item.chunkId as string) || (r.item.id as string));
+    allIds.add(rowId(r.item));
+  }
+  for (const item of ftsRanked) {
+    allIds.add(rowId(item));
   }
   for (const r of keywordRanked) {
-    allIds.add((r.item.chunkId as string) || (r.item.id as string));
+    allIds.add(rowId(r.item));
   }
 
   const rrfScores = new Map<string, number>();
@@ -333,6 +392,8 @@ export async function searchKnowledge(
     let score = 0;
     const vRank = vectorRankMap.get(id);
     if (vRank !== undefined) score += 1 / (RRF_K + vRank);
+    const fRank = ftsRankMap.get(id);
+    if (fRank !== undefined) score += 1 / (RRF_K + fRank);
     const kRank = keywordRankMap.get(id);
     if (kRank !== undefined) score += 1 / (RRF_K + kRank);
     rrfScores.set(id, score);
@@ -342,8 +403,7 @@ export async function searchKnowledge(
   // 同时保存 distance 信息用于计算相似度
   const itemWithDistanceMap = new Map<string, { item: Record<string, unknown>; distance: number }>();
   for (const r of vectorRanked) {
-    const id = (r.item.chunkId as string) || (r.item.id as string);
-    itemWithDistanceMap.set(id, { item: r.item, distance: r.distance });
+    itemWithDistanceMap.set(rowId(r.item), { item: r.item, distance: r.distance });
   }
 
   const sortedIds = [...rrfScores.entries()].sort((a, b) => b[1] - a[1]);
