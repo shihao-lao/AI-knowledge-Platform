@@ -10,3 +10,7 @@ export function chatPath(kbId: string, conversationId?: string) {
 export function statisticsPath(kbId: string) {
   return `/statistics/${kbId}`;
 }
+
+export function questionsPath(kbId: string) {
+  return `/questions/${kbId}`;
+}

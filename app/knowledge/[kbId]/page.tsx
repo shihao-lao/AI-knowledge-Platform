@@ -1,9 +1,9 @@
 'use client';
 
 import { App, Space, Typography, Spin } from 'antd';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { knowledgePath, chatPath, statisticsPath } from '@/lib/paths';
+import { knowledgePath, chatPath, statisticsPath, questionsPath } from '@/lib/paths';
 import { api, type ApiKnowledge, type ApiDocument } from '@/lib/api-client';
 import { useExpandedDocIds, useKnowledgeStore } from '@/stores/knowledge-store';
 import CreateDocumentModal from './components/CreateDocumentModal';
@@ -13,11 +13,23 @@ import KnowledgeSidebar from './components/KnowledgeSidebar';
 
 const STAGE_TEXT: Record<string, string> = {
   pending: '等待中',
+  uploading: '上传中',
   parsing: '解析文档中',
   chunking: '切片中',
   embedding: '向量化中',
   completed: '已完成',
   failed: '处理失败',
+};
+
+/** 每个阶段对应的进度百分比 */
+const STAGE_PROGRESS: Record<string, number> = {
+  pending: 2,
+  uploading: 8,
+  parsing: 25,
+  chunking: 50,
+  embedding: 78,
+  completed: 100,
+  failed: 0,
 };
 
 export default function KnowledgeWorkspacePage() {
@@ -97,12 +109,31 @@ export default function KnowledgeWorkspacePage() {
   );
 
   const pollDocumentStatus = async (docId: string) => {
-    const maxAttempts = 120;
-    for (let i = 0; i < maxAttempts; i++) {
-      await new Promise((r) => setTimeout(r, 2000));
+    const MAX_DURATION = 5 * 60 * 1000; // 5 分钟总超时
+    const BASE_INTERVAL = 1500; // 起始间隔 1.5s
+    const MAX_INTERVAL = 8000; // 最大间隔 8s
+    let interval = BASE_INTERVAL;
+    let consecutiveErrors = 0;
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < MAX_DURATION) {
+      await new Promise((r) => setTimeout(r, interval));
       try {
         const { data } = await api.getDocument(docId);
+        consecutiveErrors = 0;
+        interval = BASE_INTERVAL;
+
         const stage = STAGE_TEXT[data.parseStatus] ?? data.parseStatus;
+
+        // 组装进度详情：chunking/embedding 阶段带上切片数
+        let detail = stage;
+        if (data.parseStatus === 'chunking' && data.charCount > 0) {
+          detail = `${stage}（${data.charCount.toLocaleString()} 字符）`;
+        }
+        if (data.parseStatus === 'embedding' && data.chunkCount > 0) {
+          detail = `${stage}（${data.chunkCount} 个切片）`;
+        }
+
         if (data.parseStatus === 'completed') {
           message.success({
             content: `《${data.filename}》处理完成，共 ${data.chunkCount} 个切片`,
@@ -112,16 +143,39 @@ export default function KnowledgeWorkspacePage() {
           return;
         }
         if (data.parseStatus === 'failed') {
-          message.error({ content: `《${data.filename}》处理失败`, key: `ingest-${docId}` });
+          message.error({ content: `《${data.filename}》处理失败，请重试`, key: `ingest-${docId}` });
           await fetchDocuments();
           return;
         }
-        message.loading({ content: `《${data.filename}》${stage}...`, key: `ingest-${docId}`, duration: 0 });
+        message.loading({ content: `《${data.filename}》${detail}...`, key: `ingest-${docId}`, duration: 0 });
+
+        // 指数退避
+        interval = Math.min(interval * 1.3, MAX_INTERVAL);
       } catch {
-        /* ignore polling error */
+        consecutiveErrors++;
+        if (consecutiveErrors >= 5) {
+          message.error({ content: '状态检查失败，请刷新页面查看', key: `ingest-${docId}` });
+          return;
+        }
+        interval = Math.min(interval * 2, MAX_INTERVAL);
       }
     }
+    // 超时：不报错，只提示用户手动刷新
+    message.info({ content: '文档仍在处理中，请稍后刷新查看', key: `ingest-${docId}`, duration: 5 });
+    await fetchDocuments();
   };
+
+  // 页面加载后，自动恢复轮询仍在处理中的文档
+  const hasResumedPolling = useRef(false);
+  useEffect(() => {
+    if (hasResumedPolling.current || documents.length === 0) return;
+    const processingStatuses = new Set(['pending', 'uploading', 'parsing', 'chunking', 'embedding']);
+    const processingDocs = documents.filter((d) => processingStatuses.has(d.parseStatus));
+    if (processingDocs.length > 0) {
+      hasResumedPolling.current = true;
+      processingDocs.forEach((d) => pollDocumentStatus(d.id));
+    }
+  }, [documents]);
 
   const handleUpload = async (file: File) => {
     const key = `upload-${file.name}`;
@@ -132,10 +186,10 @@ export default function KnowledgeWorkspacePage() {
       });
       message.success({ content: `《${file.name}》上传完成，开始处理...`, key });
       await fetchDocuments();
-      // Poll for processing status
       pollDocumentStatus(result.data.id);
     } catch (err) {
-      message.error({ content: err instanceof Error ? err.message : '上传失败', key });
+      const errMsg = err instanceof Error ? err.message : '上传失败';
+      message.error({ content: `《${file.name}》${errMsg}`, key });
     }
   };
 
@@ -184,17 +238,10 @@ export default function KnowledgeWorkspacePage() {
         ? 'completed'
         : doc.parseStatus === 'failed'
           ? 'failed'
-          : 'uploading') as 'completed' | 'failed' | 'uploading',
-      processingProgress:
-        doc.parseStatus === 'completed'
-          ? 100
-          : doc.parseStatus === 'embedding'
-            ? 84
-            : doc.parseStatus === 'chunking'
-              ? 58
-              : doc.parseStatus === 'parsing'
-                ? 28
-                : 8,
+          : doc.parseStatus === 'pending'
+            ? 'uploading'
+            : (doc.parseStatus as string)) as 'completed' | 'failed' | 'uploading',
+      processingProgress: STAGE_PROGRESS[doc.parseStatus] ?? 8,
       chunkCount: doc.chunkCount,
       charCount: doc.charCount,
       enabled: doc.enabled ?? true,
@@ -226,6 +273,10 @@ export default function KnowledgeWorkspacePage() {
           <button type="button" className="hub-nav__item" onClick={goToChat}>
             <span>💬</span>
             <span>AI 对话</span>
+          </button>
+          <button type="button" className="hub-nav__item" onClick={() => router.push(questionsPath(activeKbId))}>
+            <span>❓</span>
+            <span>面试题库</span>
           </button>
           <button type="button" className="hub-nav__item" onClick={() => router.push(statisticsPath(activeKbId))}>
             <span>📊</span>
