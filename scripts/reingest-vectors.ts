@@ -67,7 +67,48 @@ async function main() {
     }
   }
 
-  // 3. 汇总结果
+  // 3. 重建题库向量（type=question）
+  const questions = await prisma.question.findMany({
+    select: { id: true, knowledgeId: true, question: true, answer: true },
+  });
+  console.log(`待处理题目: ${questions.length}`);
+  const { getEmbeddingProvider, embedBatch } = await import('../lib/embedding/index');
+  const { insertVectors } = await import('../lib/lancedb/search');
+
+  if (questions.length > 0) {
+    const embeddings = await getEmbeddingProvider();
+    const texts = questions.map((q) => `[题目: ${q.question}]\n参考答案：${q.answer}`);
+    for (let i = 0; i < texts.length; i += 20) {
+      const batch = texts.slice(i, i + 20);
+      const vectors = await embedBatch(batch);
+      const batchQuestions = questions.slice(i, i + 20);
+      const records = batchQuestions
+        .map((q, j) => {
+          const userId = knowledgeMap.get(q.knowledgeId);
+          if (!userId) return null;
+          return {
+            id: crypto.randomUUID(),
+            chunkId: `q_${q.id}`,
+            text: texts[i + j],
+            vector: vectors[j],
+            metadata: {
+              userId,
+              knowledgeId: q.knowledgeId,
+              documentId: q.id,
+              filename: `题目: ${q.question.slice(0, 60)}`,
+              type: 'question' as const,
+            },
+          };
+        })
+        .filter((r): r is NonNullable<typeof r> => r !== null);
+      if (records.length > 0) {
+        await insertVectors(embeddings, records);
+      }
+    }
+    console.log(`题目向量重建完成: ${questions.length}`);
+  }
+
+  // 4. 汇总结果
   const after = await prisma.document.findMany({ select: { id: true, filename: true, parseStatus: true, chunkCount: true } });
   const ok = after.filter((d) => d.parseStatus === 'completed').length;
   const failed = after.filter((d) => d.parseStatus === 'failed').length;

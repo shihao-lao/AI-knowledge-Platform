@@ -134,7 +134,7 @@ export const documentService = {
             chunkId: chunk.id,
             text: chunk.content,
             vector: allVectors[i],
-            metadata: { userId, knowledgeId: kbId, documentId: docId, filename: doc?.filename ?? '' },
+            metadata: { userId, knowledgeId: kbId, documentId: docId, filename: doc?.filename ?? '', type: 'doc' },
           })),
         );
       } catch (vectorErr) {

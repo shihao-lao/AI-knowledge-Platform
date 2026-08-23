@@ -30,6 +30,7 @@ export async function ensureTable() {
         documentId: '',
         filename: '',
         knowledgeId: '',
+        type: 'doc',
       },
     ]);
     const table = await db.openTable(VECTOR_TABLE_NAME);

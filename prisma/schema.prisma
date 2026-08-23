@@ -29,6 +29,7 @@ model Knowledge {
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   documents     Document[]
   conversations Conversation[]
+  questions     Question[]
 
   @@index([userId])
 }
@@ -85,4 +86,45 @@ model Message {
   createdAt      DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+/// 面试题目卡：结构化题库单元（题目 + 参考答案 + 类目/难度/关键词）
+model Question {
+  id          String   @id
+  knowledgeId String
+  category    String   @default("未分类")
+  /// easy | medium | hard
+  difficulty  String   @default("medium")
+  question    String
+  answer      String
+  /// JSON 数组字符串，如 ["闭包","作用域"]
+  keywords    String   @default("[]")
+  source      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  knowledge       Knowledge        @relation(fields: [knowledgeId], references: [id], onDelete: Cascade)
+  practiceRecords PracticeRecord[]
+
+  @@index([knowledgeId, category])
+  @@index([knowledgeId, difficulty])
+}
+
+/// 答题记录：模拟面试 / 刷题模式的评估结果，用于掌握度统计
+model PracticeRecord {
+  id          String   @id
+  questionId  String
+  userId      String
+  /// question | mock
+  mode        String   @default("question")
+  userAnswer  String
+  /// 0-100
+  score       Int      @default(0)
+  feedback    String   @default("")
+  evaluatedAt DateTime @default(now())
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([questionId])
 }

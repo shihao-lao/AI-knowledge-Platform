@@ -29,7 +29,7 @@ const MAX_TOKENS = 2048;
 // ==================== 引用处理 ====================
 
 function toCitation(r: SearchResult): Citation {
-  const preview = r.content.replace(/^\[文档:.*?\]\n/, '').slice(0, 100);
+  const preview = r.content.replace(/^\[(文档|题目):.*?\]\r?\n?/, '').slice(0, 100);
   return {
     documentId: r.documentId,
     documentTitle: r.filename,

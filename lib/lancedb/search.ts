@@ -20,6 +20,8 @@ export interface SearchParams {
   /** 数据归属用户，多用户隔离的强制条件 */
   userId?: string;
   knowledgeId?: string;
+  /** 限定检索类型：doc=文档切片，question=面试题目 */
+  type?: 'doc' | 'question';
   topK?: number;
   scoreThreshold?: number;
   metadataFilter?: Partial<VectorRecord['metadata']>;
@@ -288,7 +290,7 @@ export async function searchKnowledge(
   embeddings: { embedQuery(text: string): Promise<number[]> },
   params: SearchParams,
 ): Promise<SearchResult[]> {
-  const { query, topK = 10, scoreThreshold = 0.2, userId, knowledgeId, excludeDocumentIds } = params;
+  const { query, topK = 10, scoreThreshold = 0.2, userId, knowledgeId, type, excludeDocumentIds } = params;
 
   const queryEmbedding = await embeddings.embedQuery(query);
   const keywords = extractKeywords(query);
@@ -310,6 +312,10 @@ export async function searchKnowledge(
   if (knowledgeId) {
     const safeId = sanitizeId(knowledgeId);
     conditions.push(`knowledgeId = '${safeId}'`);
+  }
+  if (type) {
+    const safeType = type === 'question' ? 'question' : 'doc';
+    conditions.push(`type = '${safeType}'`);
   }
   // 排除禁用文档的切片
   if (excludeDocumentIds && excludeDocumentIds.length > 0) {
@@ -486,6 +492,7 @@ export async function insertVectors(_embeddings: unknown, records: VectorRecord[
     documentId: r.metadata.documentId,
     filename: r.metadata.filename,
     knowledgeId: r.metadata.knowledgeId,
+    type: r.metadata.type,
   }));
 
   await table.add(rows);

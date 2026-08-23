@@ -99,6 +99,19 @@ export interface ApiUser {
   avatar?: string;
 }
 
+export interface ApiQuestion {
+  id: string;
+  knowledgeId: string;
+  category: string;
+  difficulty: string;
+  question: string;
+  answer: string;
+  keywords: string[];
+  source?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const BASE = '/api';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -298,5 +311,41 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
+  },
+
+  // Question Bank
+  listQuestions(params: {
+    knowledgeId: string;
+    category?: string;
+    difficulty?: string;
+    keyword?: string;
+  }): Promise<{ data: ApiQuestion[]; categories: string[] }> {
+    const qs = new URLSearchParams({ knowledgeId: params.knowledgeId });
+    if (params.category) qs.set('category', params.category);
+    if (params.difficulty) qs.set('difficulty', params.difficulty);
+    if (params.keyword) qs.set('keyword', params.keyword);
+    return request(`${BASE}/question?${qs.toString()}`);
+  },
+
+  importQuestions(
+    knowledgeId: string,
+    questions: Array<{
+      category?: string;
+      difficulty?: string;
+      question: string;
+      answer: string;
+      keywords?: string[];
+      source?: string;
+    }>,
+  ): Promise<{ data: { count: number } }> {
+    return request(`${BASE}/question`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ knowledgeId, questions }),
+    });
+  },
+
+  deleteQuestion(id: string): Promise<{ data: { deleted: boolean } }> {
+    return request(`${BASE}/question/${id}`, { method: 'DELETE' });
   },
 };

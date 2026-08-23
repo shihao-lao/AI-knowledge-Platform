@@ -8,6 +8,8 @@ export interface VectorRecord {
     knowledgeId: string;
     documentId: string;
     filename: string;
+    /** doc = 文档切片；question = 面试题目卡 */
+    type: 'doc' | 'question';
   };
 }
 
