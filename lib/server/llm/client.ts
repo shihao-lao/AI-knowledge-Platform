@@ -47,7 +47,7 @@ function buildRequest(messages: LlmMessage[], options: LlmOptions & { stream: bo
     messages,
     stream: options.stream,
     temperature: options.temperature ?? 0.7,
-    max_completion_tokens: options.maxTokens ?? 1024,
+    max_tokens: options.maxTokens ?? 1024,
   };
 }
 
