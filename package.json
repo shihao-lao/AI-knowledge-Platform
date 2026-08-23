@@ -7,7 +7,10 @@
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start --hostname 0.0.0.0",
-    "test": "ts-node scripts/test-pipeline.ts",
+    "start:standalone": "node .next/standalone/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:pipeline": "ts-node scripts/test-pipeline.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -63,6 +66,7 @@
     "prettier": "^3.8.3",
     "tsx": "^4.22.3",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.59.4"
+    "typescript-eslint": "^8.59.4",
+    "vitest": "^4.1.11"
   }
 }
