@@ -5,35 +5,13 @@ import { DeleteOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Citation, Message } from '@/types';
-import { currentUser } from '@/data/mock';
 import { chatPath, knowledgePath, statisticsPath } from '@/lib/paths';
 import { createWelcomeMessage } from '@/lib/chat';
 import { sendChatMessage } from '@/app/api/chat';
-import { api, type ApiKnowledge, type ApiConversation } from '@/lib/api-client';
+import { api, type ApiKnowledge, type ApiConversation, type ApiUser } from '@/lib/api-client';
 import ChatMessageList from './components/ChatMessageList';
 import ChatInputArea from './components/ChatInputArea';
 import ChatSidebar from './components/ChatSidebar';
-
-function getCitedNumbers(content: string): Set<number> {
-  const citedNumbers = new Set<number>();
-  const citePattern = /\[(\d+)\]/g;
-  let match;
-
-  while ((match = citePattern.exec(content)) !== null) {
-    const index = Number.parseInt(match[1], 10);
-    if (Number.isFinite(index) && index > 0) {
-      citedNumbers.add(index);
-    }
-  }
-
-  return citedNumbers;
-}
-
-function getActuallyCited(citations: Citation[], content: string): Citation[] {
-  const citedNumbers = getCitedNumbers(content);
-  if (citedNumbers.size === 0) return [];
-  return citations.filter((_, i) => citedNumbers.has(i + 1));
-}
 
 export default function ChatConversationPage() {
   const router = useRouter();
@@ -47,6 +25,7 @@ export default function ChatConversationPage() {
   const [conversations, setConversations] = useState<ApiConversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [me, setMe] = useState<ApiUser | null>(null);
 
   const activeKbId =
     kbIdParam && knowledgeBases.some((kb) => kb.id === kbIdParam) ? kbIdParam : (knowledgeBases[0]?.id ?? '');
@@ -59,7 +38,10 @@ export default function ChatConversationPage() {
 
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [liveCitations, setLiveCitations] = useState<Citation[]>([]);
+
+  // 当前展示的引用：取最后一条有内容的助手消息（引用由服务端校验后随消息落库）
+  const lastAssistantMessage = [...messages].reverse().find((m) => m.role === 'assistant' && m.content.length > 0);
+  const currentCitations: Citation[] = lastAssistantMessage?.citations ?? [];
 
   // 获取知识库列表
   const fetchKnowledgeBases = async () => {
@@ -101,6 +83,7 @@ export default function ChatConversationPage() {
 
   useEffect(() => {
     fetchKnowledgeBases();
+    api.me().then(setMe);
   }, []);
 
   useEffect(() => {
@@ -144,92 +127,8 @@ export default function ChatConversationPage() {
       content: question,
       createdAt: new Date().toISOString(),
     };
-
-    // 更新 UI
     setMessages((prev) => [...prev, userMessage]);
-    setLiveCitations([]);
 
-    // 保存用户消息到数据库
-    await api.createMessage(activeConversationId, {
-      role: 'user',
-      content: question,
-    });
-
-    // 如果是第一条用户消息，更新对话标题
-    const hasUserMessage = messages.some((m) => m.role === 'user');
-    if (!hasUserMessage) {
-      const title = question.length > 24 ? `${question.slice(0, 24)}…` : question;
-      await api.updateConversation(activeConversationId, { title });
-      setConversations((prev) => prev.map((c) => (c.id === activeConversationId ? { ...c, title } : c)));
-    }
-
-    // Step 1: RAG 检索
-    let context = '';
-    let citations: Citation[] = [];
-    try {
-      const searchResults = await api.search({
-        query: question,
-        knowledgeId: activeKbId,
-        topK: 10,
-      });
-
-      if (searchResults.chunks.length > 0) {
-        context = searchResults.chunks.map((r, i) => `[${i + 1}] [来源: ${r.source}]\n${r.content}`).join('\n\n');
-
-        citations = searchResults.chunks.map((r, i) => ({
-          documentId: r.documentId,
-          documentTitle: r.source,
-          chunkIndex: r.chunkIndex,
-          preview: r.content.replace(/^\[文档:.*?\]\n/, '').substring(0, 100) + (r.content.length > 100 ? '...' : ''),
-          confidenceScore: r.score,
-          color: `hsl(${(i * 60) % 360}, 70%, 50%)`,
-        }));
-      }
-    } catch (err) {
-      console.error('[RAG] 检索失败:', err);
-    }
-
-    // Step 2: 构建消息
-    const chatMessages: { role: 'user' | 'assistant' | 'system'; content: string }[] = [];
-
-    if (context) {
-      chatMessages.push({
-        role: 'system',
-        content: `你是一个知识库问答助手。请严格基于下方「参考资料」回答用户问题。
-
-## 参考资料
-${context}
-
-## 回答规则
-1. **只使用参考资料中的信息**回答，不要编造或推测参考资料未提及的内容
-2. 回答时标注引用来源，格式：[1]、[2] 等，对应参考资料中的编号
-3. 如果参考资料中没有相关信息，直接回答"根据现有知识库资料，未找到与此问题相关的内容"，不要尝试自行回答
-4. 回答简洁准确，使用中文`,
-      });
-    } else {
-      chatMessages.push({
-        role: 'system',
-        content: `你是一个知识库问答助手。当前知识库中没有可用的参考资料（文档可能为空或全部已禁用）。
-
-## 回答规则
-1. 请根据你的通用知识尽力回答用户问题
-2. 在回答开头说明：「当前知识库暂无可用文档，以下回答基于通用知识，仅供参考」
-3. 建议用户上传相关文档或启用已有文档以获得更精准的知识库问答体验
-4. 回答简洁准确，使用中文`,
-      });
-    }
-
-    // 添加历史消息
-    const historyMessages = messages
-      .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
-      .map((msg) => ({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-      }));
-    chatMessages.push(...historyMessages);
-    chatMessages.push({ role: 'user', content: question });
-
-    // Step 3: 调用 LLM
     const assistantId = `msg_${Date.now()}_assistant`;
     setMessages((prev) => [
       ...prev,
@@ -243,42 +142,34 @@ ${context}
       },
     ]);
 
+    // 服务端完成：RAG 检索、历史管理、引用校验、消息落库、标题生成
     await sendChatMessage(
-      { messages: chatMessages, stream: true, enableSearch: false },
-      (content) => {
-        const actualCitations = getActuallyCited(citations, content);
-        setLiveCitations(actualCitations);
-        setMessages((prev) =>
-          prev.map((item) =>
-            item.id === assistantId ? { ...item, content, citations: actualCitations, streaming: true } : item,
-          ),
-        );
-      },
-      async (content) => {
-        const actualCitations = getActuallyCited(citations, content);
-        setLiveCitations(actualCitations);
-        setMessages((prev) =>
-          prev.map((item) =>
-            item.id === assistantId ? { ...item, content, citations: actualCitations, streaming: false } : item,
-          ),
-        );
-
-        // 保存助手消息到数据库
-        await api.createMessage(activeConversationId, {
-          role: 'assistant',
-          content,
-          citations: actualCitations,
-        });
-      },
-      (error) => {
-        message.error(error);
-        setMessages((prev) =>
-          prev.map((item) =>
-            item.id === assistantId
-              ? { ...item, content: '抱歉，获取回答时出现错误，请稍后重试。', streaming: false }
-              : item,
-          ),
-        );
+      { conversationId: activeConversationId, question, enableSearch: false },
+      {
+        onDelta: (content) => {
+          setMessages((prev) =>
+            prev.map((item) => (item.id === assistantId ? { ...item, content, streaming: true } : item)),
+          );
+        },
+        onCompleted: (content, citations) => {
+          setMessages((prev) =>
+            prev.map((item) =>
+              item.id === assistantId ? { ...item, content, citations, streaming: false } : item,
+            ),
+          );
+          // 服务端已更新标题/消息数，刷新会话列表
+          fetchConversations(activeKbId);
+        },
+        onError: (error) => {
+          message.error(error);
+          setMessages((prev) =>
+            prev.map((item) =>
+              item.id === assistantId
+                ? { ...item, content: '抱歉，获取回答时出现错误，请稍后重试。', streaming: false }
+                : item,
+            ),
+          );
+        },
       },
     );
   };
@@ -327,7 +218,6 @@ ${context}
   };
 
   const openConversation = (conversationId: string) => {
-    setLiveCitations([]);
     router.push(chatPath(activeKbId, conversationId));
   };
 
@@ -451,11 +341,11 @@ ${context}
                 options={knowledgeBases.map((kb) => ({ value: kb.id, label: kb.name }))}
               />
             </div>
-            <ChatMessageList messages={messages} userAvatar={currentUser.avatar} />
+            <ChatMessageList messages={messages} userAvatar={me?.avatar} />
             <ChatInputArea value={input} onChange={setInput} onSend={sendMessage} sending={sending} />
           </div>
           <ChatSidebar
-            liveCitations={liveCitations}
+            liveCitations={currentCitations}
             conversations={kbConversations.map((c) => ({
               id: c.id,
               knowledgeBaseId: c.knowledgeId,

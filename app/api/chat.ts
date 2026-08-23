@@ -1,112 +1,103 @@
-interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
+import type { Citation } from '@/types';
 
-interface ChatRequest {
-  messages: ChatMessage[];
-  botId?: string;
-  userId?: string;
-  stream?: boolean;
+interface SendChatParams {
+  conversationId: string;
+  question: string;
   enableSearch?: boolean;
 }
 
+interface ChatHandlers {
+  /** 流式增量（content 为累计全文） */
+  onDelta?: (content: string) => void;
+  /** 流式结束（content 为全文，citations 为服务端校验后的引用） */
+  onCompleted?: (content: string, citations: Citation[]) => void;
+  onError?: (error: string) => void;
+}
+
 /**
- * 发送聊天消息到服务端 /api/chat（含联网搜索）
+ * 发送聊天消息到服务端 /api/chat（服务端完成 RAG 检索、历史管理、引用校验与落库）
  */
 export async function sendChatMessage(
-  params: ChatRequest,
-  onDelta?: (content: string) => void,
-  onCompleted?: (content: string) => void,
-  onError?: (error: string) => void,
+  params: SendChatParams,
+  handlers: ChatHandlers = {},
 ): Promise<void> {
-  try {
-    const { messages, stream = true, enableSearch = true } = params;
+  const { conversationId, question, enableSearch = false } = params;
+  const { onDelta, onCompleted, onError } = handlers;
 
+  try {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, stream, enableSearch }),
+      body: JSON.stringify({ conversationId, question, enableSearch }),
     });
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({ error: '请求失败' }));
       console.error('[Chat] API error:', response.status, errData);
-      if (onError) onError(errData.error || `请求失败: ${response.status}`);
+      onError?.(errData.error || `请求失败: ${response.status}`);
       return;
     }
 
-    // 流式响应
-    if (stream && response.body) {
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = '';
-      let buffer = '';
-      let completed = false;
+    if (!response.body) {
+      onError?.('服务端未返回流式响应');
+      return;
+    }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullContent = '';
+    let completed = false;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith('data:')) continue;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-          const dataStr = trimmed.slice(5).trim();
-          if (dataStr === '[DONE]') {
-            completed = true;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data:')) continue;
+        const dataStr = trimmed.slice(5).trim();
+        if (dataStr === '[DONE]') {
+          completed = true;
+          continue;
+        }
+
+        try {
+          const data = JSON.parse(dataStr);
+
+          if (data.type === 'answer' && typeof data.content === 'string') {
+            fullContent += data.content;
+            onDelta?.(fullContent);
             continue;
           }
 
-          try {
-            const data = JSON.parse(dataStr);
-
-            if (data.type === 'answer' && typeof data.content === 'string') {
-              fullContent += data.content;
-              if (onDelta) onDelta(fullContent);
-              continue;
-            }
-
-            if (data.type === 'done') {
-              completed = true;
-              if (onCompleted) onCompleted(fullContent);
-              continue;
-            }
-
-            if (data.type === 'error') {
-              console.error('[Chat] server error:', data.message);
-              if (onError) onError(data.message || '对话失败');
-              return;
-            }
-          } catch {
-            // 忽略非 JSON 行
+          if (data.type === 'done') {
+            completed = true;
+            onCompleted?.(fullContent, data.citations ?? []);
+            continue;
           }
+
+          if (data.type === 'error') {
+            console.error('[Chat] server error:', data.message);
+            onError?.(data.message || '对话失败');
+            return;
+          }
+        } catch {
+          // 忽略非 JSON 行
         }
       }
+    }
 
-      // 确保完成回调被调用
-      if (fullContent && !completed && onCompleted) {
-        onCompleted(fullContent);
-      }
-    } else {
-      // 非流式响应
-      const data = await response.json();
-      if (data.error) {
-        if (onError) onError(data.error);
-        return;
-      }
-      const content = data.content || '';
-      if (content) {
-        if (onDelta) onDelta(content);
-        if (onCompleted) onCompleted(content);
-      }
+    // 兜底：流未正常结束但已有内容
+    if (fullContent && !completed) {
+      onCompleted?.(fullContent, []);
     }
   } catch (error) {
     console.error('[Chat] fetch error:', error);
-    if (onError) onError('发送消息失败，请检查网络连接');
+    onError?.('发送消息失败，请检查网络连接');
   }
 }

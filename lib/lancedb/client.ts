@@ -26,6 +26,7 @@ export async function ensureTable() {
         text: '_init_',
         id: '_init_',
         chunkId: '',
+        userId: '',
         documentId: '',
         filename: '',
         knowledgeId: '',
