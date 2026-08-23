@@ -4,14 +4,13 @@ import { App, Select, Typography } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import type { Citation, Message } from '@/types';
+import type { Message } from '@/types';
 import { chatPath, knowledgePath, statisticsPath, questionsPath } from '@/lib/paths';
 import { createWelcomeMessage } from '@/lib/chat';
 import { sendChatMessage } from '@/app/api/chat';
 import { api, type ApiKnowledge, type ApiConversation, type ApiUser } from '@/lib/api-client';
 import ChatMessageList from './components/ChatMessageList';
 import ChatInputArea from './components/ChatInputArea';
-import ChatSidebar from './components/ChatSidebar';
 
 export default function ChatConversationPage() {
   const router = useRouter();
@@ -39,10 +38,6 @@ export default function ChatConversationPage() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [chatMode, setChatMode] = useState<'question' | 'interview'>('question');
-
-  // 当前展示的引用：取最后一条有内容的助手消息（引用由服务端校验后随消息落库）
-  const lastAssistantMessage = [...messages].reverse().find((m) => m.role === 'assistant' && m.content.length > 0);
-  const currentCitations: Citation[] = lastAssistantMessage?.citations ?? [];
 
   // 获取知识库列表
   const fetchKnowledgeBases = async () => {
@@ -358,21 +353,6 @@ export default function ChatConversationPage() {
             <ChatMessageList messages={messages} userAvatar={me?.avatar} onCitationOpen={goToKnowledge} />
             <ChatInputArea value={input} onChange={setInput} onSend={sendMessage} sending={sending} />
           </div>
-          <ChatSidebar
-            liveCitations={currentCitations}
-            conversations={kbConversations.map((c) => ({
-              id: c.id,
-              knowledgeBaseId: c.knowledgeId,
-              title: c.title,
-              messageCount: c.messageCount,
-              createdAt: c.createdAt,
-              updatedAt: c.updatedAt,
-            }))}
-            activeConversationId={activeConversationId}
-            onCitationOpen={goToKnowledge}
-            onConversationSelect={openConversation}
-            onConversationDelete={deleteConversation}
-          />
         </section>
       </main>
     </div>

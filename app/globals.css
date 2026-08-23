@@ -84,6 +84,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow: hidden;
 }
 
 .hub-brand {
@@ -153,6 +154,9 @@ textarea {
 }
 
 .hub-side-section {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding-top: 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
@@ -746,8 +750,8 @@ textarea {
 .chat-workspace {
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background: #fff;
 }
@@ -790,7 +794,7 @@ textarea {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  width: min(100%, 860px);
+  width: min(100%, 780px);
   margin: 0 auto;
   padding: 28px 24px 16px;
   display: flex;
@@ -933,7 +937,7 @@ textarea {
 /* ── Composer ─────────────────────────────────────────────────── */
 .composer-wrap {
   flex-shrink: 0;
-  width: min(100%, 860px);
+  width: min(100%, 780px);
   margin: 0 auto;
   padding: 8px 24px 14px;
   display: flex;
@@ -1046,68 +1050,6 @@ textarea {
   justify-self: center;
   color: var(--color-primary);
   font-size: 14px;
-}
-
-.chat-side__citations {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.chat-side__card {
-  background: #fff;
-  border: 1px solid #ececee;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-}
-
-.chat-history {
-  border-radius: 8px;
-  transition: background 0.15s ease;
-}
-
-.chat-history:hover {
-  background: rgba(79, 70, 229, 0.04);
-}
-
-.chat-history.is-active {
-  background: rgba(79, 70, 229, 0.08);
-}
-
-.chat-history .chat-history__btn {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 6px;
-  text-align: left;
-}
-
-.chat-history.is-active .chat-history__btn {
-  color: var(--color-primary);
-  font-weight: 600;
-}
-
-.chat-history__title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chat-history__count {
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-.chat-history__delete {
-  opacity: 0;
-  transition: opacity 0.15s;
-  margin-right: 4px;
-}
-
-.chat-history:hover .chat-history__delete {
-  opacity: 1;
 }
 
 .hub-empty-hint {
@@ -1287,14 +1229,12 @@ textarea {
     grid-template-columns: 220px minmax(0, 1fr);
   }
 
-  .knowledge-workspace,
-  .chat-workspace {
+  .knowledge-workspace {
     grid-template-columns: minmax(0, 1fr);
     overflow: auto;
   }
 
-  .knowledge-main,
-  .chat-main {
+  .knowledge-main {
     overflow: visible;
   }
 
@@ -1328,8 +1268,7 @@ textarea {
     width: 100%;
   }
 
-  .knowledge-main,
-  .chat-main {
+  .knowledge-main {
     padding: 14px;
   }
 
@@ -1823,9 +1762,4 @@ textarea {
 .kb-card__desc {
   margin-bottom: 8px;
   min-height: 44px;
-}
-
-.chat-side {
-  background: #f7f7f8;
-  border-left-color: #e5e5e5;
 }
