@@ -25,6 +25,15 @@ export class LlmError extends Error {}
 
 function mockResponse(messages: LlmMessage[]): string {
   const question = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '未知问题';
+  // 评估类提示词（含 JSON 输出要求）→ 返回可解析的评估 JSON
+  if (messages.some((m) => m.content.includes('请严格以 JSON 格式输出'))) {
+    return JSON.stringify({
+      score: 85,
+      feedback: '回答整体正确，逻辑清晰；建议补充一个实际例子增强说服力。',
+      keyPoints: ['可补充实际应用场景', '可提及边界情况'],
+      referenceSummary: '答案要点覆盖基本概念、原理与典型应用。',
+    });
+  }
   return (
     `这是模拟回答（LLM_MOCK 模式）。\n` +
     `针对问题「${question}」，示例引用参见 [1]。\n` +

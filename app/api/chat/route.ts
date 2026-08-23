@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const user = await requireUser();
 
     const body = await request.json();
-    const { conversationId, question, enableSearch = false } = body ?? {};
+    const { conversationId, question, enableSearch = false, mode = 'question' } = body ?? {};
 
     if (typeof conversationId !== 'string' || conversationId.trim().length === 0) {
       return new Response(JSON.stringify({ error: 'conversationId 不能为空' }), {
@@ -27,12 +27,19 @@ export async function POST(request: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
       });
     }
+    if (mode !== 'question' && mode !== 'interview') {
+      return new Response(JSON.stringify({ error: 'mode 不合法' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     const stream = await handleChat({
       conversationId: conversationId.trim(),
       question: question.trim(),
       userId: user.id,
       enableSearch: !!enableSearch,
+      mode,
     });
 
     return new Response(stream, {

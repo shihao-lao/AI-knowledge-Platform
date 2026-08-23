@@ -4,6 +4,7 @@ interface SendChatParams {
   conversationId: string;
   question: string;
   enableSearch?: boolean;
+  mode?: 'question' | 'interview';
 }
 
 interface ChatHandlers {
@@ -21,14 +22,14 @@ export async function sendChatMessage(
   params: SendChatParams,
   handlers: ChatHandlers = {},
 ): Promise<void> {
-  const { conversationId, question, enableSearch = false } = params;
+  const { conversationId, question, enableSearch = false, mode = 'question' } = params;
   const { onDelta, onCompleted, onError } = handlers;
 
   try {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conversationId, question, enableSearch }),
+      body: JSON.stringify({ conversationId, question, enableSearch, mode }),
     });
 
     if (!response.ok) {

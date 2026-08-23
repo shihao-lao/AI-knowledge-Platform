@@ -10,8 +10,10 @@ import {
   buildRagSystemPrompt,
   buildNoContextSystemPrompt,
   buildWebSearchBlock,
+  buildInterviewSystemPrompt,
 } from './prompts';
 import { webSearch, formatSearchResults } from '@/lib/search/web-search';
+import { questionRepo } from '@/lib/db/question-repository';
 import type { Citation } from '@/types';
 
 export class ChatNotFoundError extends Error {}
@@ -21,6 +23,8 @@ export interface ChatRequest {
   question: string;
   userId: string;
   enableSearch?: boolean;
+  /** question=知识问答（默认）；interview=模拟面试模式 */
+  mode?: 'question' | 'interview';
 }
 
 const TOP_K = 8;
@@ -136,8 +140,19 @@ export async function handleChat(req: ChatRequest): Promise<ReadableStream<Uint8
     await prisma.conversation.update({ where: { id: conversationId }, data: { title } });
   }
 
-  // 5. RAG 检索
-  const chunks = await retrieveChunks(conversation.knowledgeId, userId, question);
+  // 5. 检索 / 题库：interview 模式用题库出题，question 模式走 RAG
+  let chunks: SearchResult[] = [];
+  let interviewQuestions: Array<{ question: string; answer: string }> = [];
+  if (req.mode === 'interview') {
+    const all = await questionRepo.list({ knowledgeId: conversation.knowledgeId });
+    // 随机取最多 6 道题
+    interviewQuestions = [...all]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 6)
+      .map((q) => ({ question: q.question, answer: q.answer }));
+  } else {
+    chunks = await retrieveChunks(conversation.knowledgeId, userId, question);
+  }
 
   // 6. 联网搜索（可选）
   let webContext = '';
@@ -152,7 +167,20 @@ export async function handleChat(req: ChatRequest): Promise<ReadableStream<Uint8
 
   // 7. 构建 LLM 消息
   const messages: LlmMessage[] = [];
-  if (chunks.length > 0) {
+  if (req.mode === 'interview') {
+    // 面试模式：题库即上下文；无题可出时提示
+    if (interviewQuestions.length === 0) {
+      messages.push({
+        role: 'system',
+        content:
+          '你是一位面试官。当前知识库还没有题目，请先向候选人说明并引导其到「面试题库」导入题目，然后基于通用知识提 3 个问题完成模拟面试。',
+      });
+    } else {
+      let systemContent = buildInterviewSystemPrompt(interviewQuestions);
+      if (summary) systemContent += `\n\n## 此前对话要点\n${summary}`;
+      messages.push({ role: 'system', content: systemContent });
+    }
+  } else if (chunks.length > 0) {
     const context = chunks.map((r, i) => `[${i + 1}] [来源: ${r.filename}]\n${r.content}`).join('\n\n');
     let systemContent = buildRagSystemPrompt(context, summary ?? undefined);
     if (webContext) systemContent += buildWebSearchBlock(webContext);
