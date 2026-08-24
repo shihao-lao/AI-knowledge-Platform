@@ -14,3 +14,7 @@ export function statisticsPath(kbId: string) {
 export function questionsPath(kbId: string) {
   return `/questions/${kbId}`;
 }
+
+export function resumesPath() {
+  return '/resumes';
+}

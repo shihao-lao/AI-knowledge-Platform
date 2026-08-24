@@ -5,7 +5,7 @@ import { DeleteOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Message } from '@/types';
-import { chatPath, knowledgePath, statisticsPath, questionsPath } from '@/lib/paths';
+import { chatPath, knowledgePath, statisticsPath, questionsPath, resumesPath } from '@/lib/paths';
 import { createWelcomeMessage } from '@/lib/chat';
 import { sendChatMessage } from '@/app/api/chat';
 import { api, type ApiKnowledge, type ApiConversation, type ApiUser } from '@/lib/api-client';
@@ -271,6 +271,10 @@ export default function ChatConversationPage() {
           <button type="button" className="hub-nav__item" onClick={() => router.push(questionsPath(activeKbId))}>
             <span>❓</span>
             <span>面试题库</span>
+          </button>
+          <button type="button" className="hub-nav__item" onClick={() => router.push(resumesPath())}>
+            <span>📄</span>
+            <span>简历分析</span>
           </button>
         </nav>
 

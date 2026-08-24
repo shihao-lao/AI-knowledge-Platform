@@ -15,6 +15,7 @@ model User {
   createdAt    DateTime @default(now())
 
   knowledgeBases Knowledge[]
+  resumes        Resume[]
 }
 
 model Knowledge {
@@ -127,4 +128,23 @@ model PracticeRecord {
 
   @@index([userId])
   @@index([questionId])
+}
+
+/// 简历分析记录：上传简历 → 解析内容 → AI 分析报告
+model Resume {
+  id           String   @id
+  userId       String
+  filename     String
+  fileSize     Int      @default(0)
+  /// 原始解析文本（截取前 8000 字符送 LLM）
+  content      String
+  /// AI 分析报告（Markdown）
+  analysis     String
+  /// 0-100 整体评分
+  score        Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

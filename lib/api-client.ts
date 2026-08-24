@@ -386,4 +386,55 @@ export const api = {
   getPracticeStats(knowledgeId: string): Promise<{ data: PracticeStats }> {
     return request(`${BASE}/practice/stats?knowledgeId=${encodeURIComponent(knowledgeId)}`);
   },
+
+  // Resume
+  listResumes(): Promise<{
+    data: Array<{ id: string; filename: string; fileSize: number; score: number; createdAt: string }>;
+  }> {
+    return request(`${BASE}/resume`);
+  },
+
+  getResume(
+    id: string,
+  ): Promise<{ data: { id: string; filename: string; fileSize: number; score: number; content: string; analysis: string; createdAt: string } }> {
+    return request(`${BASE}/resume?id=${encodeURIComponent(id)}`);
+  },
+
+  uploadResume(
+    file: File,
+    onProgress?: (percent: number) => void,
+  ): Promise<{ data: { id: string; filename: string; fileSize: number; score: number; analysis: string; createdAt: string } }> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const form = new FormData();
+      form.append('file', file);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else {
+          try {
+            const body = JSON.parse(xhr.responseText);
+            reject(new Error(body.error || `HTTP ${xhr.status}`));
+          } catch {
+            reject(new Error(`HTTP ${xhr.status}`));
+          }
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('网络错误'));
+      xhr.open('POST', `${BASE}/resume`);
+      xhr.send(form);
+    });
+  },
+
+  deleteResume(id: string): Promise<{ data: { deleted: boolean } }> {
+    return request(`${BASE}/resume?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
 };
