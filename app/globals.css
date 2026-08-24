@@ -39,8 +39,81 @@
 }
 
 /* ── Base ──────────────────────────────────────────────────────── */
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+
+/* ── 全局美化滚动条 ─────────────────────────────────────────────
+   统一 WebKit（Chrome/Safari/Edge）和 Firefox 的滚动条样式：
+   - 6px 细窄圆角，悬浮时加深，不占用内容区宽度
+   - 暗色侧栏用白色 thumb，亮色区用黑色半透明 thumb
+   - scrollbar-gutter: stable 防止内容加载时布局跳动           */
+
+/* 滚动容器防跳 */
+.chat-msg-list,
+.hub-side-section,
+.chat-main,
+.knowledge-main {
+  scrollbar-gutter: stable;
+}
+
+/* ── 通用亮色滚动条 ── */
+*,
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.22);
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── 暗色侧栏（左侧导航）专用滚动条 ── */
+.hub-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.hub-sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.hub-sidebar {
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+/* ── 消息列表滚动更平滑 ── */
+.chat-msg-list {
+  scroll-behavior: smooth;
+}
+
+/* ── antd 内部弹出层（Select/Dropdown/Modal）隐藏多余滚动条 ── */
+.ant-select-dropdown::-webkit-scrollbar,
+.ant-dropdown::-webkit-scrollbar {
+  width: 5px;
+}
+
+.ant-select-dropdown::-webkit-scrollbar-thumb,
+.ant-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 3px;
 }
 
 body {
