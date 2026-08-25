@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: err.message }, { status: 401 });
     }
     if (err instanceof Error) {
+      console.error('[Resume API] POST error:', err.message, err.cause ?? '');
       return NextResponse.json({ error: err.message }, { status: 502 });
     }
     console.error('[Resume API] POST error:', err);

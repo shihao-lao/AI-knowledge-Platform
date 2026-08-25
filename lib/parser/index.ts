@@ -35,7 +35,7 @@ class CustomJSONLoader extends BaseDocumentLoader {
 async function loadPdf(filepath: string): Promise<Document[]> {
   const { PDFParse } = await import('pdf-parse');
   const buffer = await readFile(filepath);
-  const parser = new PDFParse({ data: new Uint8Array(buffer.buffer) });
+  const parser = new PDFParse({ data: buffer });
   try {
     const textResult = await parser.getText();
     const docs: Document[] = [];
