@@ -2,6 +2,8 @@ import { DocxLoader } from '@langchain/community/document_loaders/fs/docx';
 import { BaseDocumentLoader } from '@langchain/core/document_loaders/base';
 import type { Document } from '@langchain/core/documents';
 import { readFile } from 'fs/promises';
+import { resolve } from 'path';
+import { pathToFileURL } from 'url';
 
 export type SupportedFormat = 'txt' | 'md' | 'pdf' | 'docx' | 'json';
 
@@ -34,6 +36,9 @@ class CustomJSONLoader extends BaseDocumentLoader {
 
 async function loadPdf(filepath: string): Promise<Document[]> {
   const { PDFParse } = await import('pdf-parse');
+  // 指向 node_modules 中的实际 worker 文件，绕过 Turbopack 对 worker 的错误打包路径
+  const workerPath = pathToFileURL(resolve(process.cwd(), 'node_modules/pdf-parse/dist/pdf-parse/esm/pdf.worker.mjs')).href;
+  PDFParse.setWorker(workerPath);
   const buffer = await readFile(filepath);
   const parser = new PDFParse({ data: buffer });
   try {
