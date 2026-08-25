@@ -2,7 +2,7 @@
    AI Knowledge Base Platform — Cohesive Professional Theme
    ================================================================ */
 
-/* ── Root Variables ────────────────────────────────────────────── */
+/* -- Root Variables ---------------------------------------------- */
 :root {
   --color-primary: #4f46e5;
   --color-primary-light: #818cf8;
@@ -38,14 +38,14 @@
   --radius-xl: 20px;
 }
 
-/* ── Base ──────────────────────────────────────────────────────── */
+/* -- Base -------------------------------------------------------- */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
-/* ── 全局美化滚动条 ─────────────────────────────────────────────
+/* -- 全局美化滚动条 ---------------------------------------------
    统一 WebKit（Chrome/Safari/Edge）和 Firefox 的滚动条样式：
    - 6px 细窄圆角，悬浮时加深，不占用内容区宽度
    - 暗色侧栏用白色 thumb，亮色区用黑色半透明 thumb
@@ -59,7 +59,7 @@
   scrollbar-gutter: stable;
 }
 
-/* ── 通用亮色滚动条 ── */
+/* -- 通用亮色滚动条 -- */
 *,
 html {
   scrollbar-width: thin;
@@ -86,7 +86,7 @@ html {
   background: transparent;
 }
 
-/* ── 暗色侧栏（左侧导航）专用滚动条 ── */
+/* -- 暗色侧栏（左侧导航）专用滚动条 -- */
 .hub-sidebar::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.18);
 }
@@ -99,12 +99,12 @@ html {
   scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
 
-/* ── 消息列表滚动更平滑 ── */
+/* -- 消息列表滚动更平滑 -- */
 .chat-msg-list {
   scroll-behavior: smooth;
 }
 
-/* ── antd 内部弹出层（Select/Dropdown/Modal）隐藏多余滚动条 ── */
+/* -- antd 内部弹出层（Select/Dropdown/Modal）隐藏多余滚动条 -- */
 .ant-select-dropdown::-webkit-scrollbar,
 .ant-dropdown::-webkit-scrollbar {
   width: 5px;
@@ -138,7 +138,7 @@ textarea {
   font-family: inherit;
 }
 
-/* ── Shell ────────────────────────────────────────────────────── */
+/* -- Shell ------------------------------------------------------ */
 .hub-shell {
   min-height: 100vh;
   display: grid;
@@ -146,7 +146,7 @@ textarea {
   background: var(--color-bg);
 }
 
-/* ── Sidebar ──────────────────────────────────────────────────── */
+/* -- Sidebar ---------------------------------------------------- */
 .hub-sidebar {
   height: 100vh;
   position: sticky;
@@ -351,7 +351,7 @@ textarea {
   color: #fff;
 }
 
-/* ── KB Create Choices ────────────────────────────────────────── */
+/* -- KB Create Choices ------------------------------------------ */
 .kb-create-choices {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -399,7 +399,7 @@ textarea {
   font-size: 15px;
 }
 
-/* ── Main & Topbar ────────────────────────────────────────────── */
+/* -- Main & Topbar ---------------------------------------------- */
 .hub-main {
   min-width: 0;
   height: 100vh;
@@ -424,7 +424,7 @@ textarea {
   max-width: 430px;
 }
 
-/* ── Knowledge Workspace ──────────────────────────────────────── */
+/* -- Knowledge Workspace ---------------------------------------- */
 .knowledge-workspace,
 .chat-workspace {
   flex: 1;
@@ -464,7 +464,7 @@ textarea {
   width: 320px;
 }
 
-/* ── Search Results Popover ─────────────────────────────────── */
+/* -- Search Results Popover ----------------------------------- */
 .search-results-popover .ant-popover-inner {
   padding: 0;
 }
@@ -528,7 +528,7 @@ textarea {
   gap: 12px;
 }
 
-/* ── Knowledge Cards ──────────────────────────────────────────── */
+/* -- Knowledge Cards -------------------------------------------- */
 .knowledge-card {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -617,7 +617,7 @@ textarea {
   color: var(--color-muted);
 }
 
-/* ── File Icons ───────────────────────────────────────────────── */
+/* -- File Icons ------------------------------------------------- */
 .file-icon {
   width: 36px;
   height: 36px;
@@ -658,7 +658,7 @@ textarea {
   color: #16a34a;
 }
 
-/* ── Knowledge Detail ─────────────────────────────────────────── */
+/* -- Knowledge Detail ------------------------------------------- */
 .knowledge-detail {
   max-height: 430px;
   overflow: auto;
@@ -719,7 +719,7 @@ textarea {
   color: var(--color-text);
 }
 
-/* ── Code Block ───────────────────────────────────────────────── */
+/* -- Code Block ------------------------------------------------- */
 .knowledge-code {
   position: relative;
   margin: 0;
@@ -746,7 +746,7 @@ textarea {
   background: rgba(255, 255, 255, 0.15);
 }
 
-/* ── Insight Panel & Chat Side ────────────────────────────────── */
+/* -- Insight Panel & Chat Side ---------------------------------- */
 .insight-panel,
 .chat-side {
   min-width: 320px;
@@ -819,7 +819,7 @@ textarea {
   border-bottom: 2px solid var(--color-primary);
 }
 
-/* ── Chat Surface（统一聊天区样式，替代旧的两套冲突规则）───── */
+/* -- Chat Surface（统一聊天区样式，替代旧的两套冲突规则）----- */
 .chat-workspace {
   flex: 1;
   min-height: 0;
@@ -954,23 +954,101 @@ textarea {
   font-size: 12px;
 }
 
-.chat-msg__citations .chat-citation {
+.chat-msg__citations {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* -- 引用卡片（可展开查看详情） -- */
+.citation-chip {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.citation-chip:hover {
+  border-color: #c7d2fe;
+}
+
+.citation-chip.is-expanded {
+  border-color: #a5b4fc;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.06);
+}
+
+.citation-chip__btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
   cursor: pointer;
-  border-radius: 12px;
-  padding-inline: 10px;
-  transition: all 0.15s ease;
-  max-width: 260px;
+  gap: 8px;
+  font: inherit;
+  color: inherit;
+}
+
+.citation-chip__btn:hover {
+  background: rgba(99, 102, 241, 0.03);
+}
+
+.citation-chip__tag {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin: 0;
 }
 
-.chat-msg__citations .chat-citation:hover {
-  border-color: #4f46e5;
+.citation-chip__score {
+  flex-shrink: 0;
+}
+
+.citation-chip__detail {
+  padding: 8px 12px 12px;
+  border-top: 1px solid #f1f5f9;
+  background: #fafbfc;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.citation-chip__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.citation-chip__preview {
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  margin: 0 !important;
+  color: #64748b !important;
+}
+
+.citation-chip__link {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: #6366f1;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0;
+}
+
+.citation-chip__link:hover {
+  text-decoration: underline;
   color: #4f46e5;
 }
 
-/* ── Thinking Dots ────────────────────────────────────────────── */
+/* -- Thinking Dots ---------------------------------------------- */
 .thinking-dots {
   height: 28px;
   display: inline-flex;
@@ -1007,7 +1085,7 @@ textarea {
   }
 }
 
-/* ── Composer ─────────────────────────────────────────────────── */
+/* -- Composer --------------------------------------------------- */
 .composer-wrap {
   flex-shrink: 0;
   width: min(100%, 780px);
@@ -1075,7 +1153,7 @@ textarea {
   }
 }
 
-/* ── Citation Cards ───────────────────────────────────────────── */
+/* -- Citation Cards --------------------------------------------- */
 .citation-card {
   width: 100%;
   border: 1px solid var(--color-border);
@@ -1131,7 +1209,7 @@ textarea {
   font-size: 12px;
 }
 
-/* ── Standalone Pages ─────────────────────────────────────────── */
+/* -- Standalone Pages ------------------------------------------- */
 .simple-page {
   min-height: 100vh;
   padding: 28px;
@@ -1151,7 +1229,7 @@ textarea {
   margin: 0;
 }
 
-/* ── KB Manage Cards ──────────────────────────────────────────── */
+/* -- KB Manage Cards -------------------------------------------- */
 .kb-card {
   min-height: 260px;
   border-radius: var(--radius-md);
@@ -1180,7 +1258,7 @@ textarea {
   border-top: 1px solid var(--color-border);
 }
 
-/* ── Auth Pages ───────────────────────────────────────────────── */
+/* -- Auth Pages ------------------------------------------------- */
 .auth-page {
   min-height: 100vh;
   display: grid;
@@ -1212,13 +1290,13 @@ textarea {
   text-align: center;
 }
 
-/* ── Modal ────────────────────────────────────────────────────── */
+/* -- Modal ------------------------------------------------------ */
 .kb-create-modal .ant-modal-content {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-pop);
 }
 
-/* ── Knowledge Sidebar ───────────────────────────────────────── */
+/* -- Knowledge Sidebar ----------------------------------------- */
 .sidebar-desc {
   font-weight: 400;
   font-size: 13px;
@@ -1290,13 +1368,13 @@ textarea {
   margin-top: 12px;
 }
 
-/* ── Home Page Advantages ────────────────────────────────────── */
+/* -- Home Page Advantages -------------------------------------- */
 .home-advantage-icon {
   font-size: 32px;
   color: var(--color-primary);
 }
 
-/* ── Responsive ───────────────────────────────────────────────── */
+/* -- Responsive ------------------------------------------------- */
 @media (max-width: 1180px) {
   .hub-shell {
     grid-template-columns: 220px minmax(0, 1fr);
@@ -1396,13 +1474,13 @@ textarea {
   }
 }
 
-/* ── Home Page（豆包风：白底、大留白、渐变文字、毛玻璃导航）────────── */
+/* -- Home Page（豆包风：白底、大留白、渐变文字、毛玻璃导航）---------- */
 .home-page {
   min-height: 100vh;
   background: #fff;
 }
 
-/* ── Header ── */
+/* -- Header -- */
 .home-header {
   position: sticky;
   top: 0;
@@ -1478,7 +1556,7 @@ textarea {
   color: var(--color-text);
 }
 
-/* ── Hero ── */
+/* -- Hero -- */
 .home-hero {
   padding: 80px clamp(16px, 4vw, 48px) 0;
   text-align: center;
@@ -1533,7 +1611,7 @@ textarea {
   margin-bottom: 56px;
 }
 
-/* ── Product Mockup ── */
+/* -- Product Mockup -- */
 .home-hero__visual {
   display: flex;
   justify-content: center;
@@ -1635,7 +1713,7 @@ textarea {
   50% { opacity: 1; }
 }
 
-/* ── Stats ── */
+/* -- Stats -- */
 .home-stats {
   max-width: 900px;
   margin: 0 auto;
@@ -1658,7 +1736,7 @@ textarea {
   background-clip: text;
 }
 
-/* ── Features ── */
+/* -- Features -- */
 .home-features {
   max-width: 1100px;
   margin: 0 auto;
@@ -1724,7 +1802,7 @@ textarea {
   line-height: 1.6;
 }
 
-/* ── Highlights ── */
+/* -- Highlights -- */
 .home-highlights {
   max-width: 1100px;
   margin: 0 auto;
@@ -1784,7 +1862,7 @@ textarea {
   font-size: 18px;
 }
 
-/* ── CTA ── */
+/* -- CTA -- */
 .home-cta {
   text-align: center;
   padding: 80px clamp(16px, 4vw, 48px) 100px;
@@ -1801,7 +1879,7 @@ textarea {
   margin-bottom: 28px;
 }
 
-/* ── Footer ── */
+/* -- Footer -- */
 .home-footer {
   background: var(--color-surface);
   border-top: 1px solid #eef0f3;
@@ -1820,7 +1898,7 @@ textarea {
   font-size: 14px;
 }
 
-/* ── 隐藏移动端换行 ── */
+/* -- 隐藏移动端换行 -- */
 @media (max-width: 768px) {
   .hide-mobile { display: none; }
   .home-nav { display: none; }
@@ -1933,7 +2011,7 @@ textarea {
   }
 }
 
-/* ── Markdown Content Styles ─────────────────────────────────── */
+/* -- Markdown Content Styles ----------------------------------- */
 .html-content {
   font-size: 15px;
   line-height: 1.8;
@@ -2105,7 +2183,7 @@ textarea {
   }
 }
 
-/* ── KB Card Enhanced Styles ─────────────────────────────────── */
+/* -- KB Card Enhanced Styles ----------------------------------- */
 .kb-card__files {
   margin-top: 12px;
   padding-top: 12px;
