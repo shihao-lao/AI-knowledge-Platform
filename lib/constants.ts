@@ -1,6 +1,7 @@
 import type { DocumentStatus } from '@/types';
 
 export const statusMeta: Record<DocumentStatus, { label: string; color: string }> = {
+  pending: { label: '等待中', color: 'default' },
   uploading: { label: '上传中', color: 'processing' },
   parsing: { label: '解析中', color: 'blue' },
   chunking: { label: '切片中', color: 'gold' },

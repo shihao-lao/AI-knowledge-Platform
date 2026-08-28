@@ -48,7 +48,7 @@ export default function KnowledgeBasesPage() {
     });
   }, []);
 
-  const fetchKnowledgeBases = async () => {
+  const fetchKnowledgeBases = useCallback(async () => {
     setLoading(true);
     try {
       const result = await api.listKnowledge();
@@ -59,12 +59,11 @@ export default function KnowledgeBasesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [message]);
 
   useEffect(() => {
     fetchKnowledgeBases();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchKnowledgeBases]);
 
   const filteredKbs = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -137,12 +136,22 @@ export default function KnowledgeBasesPage() {
                       <Link href={knowledgePath(kb.id)} key="open">
                         打开
                       </Link>,
-                      <span key="detail" onClick={() => toggleExpand(kb.id)} className="kb-card__action-detail">
+                      <button
+                        type="button"
+                        key="detail"
+                        onClick={() => toggleExpand(kb.id)}
+                        className="kb-card__action-detail"
+                        aria-expanded={isExpanded}
+                        aria-label={`${isExpanded ? '收起' : '查看'}${kb.name}详情`}
+                      >
                         {isExpanded ? <CloseOutlined /> : <EyeOutlined />}
                         <span>{isExpanded ? '收起' : '详情'}</span>
-                      </span>,
-                      <DeleteOutlined
+                      </button>,
+                      <button
+                        type="button"
                         key="delete"
+                        className="kb-card__action-delete"
+                        aria-label={`删除${kb.name}`}
                         onClick={() =>
                           modal.confirm({
                             title: '确定删除此知识库？',
@@ -153,7 +162,9 @@ export default function KnowledgeBasesPage() {
                             onOk: () => handleDeleteKb(kb.id, kb.name),
                           })
                         }
-                      />,
+                      >
+                        <DeleteOutlined />
+                      </button>,
                     ]}
                   >
                     <Space align="start" className="kb-card__body">

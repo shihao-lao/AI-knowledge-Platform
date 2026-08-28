@@ -1,6 +1,6 @@
 export type Role = 'admin' | 'editor' | 'viewer';
 export type FileType = 'markdown' | 'text' | 'word';
-export type DocumentStatus = 'uploading' | 'parsing' | 'chunking' | 'embedding' | 'completed' | 'failed';
+export type DocumentStatus = 'pending' | 'uploading' | 'parsing' | 'chunking' | 'embedding' | 'completed' | 'failed';
 
 export interface User {
   id: string;

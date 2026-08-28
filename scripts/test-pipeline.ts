@@ -28,7 +28,7 @@ async function main() {
 
   // 1. 环境变量
   console.log('--- 1. 环境变量 ---');
-  console.log('EMBEDDING_PROVIDER:', process.env.EMBEDDING_PROVIDER || 'tensorflow (default)');
+  console.log('EMBEDDING_PROVIDER:', process.env.EMBEDDING_PROVIDER || 'local (default)');
   console.log();
 
   // 2. Embedding API
