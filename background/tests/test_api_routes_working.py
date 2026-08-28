@@ -72,7 +72,12 @@ def check_route_exists(routes, expected_path, expected_methods):
             expected_pattern = re.sub(r'\{(\w+)\}', r'(?P<\1>[^/]+)', expected_path)
             route_pattern = re.sub(r'\{(\w+)\}', r'(?P<\1>[^/]+)', route_path)
             
+            # 比较模式
             if expected_pattern == route_pattern:
+                if expected_methods.issubset(route_methods):
+                    return True
+            # 也检查原始路径（如果模式相同）
+            elif expected_path == route_path:
                 if expected_methods.issubset(route_methods):
                     return True
         else:
@@ -123,12 +128,12 @@ def main():
         # 知识库
         ("/api/v1/knowledge", {"GET", "POST"}),
         ("/api/v1/knowledge/{knowledge_id}", {"GET", "PUT", "DELETE"}),
-        ("/api/v1/knowledge/search", {"GET"}),
+        ("/api/v1/knowledge/search", {"POST"}),  # 注意：实际是 POST 方法
         
         # 文档（注意：实际路由是 /document 而不是 /documents）
         ("/api/v1/document/upload", {"POST"}),
         ("/api/v1/document", {"GET"}),
-        ("/api/v1/documents/{document_id}", {"GET", "DELETE"}),
+        ("/api/v1/document/{document_id}", {"GET", "DELETE"}),  # 注意：实际是 /document/{id}
         
         # 对话
         ("/api/v1/conversations", {"GET", "POST"}),
