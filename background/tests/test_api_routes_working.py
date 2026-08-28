@@ -125,34 +125,42 @@ def main():
         ("/api/v1/auth/logout", {"POST"}),
         ("/api/v1/auth/me", {"GET"}),
         
-        # 知识库
-        ("/api/v1/knowledge", {"GET", "POST"}),
-        ("/api/v1/knowledge/{knowledge_id}", {"GET", "PUT", "DELETE"}),
-        ("/api/v1/knowledge/search", {"POST"}),  # 注意：实际是 POST 方法
+        # 知识库（注意：实际路由是分开的 GET 和 POST）
+        ("/api/v1/knowledge", {"GET"}),
+        ("/api/v1/knowledge", {"POST"}),
+        ("/api/v1/knowledge/{knowledge_id}", {"GET"}),
+        ("/api/v1/knowledge/{knowledge_id}", {"PUT"}),
+        ("/api/v1/knowledge/{knowledge_id}", {"DELETE"}),
+        ("/api/v1/knowledge/search", {"POST"}),
         
         # 文档（注意：实际路由是 /document 而不是 /documents）
         ("/api/v1/document/upload", {"POST"}),
         ("/api/v1/document", {"GET"}),
-        ("/api/v1/document/{document_id}", {"GET", "DELETE"}),  # 注意：实际是 /document/{id}
+        ("/api/v1/document/{document_id}", {"GET"}),
+        ("/api/v1/document/{document_id}", {"DELETE"}),
         
-        # 对话
-        ("/api/v1/conversations", {"GET", "POST"}),
-        ("/api/v1/conversations/{conversation_id}", {"GET", "DELETE"}),
-        ("/api/v1/conversations/{conversation_id}/messages", {"GET", "POST"}),
+        # 对话（注意：实际路由是分开的 GET 和 POST）
+        ("/api/v1/conversations", {"GET"}),
+        ("/api/v1/conversations", {"POST"}),
+        ("/api/v1/conversations/{conversation_id}", {"GET"}),
+        ("/api/v1/conversations/{conversation_id}", {"DELETE"}),
+        ("/api/v1/conversations/{conversation_id}/messages", {"GET"}),
+        ("/api/v1/conversations/{conversation_id}/messages", {"POST"}),
         
         # 聊天
         ("/api/v1/chat", {"POST"}),
         
-        # 题库
+        # 题库（注意：实际路由是分开的 GET 和 POST）
         ("/api/v1/questions", {"GET"}),
         ("/api/v1/questions/import", {"POST"}),
-        ("/api/v1/questions/{question_id}", {"GET", "DELETE"}),
+        ("/api/v1/questions/{question_id}", {"GET"}),
+        ("/api/v1/questions/{question_id}", {"DELETE"}),
         
         # 练习
         ("/api/v1/practice/evaluate", {"POST"}),
         ("/api/v1/practice/stats", {"GET"}),
         
-        # 简历
+        # 简历（注意：实际路由是分开的 GET 和 POST）
         ("/api/v1/resumes", {"GET"}),
         ("/api/v1/resumes/upload", {"POST"}),
         ("/api/v1/resumes/{resume_id}", {"GET"}),
