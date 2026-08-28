@@ -12,6 +12,7 @@ from app.api.routes import auth, chat, conversation, document, health, knowledge
 from app.config import get_settings
 from app.infrastructure.database.session import configure_session, init_engine
 from app.middleware.rate_limit import RateLimitMiddleware
+from app.middleware.error_handler import ErrorHandlerMiddleware
 
 
 @asynccontextmanager
@@ -34,6 +35,9 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # 配置错误处理
+    application.add_middleware(ErrorHandlerMiddleware)
+    
     # 配置速率限制
     requests_per_minute = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
     requests_per_hour = int(os.getenv("RATE_LIMIT_PER_HOUR", "1000"))

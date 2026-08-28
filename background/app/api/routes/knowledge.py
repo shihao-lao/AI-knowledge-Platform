@@ -141,19 +141,20 @@ async def delete_knowledge(
         )
 
 
-@router.get("/knowledge/search", response_model=dict)
+@router.post("/knowledge/search", response_model=dict)
 async def search_knowledge(
-    q: str,
+    request: dict,
     current_user: UserResponse = Depends(get_current_user_dependency),
 ) -> dict:
     """搜索知识库。"""
     try:
-        if not q or len(q.strip()) == 0:
+        query = request.get("query", "")
+        if not query or len(query.strip()) == 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="搜索关键词不能为空",
             )
-        knowledge_bases = await search_knowledge_bases(current_user.id, q.strip())
+        knowledge_bases = await search_knowledge_bases(current_user.id, query.strip())
         return {"data": knowledge_bases}
     except HTTPException:
         raise

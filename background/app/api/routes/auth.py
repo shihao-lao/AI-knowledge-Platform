@@ -94,16 +94,15 @@ async def login(user_data: UserLogin) -> dict:
         )
 
         logger.info("用户登录成功: {}", user.email)
+        # 返回格式与前端期望一致
         return {
             "data": {
-                "access_token": access_token,
-                "token_type": "bearer",
-                "user": {
-                    "id": user.id,
-                    "name": user.name,
-                    "email": user.email,
-                },
-            }
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+            },
+            "access_token": access_token,
+            "token_type": "bearer",
         }
     except HTTPException:
         raise

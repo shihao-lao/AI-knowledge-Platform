@@ -65,11 +65,14 @@ def check_route_exists(routes, expected_path, expected_methods):
         route_methods = route["methods"]
         
         # 处理路径参数
-        if "{" in expected_path:
+        if "{" in expected_path or "{" in route_path:
             # 将路径参数转换为正则表达式模式
             import re
-            pattern = expected_path.replace("{", "(?P<").replace("}", ">[^/]+)")
-            if re.match(pattern, route_path):
+            # 将 {param} 转换为 (?P<param>[^/]+)
+            expected_pattern = re.sub(r'\{(\w+)\}', r'(?P<\1>[^/]+)', expected_path)
+            route_pattern = re.sub(r'\{(\w+)\}', r'(?P<\1>[^/]+)', route_path)
+            
+            if expected_pattern == route_pattern:
                 if expected_methods.issubset(route_methods):
                     return True
         else:
@@ -105,7 +108,7 @@ def main():
         methods = ", ".join(route["methods"]) if route["methods"] else "N/A"
         print(f"  {methods:15} {route['path']}")
     
-    # 定义期望的路由
+    # 定义期望的路由（根据实际注册的路由）
     expected_routes = [
         # 健康检查
         ("/api/v1/health", {"GET"}),
@@ -122,9 +125,9 @@ def main():
         ("/api/v1/knowledge/{knowledge_id}", {"GET", "PUT", "DELETE"}),
         ("/api/v1/knowledge/search", {"GET"}),
         
-        # 文档
-        ("/api/v1/documents", {"GET"}),
-        ("/api/v1/documents/upload", {"POST"}),
+        # 文档（注意：实际路由是 /document 而不是 /documents）
+        ("/api/v1/document/upload", {"POST"}),
+        ("/api/v1/document", {"GET"}),
         ("/api/v1/documents/{document_id}", {"GET", "DELETE"}),
         
         # 对话

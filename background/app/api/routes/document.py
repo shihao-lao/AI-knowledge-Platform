@@ -24,7 +24,7 @@ from app.services.document_service import (
 router = APIRouter(tags=["documents"])
 
 
-@router.post("/documents/upload", response_model=dict, status_code=status.HTTP_201_CREATED)
+@router.post("/document/upload", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def upload_document_endpoint(
     knowledge_id: str,
     file: UploadFile = File(..., description="上传的文件"),
@@ -66,7 +66,7 @@ async def upload_document_endpoint(
         )
 
 
-@router.get("/documents", response_model=dict)
+@router.get("/document", response_model=dict)
 async def list_documents(
     knowledge_id: str,
     current_user: UserResponse = Depends(get_current_user_dependency),
@@ -88,7 +88,7 @@ async def list_documents(
         )
 
 
-@router.get("/documents/{document_id}", response_model=dict)
+@router.get("/document/{document_id}", response_model=dict)
 async def get_document_endpoint(
     document_id: str,
     current_user: UserResponse = Depends(get_current_user_dependency),
@@ -112,7 +112,7 @@ async def get_document_endpoint(
         )
 
 
-@router.delete("/documents/{document_id}", response_model=dict)
+@router.delete("/document/{document_id}", response_model=dict)
 async def delete_document_endpoint(
     document_id: str,
     current_user: UserResponse = Depends(get_current_user_dependency),

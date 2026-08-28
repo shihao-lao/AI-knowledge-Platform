@@ -188,11 +188,11 @@ def test_table_structure():
         'documents': 12,
         'chunks': 6,
         'conversations': 7,
-        'messages': 5,
-        'questions': 9,
-        'practice_records': 7,
-        'resumes': 7,
-        'trace_logs': 7,
+        'messages': 6,
+        'questions': 10,
+        'practice_records': 8,
+        'resumes': 8,
+        'trace_logs': 8,
     }
 
     for table_name, expected_cols in table_info.items():
