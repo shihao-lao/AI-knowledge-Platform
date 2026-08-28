@@ -3,10 +3,15 @@
 
 from app.infrastructure.database.models import (
     Base,
-    Conversation,
+    User,
+    Knowledge,
     Document,
-    DocumentChunk,
+    Chunk,
+    Conversation,
     Message,
+    Question,
+    PracticeRecord,
+    Resume,
     TraceLog,
 )
 from app.infrastructure.database.session import (
@@ -19,10 +24,15 @@ from app.infrastructure.database.session import (
 
 __all__ = [
     "Base",
-    "Conversation",
+    "User",
+    "Knowledge",
     "Document",
-    "DocumentChunk",
+    "Chunk",
+    "Conversation",
     "Message",
+    "Question",
+    "PracticeRecord",
+    "Resume",
     "TraceLog",
     "async_session_factory",
     "configure_session",
