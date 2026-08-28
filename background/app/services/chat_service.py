@@ -50,7 +50,7 @@ class ChatService:
         async def event_generator():
             try:
                 # 1. 验证对话存在且属于用户
-                async for session in get_async_session():
+                async with get_async_session() as session:
                     conv_result = await session.execute(
                         select(Conversation).where(Conversation.id == conversation_id)
                     )
@@ -120,7 +120,7 @@ class ChatService:
         self, conversation_id: str, role: str, content: str
     ) -> Message:
         """保存消息到数据库。"""
-        async for session in get_async_session():
+        async with get_async_session() as session:
             message = Message(
                 id=str(uuid.uuid4()),
                 conversation_id=conversation_id,

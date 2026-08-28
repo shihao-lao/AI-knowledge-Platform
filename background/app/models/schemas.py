@@ -3,9 +3,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 from app.models.enums import MessageRole
 
@@ -124,6 +124,17 @@ class UserCreate(BaseModel):
     name: str = Field(description="昵称", max_length=50)
     email: str = Field(description="邮箱", max_length=200)
     password: str = Field(description="密码", min_length=8, max_length=128)
+    
+    @validator('password')
+    def validate_password(cls, v):
+        """验证密码复杂度。"""
+        if not any(c.isupper() for c in v):
+            raise ValueError('密码必须包含至少一个大写字母')
+        if not any(c.islower() for c in v):
+            raise ValueError('密码必须包含至少一个小写字母')
+        if not any(c.isdigit() for c in v):
+            raise ValueError('密码必须包含至少一个数字')
+        return v
 
 
 class UserLogin(BaseModel):

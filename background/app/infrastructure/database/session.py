@@ -36,7 +36,16 @@ def normalize_async_database_url(url: str) -> str:
 def init_engine(database_url: str | None = None, **engine_kwargs: Any) -> AsyncEngine:
     """创建异步引擎（应用启动时调用一次）。"""
     url = normalize_async_database_url(database_url or _default_url)
-    kwargs = {"echo": False, "pool_pre_ping": True}
+    
+    # 配置连接池参数
+    kwargs = {
+        "echo": False,
+        "pool_pre_ping": True,
+        "pool_size": 10,  # 连接池大小
+        "max_overflow": 20,  # 最大溢出连接数
+        "pool_recycle": 3600,  # 连接回收时间（秒）
+        "pool_timeout": 30,  # 获取连接超时时间（秒）
+    }
     kwargs.update(engine_kwargs)
     engine = create_async_engine(url, **kwargs)
     logger.info("数据库引擎已初始化（已隐藏凭据）")

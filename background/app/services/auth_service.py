@@ -19,10 +19,13 @@ from app.models.schemas import UserCreate, UserLogin, UserResponse
 # 密码哈希上下文
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# JWT 配置
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+# JWT 配置 - 必须设置环境变量，无默认值
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError("必须设置 SECRET_KEY 环境变量")
+
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))  # 缩短过期时间
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -58,7 +61,7 @@ def verify_token(token: str) -> Optional[dict]:
 
 async def authenticate_user(email: str, password: str) -> Optional[User]:
     """验证用户凭据。"""
-    async for session in get_async_session():
+    async with get_async_session() as session:
         result = await session.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
         if not user:
@@ -70,7 +73,7 @@ async def authenticate_user(email: str, password: str) -> Optional[User]:
 
 async def create_user(user_data: UserCreate) -> User:
     """创建新用户。"""
-    async for session in get_async_session():
+    async with get_async_session() as session:
         # 检查邮箱是否已存在
         result = await session.execute(select(User).where(User.email == user_data.email))
         existing_user = result.scalar_one_or_none()
@@ -92,7 +95,7 @@ async def create_user(user_data: UserCreate) -> User:
 
 async def get_user_by_id(user_id: str) -> Optional[User]:
     """根据用户 ID 获取用户。"""
-    async for session in get_async_session():
+    async with get_async_session() as session:
         result = await session.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """FastAPI 应用入口：生命周期内初始化异步数据库引擎。"""
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -10,6 +11,7 @@ from loguru import logger
 from app.api.routes import auth, chat, conversation, document, health, knowledge, practice, question, resume
 from app.config import get_settings
 from app.infrastructure.database.session import configure_session, init_engine
+from app.middleware.rate_limit import RateLimitMiddleware
 
 
 @asynccontextmanager
@@ -32,13 +34,25 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # 配置 CORS
+    # 配置速率限制
+    requests_per_minute = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
+    requests_per_hour = int(os.getenv("RATE_LIMIT_PER_HOUR", "1000"))
+    
+    application.add_middleware(
+        RateLimitMiddleware,
+        requests_per_minute=requests_per_minute,
+        requests_per_hour=requests_per_hour,
+    )
+    
+    # 配置 CORS - 从环境变量读取允许的来源
+    allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
+    
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # 在生产环境中应该限制来源
+        allow_origins=allowed_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
     )
 
     # 注册路由

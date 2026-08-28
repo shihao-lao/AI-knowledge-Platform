@@ -102,7 +102,8 @@ class RedisCache:
                 return v
 
             async with self._embed_lock:
-                return await asyncio.get_event_loop().run_in_executor(None, _run)
+                # 使用 asyncio.to_thread 替代弃用的 get_event_loop
+                return await asyncio.to_thread(_run)
 
         # 回退：简易字符 n-gram 频率哈希为固定维度（无需外部模型）
         dim = 256

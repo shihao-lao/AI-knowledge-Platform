@@ -25,7 +25,7 @@ async def evaluate_answer(
     user_answer: str,
 ) -> PracticeEvaluateResponse:
     """评估用户答案。"""
-    async for session in get_async_session():
+    async with get_async_session() as session:
         # 检查题目是否存在
         question_result = await session.execute(
             select(Question).where(Question.id == question_id)
@@ -123,20 +123,31 @@ async def get_practice_stats(
     knowledge_id: Optional[str] = None,
 ) -> PracticeStatsResponse:
     """获取练习统计。"""
-    async for session in get_async_session():
-        # 构建查询
-        query = select(PracticeRecord).where(PracticeRecord.user_id == user_id)
-
+    async with get_async_session() as session:
+        # 使用数据库聚合函数优化查询
+        from sqlalchemy import func, case
+        
+        # 构建基础查询
+        base_query = select(PracticeRecord).where(PracticeRecord.user_id == user_id)
+        
         if knowledge_id:
-            # 需要通过题目关联知识库
-            query = query.join(Question).where(Question.knowledge_id == knowledge_id)
-
-        result = await session.execute(query)
-        records = result.scalars().all()
-
-        # 计算统计信息
-        total_count = len(records)
-        if total_count == 0:
+            base_query = base_query.join(Question).where(Question.knowledge_id == knowledge_id)
+        
+        # 获取统计信息（使用数据库聚合）
+        stats_query = select(
+            func.count(PracticeRecord.id).label('total_count'),
+            func.avg(PracticeRecord.score).label('average_score'),
+            func.max(PracticeRecord.score).label('highest_score'),
+            func.min(PracticeRecord.score).label('lowest_score'),
+        ).where(PracticeRecord.user_id == user_id)
+        
+        if knowledge_id:
+            stats_query = stats_query.join(Question).where(Question.knowledge_id == knowledge_id)
+        
+        stats_result = await session.execute(stats_query)
+        stats = stats_result.one()
+        
+        if stats.total_count == 0:
             return PracticeStatsResponse(
                 total_count=0,
                 average_score=0,
@@ -144,14 +155,17 @@ async def get_practice_stats(
                 lowest_score=0,
                 recent_records=[],
             )
-
-        scores = [r.score for r in records]
-        average_score = sum(scores) / len(scores)
-        highest_score = max(scores)
-        lowest_score = min(scores)
-
-        # 获取最近记录
-        recent_records = sorted(records, key=lambda x: x.evaluated_at, reverse=True)[:10]
+        
+        # 获取最近记录（使用数据库排序和限制）
+        recent_query = (
+            base_query
+            .order_by(PracticeRecord.evaluated_at.desc())
+            .limit(10)
+        )
+        
+        recent_result = await session.execute(recent_query)
+        recent_records = recent_result.scalars().all()
+        
         recent_records_response = [
             PracticeRecordResponse(
                 id=r.id,
@@ -163,11 +177,11 @@ async def get_practice_stats(
             )
             for r in recent_records
         ]
-
+        
         return PracticeStatsResponse(
-            total_count=total_count,
-            average_score=round(average_score, 2),
-            highest_score=highest_score,
-            lowest_score=lowest_score,
+            total_count=stats.total_count,
+            average_score=round(float(stats.average_score), 2),
+            highest_score=stats.highest_score,
+            lowest_score=stats.lowest_score,
             recent_records=recent_records_response,
         )

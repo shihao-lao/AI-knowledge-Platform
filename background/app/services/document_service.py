@@ -29,7 +29,7 @@ async def upload_document(
     user_id: str,
 ) -> DocumentUploadResponse:
     """上传文档并执行 ETL 分块。"""
-    async for session in get_async_session():
+    async with get_async_session() as session:
         # 检查知识库是否存在且属于当前用户
         kb_result = await session.execute(
             select(Knowledge).where(
@@ -102,7 +102,7 @@ async def upload_document(
 
 async def get_documents_by_knowledge(knowledge_id: str, user_id: str) -> List[DocumentResponse]:
     """获取知识库的文档列表。"""
-    async for session in get_async_session():
+    async with get_async_session() as session:
         # 检查知识库是否存在且属于当前用户
         kb_result = await session.execute(
             select(Knowledge).where(
@@ -140,7 +140,7 @@ async def get_documents_by_knowledge(knowledge_id: str, user_id: str) -> List[Do
 
 async def get_document(document_id: str, user_id: str) -> Optional[DocumentResponse]:
     """获取文档详情。"""
-    async for session in get_async_session():
+    async with get_async_session() as session:
         result = await session.execute(
             select(Document).where(Document.id == document_id)
         )
@@ -177,7 +177,7 @@ async def get_document(document_id: str, user_id: str) -> Optional[DocumentRespo
 
 async def delete_document(document_id: str, user_id: str) -> bool:
     """删除文档。"""
-    async for session in get_async_session():
+    async with get_async_session() as session:
         result = await session.execute(
             select(Document).where(Document.id == document_id)
         )

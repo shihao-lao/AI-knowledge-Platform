@@ -57,15 +57,19 @@ class Knowledge(Base):
     """知识库表：对应 Prisma 的 Knowledge 模型。"""
 
     __tablename__ = "knowledge_bases"
+    __table_args__ = (
+        {'comment': '知识库表'},
+    )
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_short_id)
     user_id: Mapped[str] = mapped_column(String(50), ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    name: Mapped[str] = mapped_column(String(200))
+    name: Mapped[str] = mapped_column(String(200), index=True)  # 添加索引
     description: Mapped[str] = mapped_column(Text, default="")
-    status: Mapped[str] = mapped_column(String(20), default="active")
+    status: Mapped[str] = mapped_column(String(20), default="active", index=True)  # 添加索引
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=datetime.utcnow,
+        index=True,  # 添加索引
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -208,6 +212,10 @@ class Question(Base):
     """面试题目表：对应 Prisma 的 Question 模型。"""
 
     __tablename__ = "questions"
+    __table_args__ = (
+        # 复合索引：知识库+分类、知识库+难度
+        {'comment': '面试题目卡：结构化题库单元（题目 + 参考答案 + 类目/难度/关键词）'},
+    )
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_short_id)
     knowledge_id: Mapped[str] = mapped_column(
@@ -215,8 +223,8 @@ class Question(Base):
         ForeignKey("knowledge_bases.id", ondelete="CASCADE"),
         index=True,
     )
-    category: Mapped[str] = mapped_column(String(100), default="未分类")
-    difficulty: Mapped[str] = mapped_column(String(20), default="medium")  # easy | medium | hard
+    category: Mapped[str] = mapped_column(String(100), default="未分类", index=True)  # 添加索引
+    difficulty: Mapped[str] = mapped_column(String(20), default="medium", index=True)  # 添加索引
     question: Mapped[str] = mapped_column(Text)
     answer: Mapped[str] = mapped_column(Text)
     keywords: Mapped[str] = mapped_column(Text, default="[]")  # JSON array string
@@ -236,11 +244,6 @@ class Question(Base):
     practice_records: Mapped[list["PracticeRecord"]] = relationship(
         back_populates="question",
         cascade="all, delete-orphan",
-    )
-
-    # 索引
-    __table_args__ = (
-        {"comment": "面试题目卡：结构化题库单元（题目 + 参考答案 + 类目/难度/关键词）"},
     )
 
 

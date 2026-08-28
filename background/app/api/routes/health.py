@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from fastapi import APIRouter, Depends
 from loguru import logger
@@ -16,6 +16,12 @@ from app.infrastructure.database.session import get_async_session
 router = APIRouter(tags=["health"])
 
 
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """数据库会话依赖项。"""
+    async for session in get_async_session():
+        yield session
+
+
 @router.get("/health")
 async def health() -> dict[str, str]:
     """轻量存活探针（不访问外部依赖）。"""
@@ -24,7 +30,7 @@ async def health() -> dict[str, str]:
 
 @router.get("/health/ready")
 async def health_ready(
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
     """就绪探针：检查数据库连通性。"""
     settings = get_settings()
