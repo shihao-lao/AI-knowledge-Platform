@@ -11,6 +11,8 @@ dist/
 .env
 .env.local
 .env.*.local
+background/.env
+background/.env.local
 
 # Prisma
 prisma/dev.db

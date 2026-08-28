@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, JSON, Boolean
@@ -18,6 +18,11 @@ def _uuid() -> str:
 def _short_id() -> str:
     """生成短ID，类似 Prisma 的 u_xxxxxxxx 格式。"""
     return f"u_{uuid.uuid4().hex[:8]}"
+
+
+def _utcnow() -> datetime:
+    """获取当前 UTC 时间（替代弃用的 datetime.utcnow()）。"""
+    return datetime.now(timezone.utc)
 
 
 class Base(DeclarativeBase):
@@ -35,7 +40,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=_utcnow,
     )
 
     # 关系
@@ -68,13 +73,13 @@ class Knowledge(Base):
     status: Mapped[str] = mapped_column(String(20), default="active", index=True)  # 添加索引
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=_utcnow,
         index=True,  # 添加索引
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=_utcnow,
+        onupdate=_utcnow,
     )
 
     # 关系
@@ -114,12 +119,12 @@ class Document(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=_utcnow,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=_utcnow,
+        onupdate=_utcnow,
     )
 
     # 关系
@@ -146,7 +151,7 @@ class Chunk(Base):
     token_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=_utcnow,
     )
 
     # 关系
@@ -169,12 +174,12 @@ class Conversation(Base):
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=_utcnow,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=_utcnow,
+        onupdate=_utcnow,
     )
 
     # 关系
@@ -201,7 +206,7 @@ class Message(Base):
     citations: Mapped[str] = mapped_column(Text, default="[]")  # JSON array of citations
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=_utcnow,
     )
 
     # 关系
@@ -231,12 +236,12 @@ class Question(Base):
     source: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=_utcnow,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=_utcnow,
+        onupdate=_utcnow,
     )
 
     # 关系
@@ -269,7 +274,7 @@ class PracticeRecord(Base):
     feedback: Mapped[str] = mapped_column(Text, default="")
     evaluated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=_utcnow,
     )
 
     # 关系
@@ -300,7 +305,7 @@ class Resume(Base):
     score: Mapped[int] = mapped_column(Integer, default=0)  # 0-100 整体评分
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=_utcnow,
     )
 
     # 关系
@@ -326,5 +331,5 @@ class TraceLog(Base):
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=_utcnow,
     )
