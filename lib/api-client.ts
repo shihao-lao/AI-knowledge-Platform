@@ -153,7 +153,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   // Auth
-  login(email: string, password: string): Promise<{ data: ApiUser }> {
+  login(email: string, password: string): Promise<{ data: ApiUser; access_token: string }> {
     return request(`${BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -18,11 +18,12 @@ function LoginForm() {
   const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true);
     try {
-      await login(values.email, values.password);
+      const result = await login(values.email, values.password);
       message.success('登录成功');
+      // 登录成功后跳转
       const from = searchParams.get('from');
-      router.push(getLoginRedirect(from ?? undefined));
-      router.refresh();
+      const redirectUrl = getLoginRedirect(from ?? undefined);
+      router.push(redirectUrl);
     } catch (err) {
       message.error(err instanceof Error ? err.message : '登录失败');
     } finally {

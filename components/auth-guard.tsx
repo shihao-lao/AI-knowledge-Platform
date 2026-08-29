@@ -4,7 +4,7 @@ import { Spin } from 'antd';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { getLoginUrl, isProtectedRoute } from '@/lib/routes';
+import { getLoginUrl, isProtectedRoute, isPublicRoute } from '@/lib/routes';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -18,13 +18,20 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   const pathname = usePathname();
   const { user, loading, isAuthenticated } = useAuth();
   const needsAuth = isProtectedRoute(pathname);
+  const isPublic = isPublicRoute(pathname);
 
   useEffect(() => {
     // 如果需要认证但未登录，跳转到登录页
-    if (!loading && needsAuth && !isAuthenticated) {
+    // 公开页面（登录、注册、首页）不需要认证保护
+    if (!loading && needsAuth && !isAuthenticated && !isPublic) {
       router.replace(getLoginUrl(pathname));
     }
-  }, [loading, needsAuth, isAuthenticated, router, pathname]);
+  }, [loading, needsAuth, isAuthenticated, isPublic, router, pathname]);
+
+  // 公开页面直接渲染，不需要认证检查
+  if (isPublic) {
+    return <>{children}</>;
+  }
 
   // 加载中显示 loading
   if (loading) {
