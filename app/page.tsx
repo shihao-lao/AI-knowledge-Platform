@@ -12,6 +12,7 @@ import {
 import { Button, Card, Col, Layout, Row, Space, Typography } from 'antd';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { ROUTES } from '@/lib/routes';
 
 const { Header, Content, Footer } = Layout;
 
@@ -20,37 +21,37 @@ const features = [
     icon: <BookOutlined />,
     title: '智能知识库',
     desc: '上传 PDF/Word/Markdown 文档，AI 自动解析、语义索引，让资料变成可对话的知识资产。',
-    href: '/knowledge-bases',
+    href: ROUTES.KNOWLEDGE_BASES,
   },
   {
     icon: <MessageOutlined />,
     title: 'AI 面试官',
     desc: '模拟真实面试：AI 出题、追问、点评，每次回答后附参考答案与评分，帮你查漏补缺。',
-    href: '/login',
+    href: ROUTES.LOGIN,
   },
   {
     icon: <EditOutlined />,
     title: '刷题练习',
     desc: '结构化题库（类目/难度/关键词），作答即时评估打分，遗漏要点清晰标注。',
-    href: '/login',
+    href: ROUTES.LOGIN,
   },
   {
     icon: <FileSearchOutlined />,
     title: '简历诊断',
     desc: '上传简历，AI 从 HR 视角全面分析：评分、优势亮点、问题不足、改进建议、面试追问预测。',
-    href: '/login',
+    href: ROUTES.LOGIN,
   },
   {
     icon: <TrophyOutlined />,
     title: '掌握度追踪',
     desc: '按技术类目和难度统计正确率，直观掌握薄弱环节，针对性强化复习。',
-    href: '/login',
+    href: ROUTES.LOGIN,
   },
   {
     icon: <SolutionOutlined />,
     title: '引用溯源',
     desc: '每次回答标注资料来源，[1][2] 标记一键跳转原文，面试准备有据可依。',
-    href: '/knowledge-bases',
+    href: ROUTES.KNOWLEDGE_BASES,
   },
 ];
 
@@ -75,7 +76,7 @@ export default function HomePage() {
       {/* ── Header ── */}
       <Header className={`home-header ${scrolled ? 'is-scrolled' : ''}`}>
         <div className="home-header__inner">
-          <Link href="/" className="home-brand">
+          <Link href={ROUTES.HOME} className="home-brand">
             <span className="home-logo">知</span>
             <Typography.Text strong>面试通</Typography.Text>
           </Link>
@@ -84,10 +85,10 @@ export default function HomePage() {
             <a href="#highlights">亮点</a>
           </nav>
           <Space size={12}>
-            <Link href="/login">
+            <Link href={ROUTES.LOGIN}>
               <Button type="text">登录</Button>
             </Link>
-            <Link href="/register">
+            <Link href={ROUTES.REGISTER}>
               <Button type="primary" shape="round">
                 免费注册
               </Button>
@@ -113,12 +114,12 @@ export default function HomePage() {
             一套工具解决面试备考全链路，让每次准备都有据可依。
           </Typography.Paragraph>
           <Space size={16} className="home-hero__actions">
-            <Link href="/register">
+            <Link href={ROUTES.REGISTER}>
               <Button type="primary" size="large" shape="round" icon={<RocketOutlined />}>
                 立即开始，免费使用
               </Button>
             </Link>
-            <Link href="/knowledge-bases">
+            <Link href={ROUTES.KNOWLEDGE_BASES}>
               <Button size="large" shape="round" icon={<BookOutlined />}>
                 浏览知识库
               </Button>
@@ -231,7 +232,7 @@ export default function HomePage() {
           <Typography.Paragraph type="secondary">
             上传你的资料，导入题库，开始 AI 模拟面试——完全免费。
           </Typography.Paragraph>
-          <Link href="/register">
+          <Link href={ROUTES.REGISTER}>
             <Button type="primary" size="large" shape="round" icon={<RocketOutlined />}>
               免费开始使用
             </Button>

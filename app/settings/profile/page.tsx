@@ -2,29 +2,18 @@
 
 import { LogoutOutlined } from '@ant-design/icons';
 import { App, Avatar, Button, Card, Descriptions, Skeleton, Tag, Typography } from 'antd';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { api, type ApiUser } from '@/lib/api-client';
+import { useAuth } from '@/lib/hooks/use-auth';
+import { useNavigation } from '@/lib/hooks/use-navigation';
 
 export default function SettingsPage() {
-  const router = useRouter();
   const { message } = App.useApp();
-  const [user, setUser] = useState<ApiUser | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.me().then((me) => {
-      setUser(me);
-      setLoading(false);
-    });
-  }, []);
+  const { user, loading, logout } = useAuth();
+  const { goToLogin } = useNavigation();
 
   const handleLogout = async () => {
     try {
-      await api.logout();
+      await logout();
       message.success('已退出登录');
-      router.push('/login');
-      router.refresh();
     } catch {
       message.error('退出失败，请重试');
     }

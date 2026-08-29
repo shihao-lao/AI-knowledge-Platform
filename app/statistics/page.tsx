@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigation } from '@/lib/hooks/use-navigation';
 
 export default function StatisticsPage() {
-  const router = useRouter();
+  const { goToKnowledgeBase } = useNavigation();
 
   useEffect(() => {
-    router.replace('/knowledge-bases');
-  }, [router]);
+    goToKnowledgeBase();
+  }, [goToKnowledgeBase]);
 
   return null;
 }

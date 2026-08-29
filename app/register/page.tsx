@@ -5,19 +5,21 @@ import { App, Button, Card, Form, Input, Typography } from 'antd';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { api } from '@/lib/api-client';
+import { useAuth } from '@/lib/hooks/use-auth';
+import { ROUTES } from '@/lib/routes';
 
 export default function RegisterPage() {
   const router = useRouter();
   const { message } = App.useApp();
+  const { register } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const onFinish = async (values: { name: string; email: string; password: string }) => {
     setLoading(true);
     try {
-      await api.register(values.name.trim(), values.email.trim(), values.password);
+      await register(values.name.trim(), values.email.trim(), values.password);
       message.success('注册成功，已自动登录');
-      router.push('/');
+      router.push(ROUTES.KNOWLEDGE_BASES);
       router.refresh();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '注册失败');

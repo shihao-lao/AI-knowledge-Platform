@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Providers from './providers';
+import AuthGuard from '@/components/auth-guard';
 import ErrorBoundary from '@/components/error-boundary';
 import './globals.css';
 
@@ -21,7 +22,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body suppressHydrationWarning>
         <Providers>
-          <ErrorBoundary>{children}</ErrorBoundary>
+          <AuthGuard>
+            <ErrorBoundary>{children}</ErrorBoundary>
+          </AuthGuard>
         </Providers>
       </body>
     </html>

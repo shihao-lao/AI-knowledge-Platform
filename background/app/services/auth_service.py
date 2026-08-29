@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,24 +16,29 @@ from app.infrastructure.database.models import User
 from app.infrastructure.database.session import get_async_session, get_session_context
 from app.models.schemas import UserCreate, UserLogin, UserResponse
 
-# 密码哈希上下文
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# 密码哈希 - 使用 bcrypt 直接调用
+import bcrypt
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """验证密码。"""
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode('utf-8'),
+            hashed_password.encode('utf-8')
+        )
+    except Exception:
+        return False
+
+def get_password_hash(password: str) -> str:
+    """生成密码哈希。"""
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 # JWT 配置 - 从环境变量读取，如果没有则使用默认值
 SECRET_KEY = os.environ.get("SECRET_KEY", "your-secret-key-change-in-production")
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))  # 缩短过期时间
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """验证密码。"""
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password: str) -> str:
-    """生成密码哈希。"""
-    return pwd_context.hash(password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

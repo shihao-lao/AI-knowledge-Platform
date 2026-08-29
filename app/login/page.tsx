@@ -5,21 +5,23 @@ import { App, Button, Card, Divider, Form, Input, Typography } from 'antd';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
-import { api } from '@/lib/api-client';
+import { useAuth } from '@/lib/hooks/use-auth';
+import { getLoginRedirect } from '@/lib/routes';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { message } = App.useApp();
+  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true);
     try {
-      await api.login(values.email, values.password);
+      await login(values.email, values.password);
       message.success('登录成功');
       const from = searchParams.get('from');
-      router.push(from && from.startsWith('/') && !from.startsWith('//') ? from : '/');
+      router.push(getLoginRedirect(from ?? undefined));
       router.refresh();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '登录失败');
