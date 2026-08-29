@@ -19,10 +19,8 @@ from app.models.schemas import UserCreate, UserLogin, UserResponse
 # 密码哈希上下文
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# JWT 配置 - 必须设置环境变量，无默认值
-SECRET_KEY = os.environ.get("SECRET_KEY")
-if not SECRET_KEY:
-    raise ValueError("必须设置 SECRET_KEY 环境变量")
+# JWT 配置 - 从环境变量读取，如果没有则使用默认值
+SECRET_KEY = os.environ.get("SECRET_KEY", "your-secret-key-change-in-production")
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))  # 缩短过期时间

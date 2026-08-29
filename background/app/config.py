@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     app_name: str = Field(default="enterprise-ai-agent", description="服务名称")
     app_env: str = Field(default="development", description="运行环境")
     debug: bool = Field(default=False, description="调试模式")
-    api_prefix: str = Field(default="/api", description="API 前缀")
+    api_prefix: str = Field(default="/api/v1", description="API 前缀")
     host: str = Field(default="0.0.0.0", description="监听地址")
     port: int = Field(default=8000, description="监听端口")
 
