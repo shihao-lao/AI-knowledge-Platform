@@ -137,10 +137,8 @@ export interface PracticeStats {
   }>;
 }
 
-// API 基础 URL，可以通过环境变量配置
-// 如果配置了 NEXT_PUBLIC_API_URL，则使用 Python 后端
-// 否则使用 Next.js API 路由
-const BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
+// API 基础 URL，指向 Python 后端
+const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options);
