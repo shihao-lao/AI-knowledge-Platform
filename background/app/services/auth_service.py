@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import User
-from app.infrastructure.database.session import get_async_session
+from app.infrastructure.database.session import get_async_session, get_session_context
 from app.models.schemas import UserCreate, UserLogin, UserResponse
 
 # 密码哈希上下文
@@ -59,7 +59,7 @@ def verify_token(token: str) -> Optional[dict]:
 
 async def authenticate_user(email: str, password: str) -> Optional[User]:
     """验证用户凭据。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         result = await session.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
         if not user:
@@ -71,7 +71,7 @@ async def authenticate_user(email: str, password: str) -> Optional[User]:
 
 async def create_user(user_data: UserCreate) -> User:
     """创建新用户。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         # 检查邮箱是否已存在
         result = await session.execute(select(User).where(User.email == user_data.email))
         existing_user = result.scalar_one_or_none()
@@ -93,7 +93,7 @@ async def create_user(user_data: UserCreate) -> User:
 
 async def get_user_by_id(user_id: str) -> Optional[User]:
     """根据用户 ID 获取用户。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         result = await session.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 

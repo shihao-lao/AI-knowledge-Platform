@@ -9,7 +9,7 @@ from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import Conversation, Message, Knowledge
-from app.infrastructure.database.session import get_async_session
+from app.infrastructure.database.session import get_async_session, get_session_context
 from app.models.schemas import (
     ConversationCreate,
     ConversationResponse,
@@ -21,7 +21,7 @@ async def get_conversations_by_knowledge(
     knowledge_id: str, user_id: str
 ) -> List[ConversationResponse]:
     """获取知识库的对话列表。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         # 检查知识库是否存在且属于当前用户
         kb_result = await session.execute(
             select(Knowledge).where(
@@ -56,7 +56,7 @@ async def create_conversation(
     knowledge_id: str, user_id: str, conv_data: ConversationCreate
 ) -> ConversationResponse:
     """创建新对话。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         # 检查知识库是否存在且属于当前用户
         kb_result = await session.execute(
             select(Knowledge).where(
@@ -87,7 +87,7 @@ async def create_conversation(
 
 async def get_conversation(conversation_id: str, user_id: str) -> Optional[ConversationResponse]:
     """获取对话详情。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         result = await session.execute(
             select(Conversation).where(Conversation.id == conversation_id)
         )
@@ -119,7 +119,7 @@ async def get_conversation(conversation_id: str, user_id: str) -> Optional[Conve
 
 async def delete_conversation(conversation_id: str, user_id: str) -> bool:
     """删除对话。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         result = await session.execute(
             select(Conversation).where(Conversation.id == conversation_id)
         )
@@ -150,7 +150,7 @@ async def get_messages_by_conversation(
     conversation_id: str, user_id: str
 ) -> List[MessageResponse]:
     """获取对话的消息列表。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         # 检查对话是否存在且属于当前用户
         conv_result = await session.execute(
             select(Conversation).where(Conversation.id == conversation_id)
@@ -199,7 +199,7 @@ async def add_message_to_conversation(
     citations: str = "[]",
 ) -> MessageResponse:
     """向对话添加消息。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         # 检查对话是否存在
         conv_result = await session.execute(
             select(Conversation).where(Conversation.id == conversation_id)

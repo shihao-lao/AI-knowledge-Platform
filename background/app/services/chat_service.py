@@ -14,7 +14,7 @@ from app.core.rag.retriever import MultiRetriever
 from app.core.rag.generator import RAGGenerator
 from app.core.rag.reranker import Reranker
 from app.infrastructure.database.models import Conversation, Message, Knowledge
-from app.infrastructure.database.session import get_async_session
+from app.infrastructure.database.session import get_async_session, get_session_context
 from app.models.schemas import (
     ChatRequest,
     ChatResponse,
@@ -50,7 +50,7 @@ class ChatService:
         async def event_generator():
             try:
                 # 1. 验证对话存在且属于用户
-                async with get_async_session() as session:
+                async with get_session_context() as session:
                     conv_result = await session.execute(
                         select(Conversation).where(Conversation.id == conversation_id)
                     )
@@ -120,7 +120,7 @@ class ChatService:
         self, conversation_id: str, role: str, content: str
     ) -> Message:
         """保存消息到数据库。"""
-        async with get_async_session() as session:
+        async with get_session_context() as session:
             message = Message(
                 id=str(uuid.uuid4()),
                 conversation_id=conversation_id,

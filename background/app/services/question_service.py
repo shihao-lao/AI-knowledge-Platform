@@ -10,7 +10,7 @@ from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import Question, Knowledge
-from app.infrastructure.database.session import get_async_session
+from app.infrastructure.database.session import get_async_session, get_session_context
 from app.models.schemas import (
     QuestionCreate,
     QuestionResponse,
@@ -27,7 +27,7 @@ async def get_questions_by_knowledge(
     keyword: Optional[str] = None,
 ) -> List[QuestionResponse]:
     """获取知识库的题目列表。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         # 检查知识库是否存在且属于当前用户
         kb_result = await session.execute(
             select(Knowledge).where(
@@ -71,7 +71,7 @@ async def get_questions_by_knowledge(
 
 async def get_question_categories(knowledge_id: str, user_id: str) -> List[str]:
     """获取知识库的题目分类。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         # 检查知识库是否存在且属于当前用户
         kb_result = await session.execute(
             select(Knowledge).where(
@@ -98,7 +98,7 @@ async def import_questions(
     import_data: QuestionImportRequest,
 ) -> QuestionImportResponse:
     """导入题目。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         # 检查知识库是否存在且属于当前用户
         kb_result = await session.execute(
             select(Knowledge).where(
@@ -158,7 +158,7 @@ async def import_questions(
 
 async def get_question(question_id: str, user_id: str) -> Optional[QuestionResponse]:
     """获取题目详情。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         result = await session.execute(
             select(Question).where(Question.id == question_id)
         )
@@ -194,7 +194,7 @@ async def get_question(question_id: str, user_id: str) -> Optional[QuestionRespo
 
 async def delete_question(question_id: str, user_id: str) -> bool:
     """删除题目。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         result = await session.execute(
             select(Question).where(Question.id == question_id)
         )

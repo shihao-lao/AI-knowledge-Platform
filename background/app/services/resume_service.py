@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import Resume, User
-from app.infrastructure.database.session import get_async_session
+from app.infrastructure.database.session import get_async_session, get_session_context
 from app.models.schemas import (
     ResumeCreate,
     ResumeResponse,
@@ -26,7 +26,7 @@ async def upload_and_analyze_resume(
     filename: str,
 ) -> ResumeAnalysisResponse:
     """上传简历并进行分析。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         # 检查用户是否存在
         user_result = await session.execute(
             select(User).where(User.id == user_id)
@@ -172,7 +172,7 @@ async def _analyze_resume_with_llm(content: str) -> tuple[str, int]:
 
 async def get_resume(resume_id: str, user_id: str) -> Optional[ResumeResponse]:
     """获取简历详情。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         result = await session.execute(
             select(Resume).where(Resume.id == resume_id)
         )
@@ -195,7 +195,7 @@ async def get_resume(resume_id: str, user_id: str) -> Optional[ResumeResponse]:
 
 async def get_user_resumes(user_id: str) -> list[ResumeResponse]:
     """获取用户的简历列表。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         result = await session.execute(
             select(Resume)
             .where(Resume.user_id == user_id)

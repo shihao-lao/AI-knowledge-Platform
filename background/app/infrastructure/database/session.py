@@ -74,3 +74,10 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         raise RuntimeError("请先调用 configure_session(init_engine(...))")
     async with async_session_factory() as session:
         yield session
+
+
+def get_session_context():
+    """获取异步会话上下文管理器。"""
+    if async_session_factory is None:
+        raise RuntimeError("请先调用 configure_session(init_engine(...))")
+    return async_session_factory()

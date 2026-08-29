@@ -9,13 +9,13 @@ from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import Knowledge, User
-from app.infrastructure.database.session import get_async_session
+from app.infrastructure.database.session import get_async_session, get_session_context
 from app.models.schemas import KnowledgeCreate, KnowledgeUpdate, KnowledgeResponse
 
 
 async def get_user_knowledge_bases(user_id: str) -> List[KnowledgeResponse]:
     """获取用户的所有知识库。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         result = await session.execute(
             select(Knowledge)
             .where(Knowledge.user_id == user_id)
@@ -37,7 +37,7 @@ async def get_user_knowledge_bases(user_id: str) -> List[KnowledgeResponse]:
 
 async def create_knowledge_base(user_id: str, kb_data: KnowledgeCreate) -> KnowledgeResponse:
     """创建新知识库。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         # 检查用户是否存在
         user_result = await session.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
@@ -66,7 +66,7 @@ async def create_knowledge_base(user_id: str, kb_data: KnowledgeCreate) -> Knowl
 
 async def get_knowledge_base(kb_id: str, user_id: str) -> Optional[KnowledgeResponse]:
     """获取知识库详情。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         result = await session.execute(
             select(Knowledge).where(
                 and_(Knowledge.id == kb_id, Knowledge.user_id == user_id)
@@ -90,7 +90,7 @@ async def update_knowledge_base(
     kb_id: str, user_id: str, kb_data: KnowledgeUpdate
 ) -> Optional[KnowledgeResponse]:
     """更新知识库。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         result = await session.execute(
             select(Knowledge).where(
                 and_(Knowledge.id == kb_id, Knowledge.user_id == user_id)
@@ -121,7 +121,7 @@ async def update_knowledge_base(
 
 async def delete_knowledge_base(kb_id: str, user_id: str) -> bool:
     """删除知识库。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         result = await session.execute(
             select(Knowledge).where(
                 and_(Knowledge.id == kb_id, Knowledge.user_id == user_id)
@@ -138,7 +138,7 @@ async def delete_knowledge_base(kb_id: str, user_id: str) -> bool:
 
 async def search_knowledge_bases(user_id: str, query: str) -> List[KnowledgeResponse]:
     """搜索知识库。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         result = await session.execute(
             select(Knowledge).where(
                 and_(

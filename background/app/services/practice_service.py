@@ -10,7 +10,7 @@ from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import PracticeRecord, Question, User
-from app.infrastructure.database.session import get_async_session
+from app.infrastructure.database.session import get_async_session, get_session_context
 from app.models.schemas import (
     PracticeEvaluateRequest,
     PracticeEvaluateResponse,
@@ -25,7 +25,7 @@ async def evaluate_answer(
     user_answer: str,
 ) -> PracticeEvaluateResponse:
     """评估用户答案。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         # 检查题目是否存在
         question_result = await session.execute(
             select(Question).where(Question.id == question_id)
@@ -123,7 +123,7 @@ async def get_practice_stats(
     knowledge_id: Optional[str] = None,
 ) -> PracticeStatsResponse:
     """获取练习统计。"""
-    async with get_async_session() as session:
+    async with get_session_context() as session:
         # 使用数据库聚合函数优化查询
         from sqlalchemy import func, case
         
