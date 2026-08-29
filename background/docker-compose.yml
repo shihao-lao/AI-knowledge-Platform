@@ -7,13 +7,15 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@postgres:5432/agent_db
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/agent_db
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
       REDIS_URL: redis://redis:6379/0
       MILVUS_HOST: milvus
       MILVUS_PORT: "19530"
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_API_BASE: ${OPENAI_API_BASE:-https://api.openai.com/v1}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:3001
     depends_on:
       postgres:
         condition: service_healthy
