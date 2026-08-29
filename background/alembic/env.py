@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Alembic 环境配置文件。"""
 
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
@@ -19,6 +20,11 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 from app.infrastructure.database.models import Base
 target_metadata = Base.metadata
+
+# Override sqlalchemy.url with environment variable if available
+database_url = os.getenv("DATABASE_URL")
+if database_url:
+    config.set_main_option("sqlalchemy.url", database_url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
