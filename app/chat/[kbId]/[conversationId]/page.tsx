@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import type { Message } from '@/types';
 import { chatPath, knowledgePath, statisticsPath, questionsPath, resumesPath } from '@/lib/paths';
 import { createWelcomeMessage } from '@/lib/chat';
-import { sendChatMessage } from '@/app/api/chat';
+import { sendChatMessage } from '@/lib/chat-api';
 import { api, type ApiKnowledge, type ApiConversation, type ApiUser } from '@/lib/api-client';
 import ChatMessageList from './components/ChatMessageList';
 import ChatInputArea from './components/ChatInputArea';

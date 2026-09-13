@@ -18,7 +18,7 @@ function LoginForm() {
   const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true);
     try {
-      const result = await login(values.email, values.password);
+      await login(values.email, values.password);
       message.success('登录成功');
       // 登录成功后跳转
       const from = searchParams.get('from');

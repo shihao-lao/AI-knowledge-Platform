@@ -140,43 +140,133 @@ export interface PracticeStats {
 // API 基础 URL，指向 Python 后端
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
+// Token 存储
+const TOKEN_KEY = 'auth_token';
+
+function getToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function setToken(token: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+function removeToken(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+function toCamelCase(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(toCamelCase);
+  if (!value || typeof value !== 'object') return value;
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, nestedValue]) => [
+      key.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase()),
+      toCamelCase(nestedValue),
+    ]),
+  );
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, options);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const error = (body as { error?: string; details?: string }).error || `HTTP ${res.status}`;
-    const details = (body as { details?: string }).details;
-    throw new Error(details ? `${error}: ${details}` : error);
+  const token = getToken();
+  const headers: Record<string, string> = {
+    ...(options?.headers as Record<string, string>),
+  };
+
+  // 如果有 token，添加 Authorization 头
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
-  return res.json();
+
+  const res = await fetch(url, { ...options, headers });
+  if (!res.ok) {
+    // 401 未授权：token 过期或无效，清除本地 token 并跳转登录
+    if (res.status === 401) {
+      removeToken();
+      if (typeof window !== 'undefined') {
+        const currentPath = window.location.pathname;
+        const loginUrl = `/login?from=${encodeURIComponent(currentPath)}`;
+        window.location.href = loginUrl;
+      }
+      throw new Error('登录已过期，请重新登录');
+    }
+
+    const body = await res.json().catch(() => ({}));
+    // 处理不同格式的错误响应
+    let errorMessage = `HTTP ${res.status}`;
+    if (typeof body === 'object' && body !== null) {
+      if (typeof body.detail === 'string') {
+        errorMessage = body.detail;
+      } else if (typeof body.error === 'string') {
+        errorMessage = body.error;
+      } else if (typeof body.message === 'string') {
+        errorMessage = body.message;
+      } else if (Array.isArray(body.detail)) {
+        // FastAPI 验证错误格式
+        errorMessage = body.detail.map((d: { msg?: string }) => d.msg || JSON.stringify(d)).join(', ');
+      }
+    }
+    throw new Error(errorMessage);
+  }
+  return toCamelCase(await res.json()) as T;
 }
 
 export const api = {
   // Auth
-  login(email: string, password: string): Promise<{ data: ApiUser; access_token: string }> {
-    return request(`${BASE}/auth/login`, {
+  async login(email: string, password: string): Promise<{ data: ApiUser; accessToken: string }> {
+    const result = await request<{ data: ApiUser; accessToken: string }>(`${BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
+    // 存储 token
+    if (result.accessToken) {
+      setToken(result.accessToken);
+    }
+    return result;
   },
 
-  register(name: string, email: string, password: string): Promise<{ data: ApiUser }> {
-    return request(`${BASE}/auth/register`, {
+  async register(name: string, email: string, password: string): Promise<{ data: ApiUser }> {
+    const result = await request<{ data: ApiUser }>(`${BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password }),
     });
+    // 注册成功后自动登录获取 token
+    // 由于后端注册接口不返回 token，需要调用登录接口
+    const loginResult = await request<{ data: ApiUser; accessToken: string }>(`${BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (loginResult.accessToken) {
+      setToken(loginResult.accessToken);
+    }
+    return result;
   },
 
   logout(): Promise<{ data: { loggedOut: boolean } }> {
+    // 清除本地 token
+    removeToken();
     return request(`${BASE}/auth/logout`, { method: 'POST' });
   },
 
   /** 获取当前登录用户；未登录返回 null（不抛错） */
   async me(): Promise<ApiUser | null> {
     try {
-      const res = await fetch(`${BASE}/auth/me`);
+      const token = getToken();
+      if (!token) return null;
+      const res = await fetch(`${BASE}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401) {
+        // token 过期，清除
+        removeToken();
+        return null;
+      }
       if (!res.ok) return null;
       const body = await res.json();
       return body.data ?? null;
@@ -216,7 +306,7 @@ export const api = {
 
   // Document
   listDocuments(knowledgeId: string): Promise<{ data: ApiDocument[] }> {
-    return request(`${BASE}/document?knowledgeId=${encodeURIComponent(knowledgeId)}`);
+    return request(`${BASE}/document?knowledge_id=${encodeURIComponent(knowledgeId)}`);
   },
 
   getDocument(id: string): Promise<{ data: ApiDocument }> {
@@ -232,7 +322,6 @@ export const api = {
       const xhr = new XMLHttpRequest();
       const form = new FormData();
       form.append('file', file);
-      form.append('knowledgeId', knowledgeId);
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable && onProgress) {
@@ -242,7 +331,7 @@ export const api = {
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(JSON.parse(xhr.responseText));
+          resolve(toCamelCase(JSON.parse(xhr.responseText)) as { data: ApiDocument });
         } else {
           try {
             const body = JSON.parse(xhr.responseText);
@@ -254,7 +343,11 @@ export const api = {
       };
 
       xhr.onerror = () => reject(new Error('网络错误'));
-      xhr.open('POST', `${BASE}/document/upload`);
+      xhr.open('POST', `${BASE}/document/upload?knowledge_id=${encodeURIComponent(knowledgeId)}`);
+      const token = getToken();
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
       xhr.send(form);
     });
   },
@@ -263,17 +356,25 @@ export const api = {
     return request(`${BASE}/document/${id}`, { method: 'DELETE' });
   },
 
-  updateDocumentEnabled(id: string, enabled: boolean): Promise<{ data: ApiDocument }> {
-    return request(`${BASE}/document/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled }),
-    });
+  updateDocumentEnabled(_id: string, _enabled: boolean): Promise<{ data: ApiDocument }> {
+    // 后端暂未实现更新文档启用状态功能
+    return Promise.resolve({ data: {} as ApiDocument });
   },
 
   // Citation Stats
-  getCitationStats(knowledgeId: string): Promise<{ data: CitationStatsData }> {
-    return request(`${BASE}/knowledge/${encodeURIComponent(knowledgeId)}/citation-stats`);
+  getCitationStats(_knowledgeId: string): Promise<{ data: CitationStatsData }> {
+    // 后端暂未实现引用统计功能
+    return Promise.resolve({
+      data: {
+        summary: {
+          totalCitations: 0,
+          uniqueDocumentsCited: 0,
+          totalConversations: 0,
+          totalAssistantMessages: 0,
+        },
+        documents: [],
+      },
+    });
   },
 
   // Search
@@ -292,23 +393,23 @@ export const api = {
 
   // Conversation
   listConversations(knowledgeId: string): Promise<{ data: ApiConversation[] }> {
-    return request(`${BASE}/conversation?knowledgeId=${encodeURIComponent(knowledgeId)}`);
+    return request(`${BASE}/conversations?knowledge_id=${encodeURIComponent(knowledgeId)}`);
   },
 
   getConversation(id: string): Promise<{ data: ApiConversation }> {
-    return request(`${BASE}/conversation/${id}`);
+    return request(`${BASE}/conversations/${id}`);
   },
 
   createConversation(knowledgeId: string, title?: string): Promise<{ data: ApiConversation }> {
-    return request(`${BASE}/conversation`, {
+    return request(`${BASE}/conversations?knowledge_id=${encodeURIComponent(knowledgeId)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ knowledgeId, title }),
+      body: JSON.stringify({ title }),
     });
   },
 
   updateConversation(id: string, data: { title?: string }): Promise<{ data: ApiConversation }> {
-    return request(`${BASE}/conversation/${id}`, {
+    return request(`${BASE}/conversations/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -316,12 +417,12 @@ export const api = {
   },
 
   deleteConversation(id: string): Promise<{ data: { deleted: boolean } }> {
-    return request(`${BASE}/conversation/${id}`, { method: 'DELETE' });
+    return request(`${BASE}/conversations/${id}`, { method: 'DELETE' });
   },
 
   // Message
   listMessages(conversationId: string): Promise<{ data: ApiMessage[] }> {
-    return request(`${BASE}/conversation/${conversationId}/message`);
+    return request(`${BASE}/conversations/${conversationId}/messages`);
   },
 
   createMessage(
@@ -332,10 +433,13 @@ export const api = {
       citations?: Citation[];
     },
   ): Promise<{ data: ApiMessage }> {
-    return request(`${BASE}/conversation/${conversationId}/message`, {
+    const params = new URLSearchParams({
+      role: data.role,
+      content: data.content,
+      citations: JSON.stringify(data.citations || []),
+    });
+    return request(`${BASE}/conversations/${conversationId}/messages?${params.toString()}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
     });
   },
 
@@ -346,11 +450,11 @@ export const api = {
     difficulty?: string;
     keyword?: string;
   }): Promise<{ data: ApiQuestion[]; categories: string[] }> {
-    const qs = new URLSearchParams({ knowledgeId: params.knowledgeId });
+    const qs = new URLSearchParams({ knowledge_id: params.knowledgeId });
     if (params.category) qs.set('category', params.category);
     if (params.difficulty) qs.set('difficulty', params.difficulty);
     if (params.keyword) qs.set('keyword', params.keyword);
-    return request(`${BASE}/question?${qs.toString()}`);
+    return request(`${BASE}/questions?${qs.toString()}`);
   },
 
   importQuestions(
@@ -364,15 +468,15 @@ export const api = {
       source?: string;
     }>,
   ): Promise<{ data: { count: number } }> {
-    return request(`${BASE}/question`, {
+    return request(`${BASE}/questions/import?knowledge_id=${encodeURIComponent(knowledgeId)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ knowledgeId, questions }),
+      body: JSON.stringify({ questions }),
     });
   },
 
   deleteQuestion(id: string): Promise<{ data: { deleted: boolean } }> {
-    return request(`${BASE}/question/${id}`, { method: 'DELETE' });
+    return request(`${BASE}/questions/${id}`, { method: 'DELETE' });
   },
 
   // Practice
@@ -380,25 +484,25 @@ export const api = {
     return request(`${BASE}/practice/evaluate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ questionId, userAnswer }),
+      body: JSON.stringify({ question_id: questionId, user_answer: userAnswer }),
     });
   },
 
   getPracticeStats(knowledgeId: string): Promise<{ data: PracticeStats }> {
-    return request(`${BASE}/practice/stats?knowledgeId=${encodeURIComponent(knowledgeId)}`);
+    return request(`${BASE}/practice/stats?knowledge_id=${encodeURIComponent(knowledgeId)}`);
   },
 
   // Resume
   listResumes(): Promise<{
     data: Array<{ id: string; filename: string; fileSize: number; score: number; createdAt: string }>;
   }> {
-    return request(`${BASE}/resume`);
+    return request(`${BASE}/resumes`);
   },
 
   getResume(
     id: string,
   ): Promise<{ data: { id: string; filename: string; fileSize: number; score: number; content: string; analysis: string; createdAt: string } }> {
-    return request(`${BASE}/resume?id=${encodeURIComponent(id)}`);
+    return request(`${BASE}/resumes/${encodeURIComponent(id)}`);
   },
 
   uploadResume(
@@ -430,12 +534,23 @@ export const api = {
       };
 
       xhr.onerror = () => reject(new Error('网络错误'));
-      xhr.open('POST', `${BASE}/resume`);
+      xhr.open('POST', `${BASE}/resumes/upload`);
       xhr.send(form);
     });
   },
 
-  deleteResume(id: string): Promise<{ data: { deleted: boolean } }> {
-    return request(`${BASE}/resume?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+  deleteResume(_id: string): Promise<{ data: { deleted: boolean } }> {
+    // 后端暂未实现删除简历功能
+    return Promise.resolve({ data: { deleted: false } });
+  },
+
+  // AI 工具（文档摘要 / 专家 Skill）
+  async aiGenerate(action: 'summary' | 'skill', title: string, content: string): Promise<{ data: string }> {
+    const result = await request<{ data: string }>(`${BASE}/ai/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, title, content }),
+    });
+    return result;
   },
 };

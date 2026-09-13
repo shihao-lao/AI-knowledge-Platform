@@ -3,12 +3,10 @@
 import { LogoutOutlined } from '@ant-design/icons';
 import { App, Avatar, Button, Card, Descriptions, Skeleton, Tag, Typography } from 'antd';
 import { useAuth } from '@/lib/hooks/use-auth';
-import { useNavigation } from '@/lib/hooks/use-navigation';
 
 export default function SettingsPage() {
   const { message } = App.useApp();
   const { user, loading, logout } = useAuth();
-  const { goToLogin } = useNavigation();
 
   const handleLogout = async () => {
     try {
@@ -39,7 +37,7 @@ export default function SettingsPage() {
         ) : (
           <Typography.Paragraph type="secondary">未登录</Typography.Paragraph>
         )}
-        <Button danger icon={<LogoutOutlined />} style={{ marginTop: 16 }} onClick={handleLogout}>
+        <Button danger icon={<LogoutOutlined />} className="sidebar-action" onClick={handleLogout}>
           退出登录
         </Button>
       </Card>

@@ -16,7 +16,7 @@ interface AuthGuardProps {
 export default function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, loading, isAuthenticated } = useAuth();
+  const { loading, isAuthenticated } = useAuth();
   const needsAuth = isProtectedRoute(pathname);
   const isPublic = isPublicRoute(pathname);
 
@@ -36,12 +36,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   // 加载中显示 loading
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh' 
-      }}>
+      <div className="auth-loading">
         <Spin size="large" tip="加载中..." />
       </div>
     );
