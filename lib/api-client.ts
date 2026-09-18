@@ -535,6 +535,10 @@ export const api = {
 
       xhr.onerror = () => reject(new Error('网络错误'));
       xhr.open('POST', `${BASE}/resumes/upload`);
+      const token = getToken();
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
       xhr.send(form);
     });
   },
