@@ -4,11 +4,16 @@
 import os
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
+
+# 将 .env 加载到 os.environ，确保所有 os.getenv() 都能读到
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
-from app.api.routes import auth, chat, conversation, document, health, knowledge, practice, question, resume
+from app.api.routes import ai, auth, chat, conversation, document, health, knowledge, practice, question, resume
 from app.config import get_settings
 from app.infrastructure.database.session import configure_session, init_engine
 from app.middleware.rate_limit import RateLimitMiddleware
@@ -69,6 +74,7 @@ def create_app() -> FastAPI:
     application.include_router(question.router, prefix=settings.api_prefix)
     application.include_router(practice.router, prefix=settings.api_prefix)
     application.include_router(resume.router, prefix=settings.api_prefix)
+    application.include_router(ai.router, prefix=settings.api_prefix)
 
     return application
 
