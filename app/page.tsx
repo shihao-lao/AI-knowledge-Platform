@@ -11,7 +11,9 @@ import {
 } from '@ant-design/icons';
 import { Button, Card, Col, Layout, Row, Space, Typography } from 'antd';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/lib/hooks/use-auth';
 import { ROUTES } from '@/lib/routes';
 
 const { Header, Content, Footer } = Layout;
@@ -63,13 +65,25 @@ const stats = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
+  const { isAuthenticated, loading } = useAuth();
   const [scrolled, setScrolled] = useState(false);
+
+  // 已登录用户自动跳转到知识库页
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      router.replace(ROUTES.KNOWLEDGE_BASES);
+    }
+  }, [loading, isAuthenticated, router]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  // 认证检查中或已登录待跳转时，不渲染落地页内容
+  if (loading || isAuthenticated) return null;
 
   return (
     <Layout className="home-page">
