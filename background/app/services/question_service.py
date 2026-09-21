@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import Question, Knowledge
 from app.infrastructure.database.session import get_async_session, get_session_context
+from app.services.retrieval_service import retrieval_service
 from app.models.schemas import (
     QuestionCreate,
     QuestionResponse,
@@ -147,12 +148,13 @@ async def import_questions(
                 errors.append(f"第 {i + 1} 题导入失败: {str(e)}")
 
         await session.commit()
+        indexed = await retrieval_service.sync_knowledge(knowledge_id, user_id)
 
         return QuestionImportResponse(
             imported=imported_count,
             skipped=skipped_count,
             errors=errors,
-            message=f"成功导入 {imported_count} 题，跳过 {skipped_count} 题",
+            message=f"成功导入 {imported_count} 题，跳过 {skipped_count} 题" + ("" if indexed else "；暂使用关键词检索，向量索引稍后重试"),
         )
 
 
@@ -218,4 +220,5 @@ async def delete_question(question_id: str, user_id: str) -> bool:
         # 删除题目（级联删除练习记录）
         await session.delete(question)
         await session.commit()
+        await retrieval_service.sync_knowledge(question.knowledge_id, user_id)
         return True

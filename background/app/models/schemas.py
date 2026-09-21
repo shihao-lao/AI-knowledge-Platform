@@ -26,7 +26,7 @@ class ChatRequest(BaseModel):
     max_tokens: int | None = Field(default=None, ge=1)
     conversation_id: str | None = Field(default=None, description="可选会话 ID")
     question: str | None = Field(default=None, description="用户问题")
-    enable_search: bool = Field(default=False, description="是否启用搜索")
+    enable_search: bool = Field(default=True, description="是否启用搜索")
     mode: str = Field(default="question", description="模式：question 或 interview")
 
 

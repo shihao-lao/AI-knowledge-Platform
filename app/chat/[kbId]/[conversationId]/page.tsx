@@ -140,7 +140,7 @@ export default function ChatConversationPage() {
 
     // 服务端完成：RAG 检索、历史管理、引用校验、消息落库、标题生成
     await sendChatMessage(
-      { conversationId: activeConversationId, question, enableSearch: false, mode: chatMode },
+      { conversationId: activeConversationId, question, enableSearch: true, mode: chatMode },
       {
         onDelta: (content) => {
           setMessages((prev) =>

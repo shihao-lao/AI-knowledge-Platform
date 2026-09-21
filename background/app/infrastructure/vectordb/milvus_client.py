@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any
 
 from loguru import logger
@@ -48,7 +49,7 @@ class MilvusManager:
         self._conn_kwargs = conn_kwargs
         self._connected = False
 
-    async def _ensure_connection(self) -> None:
+    async def ensure_connection(self) -> None:
         if self._connected:
             return
         try:
@@ -70,7 +71,7 @@ class MilvusManager:
 
     async def create_collection(self, name: str, dim: int) -> None:
         """创建向量集合；若已存在则跳过。"""
-        await self._ensure_connection()
+        await self.ensure_connection()
 
         def _create() -> None:
             if utility.has_collection(name, using=self._alias):
@@ -89,7 +90,7 @@ class MilvusManager:
                 fields=fields,
                 description=f"向量集合 {name}",
             )
-            col = Collection(name, schema, using=self._alias)
+            col = Collection(name, schema, using=self._alias, consistency_level='Strong')
             idx = {"index_type": "IVF_FLAT", "metric_type": "L2", "params": {"nlist": 128}}
             col.create_index(field_name="embedding", index_params=idx)
             logger.info("已创建集合 [{}] dim={}", name, dim)
@@ -107,7 +108,7 @@ class MilvusManager:
         metadata: list[dict[str, Any]],
     ) -> list[str]:
         """插入向量与元数据；主键取自 metadata 中的 id 字段。"""
-        await self._ensure_connection()
+        await self.ensure_connection()
         if len(vectors) != len(metadata):
             raise ValueError("vectors 与 metadata 长度必须一致")
 
@@ -138,7 +139,7 @@ class MilvusManager:
         **search_params: Any,
     ) -> list[dict[str, Any]]:
         """向量相似度检索，返回命中 id 与距离。"""
-        await self._ensure_connection()
+        await self.ensure_connection()
         params = search_params.get(
             "params",
             {"metric_type": "L2", "params": {"nprobe": 10}},
@@ -153,6 +154,8 @@ class MilvusManager:
                 param=params,
                 limit=top_k,
                 output_fields=["id"],
+                expr=('id in ' + json.dumps(search_params['ids'])) if search_params.get('ids') else None,
+                consistency_level='Strong',
             )
             out: list[dict[str, Any]] = []
             for hits in res:
@@ -173,11 +176,11 @@ class MilvusManager:
 
     async def delete(self, collection: str, ids: list[str]) -> None:
         """按主键删除向量。"""
-        await self._ensure_connection()
+        await self.ensure_connection()
         if not ids:
             return
 
-        expr = "id in [" + ", ".join(f'"{i}"' for i in ids) + "]"
+        expr = 'id in ' + json.dumps(ids)
 
         def _delete() -> None:
             col = Collection(collection, using=self._alias)
@@ -188,3 +191,14 @@ class MilvusManager:
         except Exception as exc:
             logger.exception("Milvus 删除失败 collection={}: {}", collection, exc)
             raise
+
+    async def upsert(self, collection: str, vectors: list[list[float]], metadata: list[dict[str, Any]]) -> None:
+        """Idempotent indexing: replacing a chunk does not accumulate duplicates."""
+        if len(vectors) != len(metadata):
+            raise ValueError('vectors and metadata lengths differ')
+        await self.ensure_connection()
+        def write():
+            col = Collection(collection, using=self._alias)
+            col.upsert([[str(row['id']) for row in metadata], vectors])
+            col.flush()
+        await _run_sync(write)

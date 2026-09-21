@@ -1,65 +1,162 @@
 # -*- coding: utf-8 -*-
-"""聊天服务：集成 RAG 系统的聊天功能。"""
+"""
+聊天服务：基于 LangChain 实现 RAG 对话流水线。
+
+流程：用户提问 → Milvus 与 BM25 检索并通过 RRF 融合 →
+     LangChain 构建 Prompt → MiMo LLM 流式生成 → SSE 推送前端
+"""
 
 from __future__ import annotations
 
 import json
+import os
 import uuid
-from typing import AsyncIterator, Optional
+from typing import Any
 
 from fastapi.responses import StreamingResponse
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_openai import ChatOpenAI
 from loguru import logger
+from sqlalchemy import and_, select
 
-from app.core.rag.retriever import MultiRetriever
-from app.core.rag.generator import RAGGenerator
-from app.core.rag.reranker import Reranker
-from app.infrastructure.database.models import Conversation, Message, Knowledge
-from app.infrastructure.database.session import get_async_session, get_session_context
-from app.models.schemas import (
-    ChatRequest,
-    ChatResponse,
-    RAGResponse,
-)
-from sqlalchemy import select, and_
+from app.services.retrieval_service import retrieval_service
+from app.infrastructure.database.models import Conversation, Knowledge, Message
+from app.infrastructure.database.session import get_session_context
+from app.models.schemas import RetrievalResult
+
+
+# ==================== LLM 初始化 ====================
+
+
+def _create_llm(streaming: bool = False) -> ChatOpenAI:
+    """创建 LangChain LLM 实例（OpenAI 兼容 API → MiMo）。"""
+    base_url = os.getenv("MIMO_BASE_URL", "https://api.xiaomimimo.com/v1")
+    api_key = os.getenv("MIMO_API_KEY", "")
+    model = os.getenv("MIMO_MODEL", "mimo-v2.5")
+    temperature = float(os.getenv("LLM_TEMPERATURE", "0.7"))
+    max_tokens = int(os.getenv("LLM_MAX_TOKENS", "2048"))
+
+    if not api_key:
+        raise RuntimeError("MIMO_API_KEY 未配置")
+
+    return ChatOpenAI(
+        base_url=base_url,
+        api_key=api_key,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        streaming=streaming,
+    )
+
+
+# ==================== Prompt 模板 ====================
+
+# 知识问答 Prompt
+QA_SYSTEM_PROMPT = """你是一位严谨的 AI 知识助手。请根据以下检索到的参考资料回答用户问题。
+
+要求：
+1. 仅根据提供的参考资料作答，若资料不足请明确说明
+2. 回答中引用来源时使用 [1]、[2] 等形式，与参考资料编号一致
+3. 回答要准确、简洁、有条理
+4. 如果参考资料中没有相关内容，不要编造
+
+参考资料：
+{context}"""
+
+# 模拟面试 Prompt
+INTERVIEW_SYSTEM_PROMPT = """你是一位资深的技术面试官。请根据以下参考资料和题库内容，对候选人的回答进行专业评估。
+
+要求：
+1. 逐题提问，等候选人回答后再给出评价
+2. 评价包含：总分（0-100）、分项点评、遗漏要点、参考答案要点
+3. 语气专业但友善，帮助候选人提升
+4. 引用参考资料时使用 [1]、[2] 等标注
+
+参考资料：
+{context}"""
+
+
+# ==================== 对话历史管理 ====================
+
+
+def _get_chat_history(
+    session_messages: list[Message], max_turns: int = 10
+) -> list:
+    """从数据库消息构建 LangChain 消息列表（滑动窗口）。"""
+    history = []
+    # 取最近 N 轮对话
+    recent = session_messages[-max_turns * 2 :] if len(session_messages) > max_turns * 2 else session_messages
+
+    for msg in recent:
+        if msg.role == "user":
+            history.append(HumanMessage(content=msg.content))
+        elif msg.role == "assistant":
+            history.append(AIMessage(content=msg.content))
+        elif msg.role == "system":
+            history.append(SystemMessage(content=msg.content))
+
+    return history
+
+
+def _build_context_block(results: list[RetrievalResult]) -> str:
+    """将检索结果格式化为参考资料文本块。"""
+    if not results:
+        return "（无检索到相关资料）"
+
+    lines = []
+    for i, r in enumerate(results, start=1):
+        lines.append(f"[{i}] {r.content}")
+    return "\n\n".join(lines)
+
+
+# ==================== 聊天服务 ====================
 
 
 class ChatService:
-    """聊天服务：集成 RAG 系统。"""
+    """聊天服务：基于 LangChain 的 RAG 对话。"""
 
-    def __init__(self):
-        self.retriever = None
-        self.generator = None
-        self.reranker = None
+    def __init__(self) -> None:
+        # LangChain LLM（流式）
+        self._llm_stream: ChatOpenAI | None = None
+        # LangChain LLM（非流式）
+        self._llm: ChatOpenAI | None = None
 
-    async def initialize(self):
-        """初始化 RAG 组件。"""
-        # 这里应该从配置中获取 Milvus 客户端和嵌入模型
-        # 暂时使用占位实现
-        pass
+    def _get_llm(self, streaming: bool = False) -> ChatOpenAI:
+        """延迟初始化 LangChain LLM。"""
+        if streaming:
+            if self._llm_stream is None:
+                self._llm_stream = _create_llm(streaming=True)
+            return self._llm_stream
+        else:
+            if self._llm is None:
+                self._llm = _create_llm(streaming=False)
+            return self._llm
 
     async def handle_chat(
         self,
         conversation_id: str,
         question: str,
         user_id: str,
-        enable_search: bool = False,
+        enable_search: bool = True,
         mode: str = "question",
     ) -> StreamingResponse:
         """处理聊天请求，返回 SSE 流式响应。"""
 
         async def event_generator():
             try:
-                # 1. 验证对话存在且属于用户
+                # ── 1. 验证对话归属 ──
                 async with get_session_context() as session:
                     conv_result = await session.execute(
                         select(Conversation).where(Conversation.id == conversation_id)
                     )
                     conversation = conv_result.scalar_one_or_none()
                     if not conversation:
-                        yield self._create_error_event("对话不存在")
+                        yield self._sse_error("对话不存在")
                         return
 
-                    # 检查对话是否属于当前用户的知识库
+                    # 校验归属
                     kb_result = await session.execute(
                         select(Knowledge).where(
                             and_(
@@ -70,41 +167,80 @@ class ChatService:
                     )
                     knowledge = kb_result.scalar_one_or_none()
                     if not knowledge:
-                        yield self._create_error_event("对话不存在")
+                        yield self._sse_error("无权访问该对话")
                         return
 
-                # 2. 保存用户消息
-                user_message = await self._save_message(
-                    conversation_id, "user", question
-                )
+                    # ── 2. 加载历史消息 ──
+                    msg_result = await session.execute(
+                        select(Message)
+                        .where(Message.conversation_id == conversation_id)
+                        .order_by(Message.created_at)
+                    )
+                    db_messages = list(msg_result.scalars().all())
 
-                # 3. 检索相关文档（如果启用搜索）
-                contexts = []
+                # ── 3. 保存用户消息 ──
+                await self._save_message(conversation_id, "user", question)
+
+                # ── 4. RAG 检索 ──
+                contexts: list[RetrievalResult] = []
                 if enable_search:
-                    contexts = await self._retrieve_contexts(question, knowledge.id)
+                    contexts = await self._retrieve(question, knowledge.id, user_id)
+                    logger.info(
+                        "检索完成: query='{}', 结果数={}",
+                        question[:50],
+                        len(contexts),
+                    )
 
-                # 4. 生成回答
-                answer = await self._generate_answer(
-                    question, contexts, mode
+                # ── 5. 构建 LangChain Prompt ──
+                context_block = _build_context_block(contexts)
+                chat_history = _get_chat_history(db_messages)
+
+                system_prompt = (
+                    INTERVIEW_SYSTEM_PROMPT if mode == "interview" else QA_SYSTEM_PROMPT
                 )
 
-                # 5. 保存助手消息
-                assistant_message = await self._save_message(
-                    conversation_id, "assistant", answer
+                prompt = ChatPromptTemplate.from_messages([
+                    ("system", system_prompt),
+                    MessagesPlaceholder(variable_name="chat_history"),
+                    ("human", "{question}"),
+                ])
+
+                # ── 6. LangChain Chain: prompt | llm | parser ──
+                llm = self._get_llm(streaming=True)
+                chain = prompt | llm | StrOutputParser()
+
+                # ── 7. 流式生成并推送 SSE ──
+                full_answer = ""
+                async for chunk in chain.astream(
+                    {
+                        "context": context_block,
+                        "chat_history": chat_history,
+                        "question": question,
+                    }
+                ):
+                    full_answer += chunk
+                    yield self._sse_delta(chunk)
+
+                # ── 8. 提取引用 ──
+                citations = self._extract_citations(full_answer, contexts)
+
+                # ── 9. 保存助手消息 ──
+                await self._save_message(
+                    conversation_id,
+                    "assistant",
+                    full_answer,
+                    citations=citations,
                 )
 
-                # 6. 发送响应
-                yield self._create_data_event({
-                    "content": answer,
-                    "message_id": assistant_message.id,
-                    "conversation_id": conversation_id,
-                })
+                # ── 10. 推送引用信息 ──
+                if citations:
+                    yield self._sse_citations(citations)
 
-                yield self._create_done_event()
+                yield self._sse_done()
 
             except Exception as e:
                 logger.exception("聊天处理失败: {}", e)
-                yield self._create_error_event(f"聊天处理失败: {str(e)}")
+                yield self._sse_error(f"聊天处理失败: {str(e)}")
 
         return StreamingResponse(
             event_generator(),
@@ -116,21 +252,62 @@ class ChatService:
             },
         )
 
+    # ── 检索 ──
+
+    async def _retrieve(self, query: str, knowledge_id: str, user_id: str) -> list[RetrievalResult]:
+        return await retrieval_service.retrieve(query, knowledge_id, user_id)
+
+    # ── 引用提取 ──
+
+    def _extract_citations(
+        self, answer: str, contexts: list[RetrievalResult]
+    ) -> list[dict]:
+        """从回答中解析 [n] 引用并映射到检索结果。"""
+        import re
+
+        refs = [int(x) for x in re.findall(r"\[(\d+)\]", answer)]
+        citations = []
+        seen: set[int] = set()
+        for idx in refs:
+            if idx in seen or idx < 1 or idx > len(contexts):
+                continue
+            seen.add(idx)
+            r = contexts[idx - 1]
+            if r.metadata.get("type") == "question":
+                continue
+            citations.append(
+                {
+                    "index": idx,
+                    "documentId": r.metadata.get("document_id", r.id),
+                    "documentTitle": r.metadata.get("filename", ""),
+                    "chunkIndex": r.metadata.get("chunk_index", 0),
+                    "preview": r.content[:200],
+                    "confidenceScore": r.score,
+                }
+            )
+        return citations
+
+    # ── 数据库操作 ──
+
     async def _save_message(
-        self, conversation_id: str, role: str, content: str
-    ) -> Message:
+        self,
+        conversation_id: str,
+        role: str,
+        content: str,
+        citations: list[dict] | None = None,
+    ) -> None:
         """保存消息到数据库。"""
         async with get_session_context() as session:
-            message = Message(
+            msg = Message(
                 id=str(uuid.uuid4()),
                 conversation_id=conversation_id,
                 role=role,
                 content=content,
-                citations="[]",
+                citations=json.dumps(citations or [], ensure_ascii=False),
             )
-            session.add(message)
+            session.add(msg)
 
-            # 更新对话的消息计数
+            # 更新对话消息计数
             conv_result = await session.execute(
                 select(Conversation).where(Conversation.id == conversation_id)
             )
@@ -139,43 +316,25 @@ class ChatService:
                 conversation.message_count += 1
 
             await session.commit()
-            await session.refresh(message)
-            return message
 
-    async def _retrieve_contexts(
-        self, query: str, knowledge_id: str
-    ) -> list[dict]:
-        """检索相关文档上下文。"""
-        # 这里应该调用实际的检索器
-        # 暂时返回空列表
-        return []
+    # ── SSE 事件格式 ──
 
-    async def _generate_answer(
-        self,
-        question: str,
-        contexts: list[dict],
-        mode: str,
-    ) -> str:
-        """生成回答。"""
-        # 这里应该调用实际的生成器
-        # 暂时返回模拟回答
-        if mode == "interview":
-            return f"这是关于 '{question}' 的模拟面试回答。"
-        else:
-            return f"这是关于 '{question}' 的回答。"
+    @staticmethod
+    def _sse_delta(content: str) -> bytes:
+        return f"data: {json.dumps({'type': 'delta', 'content': content}, ensure_ascii=False)}\n\n".encode()
 
-    def _create_data_event(self, data: dict) -> bytes:
-        """创建 SSE 数据事件。"""
-        return f"data: {json.dumps(data, ensure_ascii=False)}\n\n".encode("utf-8")
+    @staticmethod
+    def _sse_citations(citations: list[dict]) -> bytes:
+        return f"data: {json.dumps({'type': 'citations', 'citations': citations}, ensure_ascii=False)}\n\n".encode()
 
-    def _create_error_event(self, error: str) -> bytes:
-        """创建 SSE 错误事件。"""
-        return f"data: {json.dumps({'error': error}, ensure_ascii=False)}\n\n".encode("utf-8")
+    @staticmethod
+    def _sse_error(error: str) -> bytes:
+        return f"data: {json.dumps({'type': 'error', 'message': error}, ensure_ascii=False)}\n\n".encode()
 
-    def _create_done_event(self) -> bytes:
-        """创建 SSE 完成事件。"""
+    @staticmethod
+    def _sse_done() -> bytes:
         return b"data: [DONE]\n\n"
 
 
-# 全局聊天服务实例
+# 全局实例
 chat_service = ChatService()

@@ -51,7 +51,7 @@ export async function sendChatMessage(request: ChatRequest, callbacks: ChatCallb
       body: JSON.stringify({
         conversation_id: request.conversationId,
         question: request.question,
-        enable_search: request.enableSearch ?? false,
+        enable_search: request.enableSearch ?? true,
         mode: request.mode ?? 'question',
         messages: [{ role: 'user', content: request.question }],
       }),

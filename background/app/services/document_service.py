@@ -15,6 +15,7 @@ from loguru import logger
 from app.etl import ETLPipeline
 from app.infrastructure.database.models import Document, Chunk, Knowledge
 from app.infrastructure.database.session import get_async_session, get_session_context
+from app.services.retrieval_service import retrieval_service
 from app.models.schemas import (
     DocumentCreate,
     DocumentResponse,
@@ -91,13 +92,14 @@ async def upload_document(
             session.add(chunk)
 
         await session.commit()
+        indexed = await retrieval_service.sync_knowledge(knowledge_id, user_id)
 
         return DocumentUploadResponse(
             id=doc_id,
             filename=safe_name,
             status="ready",
             chunk_count=len(etl.chunks),
-            message="上传并分块成功",
+            message="上传并索引成功" if indexed else "上传成功，暂使用关键词检索；向量索引将在下次检索时重试",
         )
 
 
@@ -193,6 +195,7 @@ async def update_document_enabled(document_id: str, user_id: str, enabled: bool)
             return None
         document.enabled = enabled
         await session.commit()
+    await retrieval_service.sync_knowledge(document.knowledge_id, user_id)
     return await get_document(document_id, user_id)
 
 
@@ -230,4 +233,5 @@ async def delete_document(document_id: str, user_id: str) -> bool:
         # 删除文档记录（级联删除分块）
         await session.delete(document)
         await session.commit()
+        await retrieval_service.sync_knowledge(document.knowledge_id, user_id)
         return True

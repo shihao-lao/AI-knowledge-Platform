@@ -61,6 +61,8 @@ async def evaluate_answer_endpoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("评估答案失败: {}", e)
         raise HTTPException(
@@ -81,6 +83,8 @@ async def get_practice_stats_endpoint(
             knowledge_id=knowledge_id,
         )
         return {"data": stats}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.exception("获取练习统计失败: {}", e)
         raise HTTPException(
