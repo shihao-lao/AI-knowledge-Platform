@@ -11,6 +11,7 @@ from loguru import logger
 from app.api.routes.auth import get_current_user_dependency
 from app.models.schemas import (
     DocumentResponse,
+    DocumentUpdate,
     DocumentUploadResponse,
     UserResponse,
 )
@@ -19,9 +20,19 @@ from app.services.document_service import (
     get_document,
     get_documents_by_knowledge,
     upload_document,
+    update_document_enabled,
 )
 
 router = APIRouter(tags=["documents"])
+
+
+@router.put('/document/{document_id}', response_model=dict)
+async def update_document_endpoint(document_id: str, update: DocumentUpdate,
+    current_user: UserResponse = Depends(get_current_user_dependency)) -> dict:
+    document = await update_document_enabled(document_id, current_user.id, update.enabled)
+    if document is None:
+        raise HTTPException(status_code=404, detail='文档不存在')
+    return {'data': document}
 
 
 @router.post("/document/upload", response_model=dict, status_code=status.HTTP_201_CREATED)

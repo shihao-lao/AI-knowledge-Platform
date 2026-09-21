@@ -356,25 +356,17 @@ export const api = {
     return request(`${BASE}/document/${id}`, { method: 'DELETE' });
   },
 
-  updateDocumentEnabled(_id: string, _enabled: boolean): Promise<{ data: ApiDocument }> {
-    // 后端暂未实现更新文档启用状态功能
-    return Promise.resolve({ data: {} as ApiDocument });
+  updateDocumentEnabled(id: string, enabled: boolean): Promise<{ data: ApiDocument }> {
+    return request(`${BASE}/document/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled }),
+    });
   },
 
   // Citation Stats
-  getCitationStats(_knowledgeId: string): Promise<{ data: CitationStatsData }> {
-    // 后端暂未实现引用统计功能
-    return Promise.resolve({
-      data: {
-        summary: {
-          totalCitations: 0,
-          uniqueDocumentsCited: 0,
-          totalConversations: 0,
-          totalAssistantMessages: 0,
-        },
-        documents: [],
-      },
-    });
+  getCitationStats(knowledgeId: string): Promise<{ data: CitationStatsData }> {
+    return request(`${BASE}/citations/stats?knowledge_id=${encodeURIComponent(knowledgeId)}`);
   },
 
   // Search
@@ -522,7 +514,7 @@ export const api = {
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(JSON.parse(xhr.responseText));
+          resolve(toCamelCase(JSON.parse(xhr.responseText)) as Awaited<ReturnType<typeof api.uploadResume>>);
         } else {
           try {
             const body = JSON.parse(xhr.responseText);
@@ -543,9 +535,8 @@ export const api = {
     });
   },
 
-  deleteResume(_id: string): Promise<{ data: { deleted: boolean } }> {
-    // 后端暂未实现删除简历功能
-    return Promise.resolve({ data: { deleted: false } });
+  deleteResume(id: string): Promise<{ data: { deleted: boolean } }> {
+    return request(`${BASE}/resumes/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },
 
   // AI 工具（文档摘要 / 专家 Skill）

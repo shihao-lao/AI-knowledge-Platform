@@ -207,6 +207,11 @@ class DocumentResponse(BaseModel):
     enabled: bool
     created_at: str
     updated_at: str
+    chunks: List[dict[str, Any]] = Field(default_factory=list)
+
+
+class DocumentUpdate(BaseModel):
+    enabled: bool = Field(strict=True)
 
 
 class ConversationCreate(BaseModel):
@@ -343,6 +348,8 @@ class ResumeResponse(BaseModel):
     file_size: int
     score: int
     created_at: str
+    content: str = ''
+    analysis: str = ''
 
 
 class ResumeAnalysisResponse(BaseModel):

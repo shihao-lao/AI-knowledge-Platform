@@ -190,7 +190,24 @@ async def get_resume(resume_id: str, user_id: str) -> Optional[ResumeResponse]:
             file_size=resume.file_size,
             score=resume.score,
             created_at=resume.created_at.isoformat(),
+            content=resume.content,
+            analysis=resume.analysis,
         )
+
+
+async def delete_resume(resume_id: str, user_id: str) -> bool:
+    async with get_session_context() as session:
+        resume = await session.scalar(select(Resume).where(Resume.id == resume_id, Resume.user_id == user_id))
+        if resume is None:
+            return False
+        root = Path('uploads/resumes').resolve()
+        path = (root / f'{resume.id}_{resume.filename}').resolve()
+        if not path.is_relative_to(root):
+            raise RuntimeError('简历文件路径无效')
+        await asyncio.to_thread(path.unlink, missing_ok=True)
+        await session.delete(resume)
+        await session.commit()
+        return True
 
 
 async def get_user_resumes(user_id: str) -> list[ResumeResponse]:

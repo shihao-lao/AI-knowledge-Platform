@@ -10,6 +10,7 @@ from typing import List, Optional
 
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from loguru import logger
 
 from app.etl import ETLPipeline
 from app.infrastructure.database.models import Document, Chunk, Knowledge
@@ -92,7 +93,7 @@ async def upload_document(
         await session.commit()
 
         return DocumentUploadResponse(
-            document_id=doc_id,
+            id=doc_id,
             filename=safe_name,
             status="ready",
             chunk_count=len(etl.chunks),
@@ -124,6 +125,7 @@ async def get_documents_by_knowledge(knowledge_id: str, user_id: str) -> List[Do
         return [
             DocumentResponse(
                 id=doc.id,
+                knowledge_id=doc.knowledge_id,
                 filename=doc.filename,
                 mime_type=doc.mime_type,
                 size=doc.size,
@@ -161,8 +163,12 @@ async def get_document(document_id: str, user_id: str) -> Optional[DocumentRespo
         if not knowledge:
             return None
 
+        chunks = (await session.scalars(select(Chunk).where(
+            Chunk.document_id == document_id
+        ).order_by(Chunk.chunk_index))).all()
         return DocumentResponse(
             id=document.id,
+            knowledge_id=document.knowledge_id,
             filename=document.filename,
             mime_type=document.mime_type,
             size=document.size,
@@ -172,7 +178,22 @@ async def get_document(document_id: str, user_id: str) -> Optional[DocumentRespo
             enabled=document.enabled,
             created_at=document.created_at.isoformat(),
             updated_at=document.updated_at.isoformat(),
+            chunks=[dict(id=c.id, document_id=c.document_id, chunk_index=c.chunk_index,
+                         content=c.content, token_count=c.token_count,
+                         created_at=c.created_at.isoformat()) for c in chunks],
         )
+
+
+async def update_document_enabled(document_id: str, user_id: str, enabled: bool) -> Optional[DocumentResponse]:
+    async with get_session_context() as session:
+        document = await session.scalar(select(Document).join(Knowledge).where(
+            Document.id == document_id, Knowledge.user_id == user_id
+        ))
+        if document is None:
+            return None
+        document.enabled = enabled
+        await session.commit()
+    return await get_document(document_id, user_id)
 
 
 async def delete_document(document_id: str, user_id: str) -> bool:

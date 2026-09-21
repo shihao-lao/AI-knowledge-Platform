@@ -16,11 +16,20 @@ from app.models.schemas import (
 )
 from app.services.resume_service import (
     get_resume,
+    delete_resume,
     get_user_resumes,
     upload_and_analyze_resume,
 )
 
 router = APIRouter(tags=["resumes"])
+
+
+@router.delete('/resumes/{resume_id}', response_model=dict)
+async def delete_resume_endpoint(resume_id: str,
+    current_user: UserResponse = Depends(get_current_user_dependency)) -> dict:
+    if not await delete_resume(resume_id, current_user.id):
+        raise HTTPException(status_code=404, detail='简历不存在')
+    return {'data': {'deleted': True}}
 
 
 @router.post("/resumes/upload", response_model=dict, status_code=status.HTTP_201_CREATED)
