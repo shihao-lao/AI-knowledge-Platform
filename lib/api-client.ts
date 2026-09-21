@@ -138,7 +138,7 @@ export interface PracticeStats {
 }
 
 // API 基础 URL，指向 Python 后端
-const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 // Token 存储
 const TOKEN_KEY = 'auth_token';
