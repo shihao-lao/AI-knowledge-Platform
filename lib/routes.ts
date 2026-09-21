@@ -14,8 +14,7 @@ export const ROUTES = {
   KNOWLEDGE_BASES: '/knowledge-bases',
   KNOWLEDGE: (kbId: string) => `/knowledge/${kbId}` as const,
   CHAT: (kbId: string) => `/chat/${kbId}` as const,
-  CHAT_CONVERSATION: (kbId: string, conversationId: string) =>
-    `/chat/${kbId}/${conversationId}` as const,
+  CHAT_CONVERSATION: (kbId: string, conversationId: string) => `/chat/${kbId}/${conversationId}` as const,
   QUESTIONS: (kbId: string) => `/questions/${kbId}` as const,
   STATISTICS: (kbId: string) => `/statistics/${kbId}` as const,
   RESUMES: '/resumes',
@@ -24,11 +23,7 @@ export const ROUTES = {
 
 // ========== 公开路由（不需要认证） ==========
 
-export const PUBLIC_ROUTES = [
-  ROUTES.HOME,
-  ROUTES.LOGIN,
-  ROUTES.REGISTER,
-] as const;
+export const PUBLIC_ROUTES = [ROUTES.HOME, ROUTES.LOGIN, ROUTES.REGISTER] as const;
 
 // ========== 认证保护路由 ==========
 
@@ -62,7 +57,10 @@ export function isProtectedRoute(pathname: string): boolean {
  * 获取登录后的重定向地址
  */
 export function getLoginRedirect(redirectTo?: string): string {
-  if (redirectTo?.startsWith('/') && !/[\\\u0000-\u0020\u007f]/.test(redirectTo)) {
+  const unsafe = [...(redirectTo ?? '')].some(
+    (char) => char === '\\' || char.charCodeAt(0) <= 32 || char.charCodeAt(0) === 127,
+  );
+  if (redirectTo?.startsWith('/') && !unsafe) {
     const base = 'https://local.invalid';
     try {
       const target = new URL(redirectTo, base);

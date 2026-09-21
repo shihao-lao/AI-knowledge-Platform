@@ -15,3 +15,16 @@ def test_token_verification_uses_configured_secret(monkeypatch):
     assert verify_token(token)['sub'] == 'owner'
     monkeypatch.setenv('SECRET_KEY', 'test-only-unique-signing-key-' + 'b' * 32)
     assert verify_token(token) is None
+
+
+@pytest.mark.asyncio
+async def test_startup_rejects_missing_key_before_opening_database(monkeypatch):
+    from app import main
+    from unittest.mock import Mock
+    monkeypatch.delenv('SECRET_KEY', raising=False)
+    engine = Mock()
+    monkeypatch.setattr(main, 'init_engine', engine)
+    with pytest.raises(RuntimeError, match='SECRET_KEY'):
+        async with main.lifespan(main.app):
+            pass
+    engine.assert_not_called()
