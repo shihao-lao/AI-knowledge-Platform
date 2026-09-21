@@ -43,7 +43,7 @@ class ChatResponse(BaseModel):
 class DocumentUploadResponse(BaseModel):
     """文档上传响应。"""
 
-    document_id: str
+    id: str
     filename: str
     status: str
     chunk_count: int = 0
@@ -197,6 +197,7 @@ class DocumentResponse(BaseModel):
     """文档响应。"""
 
     id: str
+    knowledge_id: str
     filename: str
     mime_type: str
     size: int
@@ -214,10 +215,17 @@ class ConversationCreate(BaseModel):
     title: Optional[str] = Field(default=None, description="对话标题")
 
 
+class ConversationUpdate(BaseModel):
+    """更新对话请求。"""
+
+    title: Optional[str] = Field(default=None, description="对话标题", max_length=512)
+
+
 class ConversationResponse(BaseModel):
     """对话响应。"""
 
     id: str
+    knowledge_id: str
     title: str
     message_count: int
     created_at: str
@@ -289,6 +297,9 @@ class PracticeEvaluateResponse(BaseModel):
     score: int
     feedback: str
     evaluated_at: str
+    record_id: str
+    key_points: List[str]
+    reference_summary: str
 
 
 class PracticeRecordResponse(BaseModel):
@@ -310,6 +321,12 @@ class PracticeStatsResponse(BaseModel):
     highest_score: int
     lowest_score: int
     recent_records: List[PracticeRecordResponse]
+    total: int
+    max_score: int
+    min_score: int
+    by_category: List[dict[str, Any]]
+    by_difficulty: List[dict[str, Any]]
+    recent: List[dict[str, Any]]
 
 
 class ResumeCreate(BaseModel):
