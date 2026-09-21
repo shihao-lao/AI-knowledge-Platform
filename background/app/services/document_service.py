@@ -47,7 +47,7 @@ async def upload_document(
         upload_root.mkdir(parents=True, exist_ok=True)
 
         doc_id = str(uuid.uuid4())
-        safe_name = filename or "unnamed"
+        safe_name = Path((filename or "unnamed").replace("\\", "/")).name
         dest = upload_root / f"{doc_id}_{safe_name}"
 
         try:
@@ -63,8 +63,11 @@ async def upload_document(
                 filename=safe_name,
                 mime_type=mime_type,
             )
+            if not etl.chunks or not any(chunk.strip() for chunk in etl.chunks):
+                raise ValueError("文档没有可提取的文本，请检查内容或先进行 OCR 识别")
         except Exception as exc:
-            raise RuntimeError(f"文档解析失败: {exc}")
+            await asyncio.to_thread(dest.unlink, missing_ok=True)
+            raise RuntimeError(f"文档解析失败: {exc}") from exc
 
         # 创建文档记录
         document = Document(

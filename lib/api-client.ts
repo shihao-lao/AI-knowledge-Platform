@@ -335,7 +335,7 @@ export const api = {
         } else {
           try {
             const body = JSON.parse(xhr.responseText);
-            reject(new Error(body.error || `HTTP ${xhr.status}`));
+            reject(new Error(typeof body.detail === 'string' ? body.detail : body.error || `HTTP ${xhr.status}`));
           } catch {
             reject(new Error(`HTTP ${xhr.status}`));
           }

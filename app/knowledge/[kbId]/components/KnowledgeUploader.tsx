@@ -49,7 +49,7 @@ export default function KnowledgeUploader({ onUpload, onCreateManual }: Knowledg
         ref={fileInputRef}
         type="file"
         multiple
-        accept=".txt,.md,.markdown,.docx"
+            accept=".txt,.md,.markdown,.docx,.pdf"
         style={{ display: 'none' }}
         onChange={handleFileChange}
       />

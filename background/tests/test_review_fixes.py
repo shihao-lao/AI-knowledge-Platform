@@ -231,6 +231,18 @@ async def test_chinese_keyword_fallback(database, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_invalid_document_leaves_no_file_or_record(database, tmp_path, monkeypatch):
+    from app.services.document_service import upload_document
+    from app.infrastructure.database.models import Document
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(RuntimeError, match='没有可提取的文本'):
+        await upload_document('kb', b' \n', 'empty.txt', 'text/plain', 'owner')
+    assert list((tmp_path / 'uploads').iterdir()) == []
+    async with database() as session:
+        assert await session.scalar(select(func.count()).select_from(Document)) == 0
+
+
+@pytest.mark.asyncio
 async def test_upload_and_import_write_vectors(database, vector_store, tmp_path, monkeypatch):
     from app.services import document_service, question_service
     from app.services.retrieval_service import retrieval_service
