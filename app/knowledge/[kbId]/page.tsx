@@ -10,6 +10,7 @@ import CreateDocumentModal from './components/CreateDocumentModal';
 import KnowledgeDocumentList from './components/KnowledgeDocumentList';
 import KnowledgeUploader from './components/KnowledgeUploader';
 import KnowledgeSidebar from './components/KnowledgeSidebar';
+import { documentStatus, indexStatusText } from '@/lib/document-status';
 
 const STAGE_TEXT: Record<string, string> = {
   pending: '等待中',
@@ -134,9 +135,9 @@ export default function KnowledgeWorkspacePage() {
           detail = `${stage}（${data.chunkCount} 个切片）`;
         }
 
-        if (data.parseStatus === 'completed') {
+        if (documentStatus(data.parseStatus) === 'completed') {
           message.success({
-            content: `《${data.filename}》处理完成，共 ${data.chunkCount} 个切片`,
+            content: `《${data.filename}》解析完成，共 ${data.chunkCount} 个切片。${indexStatusText(data.indexStatus)}`,
             key: `ingest-${docId}`,
           });
           await fetchDocuments();
@@ -184,9 +185,14 @@ export default function KnowledgeWorkspacePage() {
       const result = await api.uploadDocument(activeKbId, file, (percent) => {
         message.loading({ content: `正在上传《${file.name}》... ${percent}%`, key, duration: 0 });
       });
-      message.success({ content: `《${file.name}》上传完成，开始处理...`, key });
+      if (documentStatus(result.data.status) === 'completed') {
+        const notify = result.data.indexStatus === 'keyword_only' ? message.warning : message.success;
+        notify({ content: `《${file.name}》解析完成。${indexStatusText(result.data.indexStatus)}`, key });
+      } else {
+        message.info({ content: `《${file.name}》上传完成，正在处理...`, key });
+        void pollDocumentStatus(result.data.id);
+      }
       await fetchDocuments();
-      pollDocumentStatus(result.data.id);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : '上传失败';
       message.error({ content: `《${file.name}》${errMsg}`, key });
@@ -234,14 +240,9 @@ export default function KnowledgeWorkspacePage() {
       fileName: doc.filename,
       fileType: 'text' as const,
       fileSize: doc.size,
-      status: (doc.parseStatus === 'completed'
-        ? 'completed'
-        : doc.parseStatus === 'failed'
-          ? 'failed'
-          : doc.parseStatus === 'pending'
-            ? 'uploading'
-            : (doc.parseStatus as string)) as 'completed' | 'failed' | 'uploading',
-      processingProgress: STAGE_PROGRESS[doc.parseStatus] ?? 8,
+      status: documentStatus(doc.parseStatus),
+      indexStatus: doc.indexStatus,
+      processingProgress: STAGE_PROGRESS[documentStatus(doc.parseStatus)] ?? 8,
       chunkCount: doc.chunkCount,
       charCount: doc.charCount,
       enabled: doc.enabled ?? true,

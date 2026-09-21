@@ -26,7 +26,17 @@ class RetrievalService:
         self._manager = None
         self._locks = defaultdict(asyncio.Lock)
         self._indexed = {}
+        # Only report availability confirmed by this process; after restart it is unknown.
+        self._document_index_status = {}
         self.model_name = os.getenv('EMBEDDING_MODEL', 'BAAI/bge-small-zh-v1.5')
+
+    def document_index_status(self, document_id):
+        return self._document_index_status.get(document_id, 'unknown')
+
+    def _record_index_status(self, records, status):
+        for row in records.values():
+            if document_id := row.metadata.get('document_id'):
+                self._document_index_status[document_id] = status
 
     def _collection(self, knowledge_id):
         digest = hashlib.sha256(f'{knowledge_id}:{self.model_name}'.encode()).hexdigest()[:32]
@@ -58,7 +68,7 @@ class RetrievalService:
                 raise ValueError('知识库不存在')
             rows = (await session.execute(select(Chunk, Document).join(Document).where(
                 Document.knowledge_id == knowledge_id, Document.enabled.is_(True),
-                Document.parse_status == 'ready'))).all()
+                Document.parse_status.in_(['ready', 'completed'])))).all()
             questions = (await session.scalars(select(Question).where(Question.knowledge_id == knowledge_id))).all()
         records = {c.id: RetrievalResult(id=c.id, content=c.content, metadata={
             'document_id': d.id, 'filename': d.filename, 'chunk_index': c.chunk_index, 'type': 'doc',
@@ -86,6 +96,7 @@ class RetrievalService:
         if removed:
             await manager.delete(collection, removed)
         self._indexed[collection] = hashes
+        self._record_index_status(records, 'indexed')
 
     async def sync_knowledge(self, knowledge_id, user_id):
         async with self._locks[knowledge_id]:
@@ -94,6 +105,7 @@ class RetrievalService:
                 await self._sync(knowledge_id, records)
                 return True
             except Exception as exc:
+                self._record_index_status(records, 'keyword_only')
                 logger.warning('向量索引暂不可用，保留关键词检索，下次请求重试: {}', type(exc).__name__)
                 return False
 
@@ -114,6 +126,7 @@ class RetrievalService:
                                                        top_k=top_k * 2, ids=list(records))
                 vector_ids = [hit['id'] for hit in hits if hit['id'] in records]
             except Exception as exc:
+                self._record_index_status(records, 'keyword_only')
                 logger.warning('语义检索暂不可用，本次使用知识库关键词检索: {}', type(exc).__name__)
             scores = defaultdict(float)
             for ranking in (keywords, vector_ids):

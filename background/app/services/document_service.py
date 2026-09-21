@@ -77,7 +77,7 @@ async def upload_document(
             filepath=str(dest),
             mime_type=mime_type,
             size=len(file_data),
-            parse_status="ready",
+            parse_status="completed",
             chunk_count=len(etl.chunks),
             char_count=sum(len(chunk) for chunk in etl.chunks),
         )
@@ -100,7 +100,8 @@ async def upload_document(
         return DocumentUploadResponse(
             id=doc_id,
             filename=safe_name,
-            status="ready",
+            status="completed",
+            index_status="indexed" if indexed else "keyword_only",
             chunk_count=len(etl.chunks),
             message="上传并索引成功" if indexed else "上传成功，暂使用关键词检索；向量索引将在下次检索时重试",
         )
@@ -134,7 +135,8 @@ async def get_documents_by_knowledge(knowledge_id: str, user_id: str) -> List[Do
                 filename=doc.filename,
                 mime_type=doc.mime_type,
                 size=doc.size,
-                parse_status=doc.parse_status,
+                parse_status="completed" if doc.parse_status == "ready" else doc.parse_status,
+                index_status=retrieval_service.document_index_status(doc.id),
                 chunk_count=doc.chunk_count,
                 char_count=doc.char_count,
                 enabled=doc.enabled,
@@ -177,7 +179,8 @@ async def get_document(document_id: str, user_id: str) -> Optional[DocumentRespo
             filename=document.filename,
             mime_type=document.mime_type,
             size=document.size,
-            parse_status=document.parse_status,
+            parse_status="completed" if document.parse_status == "ready" else document.parse_status,
+            index_status=retrieval_service.document_index_status(document.id),
             chunk_count=document.chunk_count,
             char_count=document.char_count,
             enabled=document.enabled,

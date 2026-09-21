@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, Field, validator
 
@@ -46,6 +46,7 @@ class DocumentUploadResponse(BaseModel):
     id: str
     filename: str
     status: str
+    index_status: Literal['indexed', 'keyword_only', 'unknown'] = 'unknown'
     chunk_count: int = 0
     message: str = "ok"
 
@@ -202,6 +203,7 @@ class DocumentResponse(BaseModel):
     mime_type: str
     size: int
     parse_status: str
+    index_status: Literal['indexed', 'keyword_only', 'unknown'] = 'unknown'
     chunk_count: int
     char_count: int
     enabled: bool

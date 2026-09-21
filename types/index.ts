@@ -33,6 +33,7 @@ export interface KnowledgeDocument {
   fileType: FileType;
   fileSize: number;
   status: DocumentStatus;
+  indexStatus?: 'indexed' | 'keyword_only' | 'unknown';
   processingProgress: number;
   chunkCount: number;
   charCount?: number;

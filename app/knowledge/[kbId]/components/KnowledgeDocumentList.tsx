@@ -5,6 +5,7 @@ import { App, Button, Empty, Progress, Switch, Tooltip } from 'antd';
 import type { FileType, KnowledgeDocument } from '@/types';
 import { formatSize } from '@/lib/document';
 import { statusMeta } from '@/lib/constants';
+import { indexStatusText } from '@/lib/document-status';
 import KnowledgeDocumentDetail from './KnowledgeDocumentDetail';
 
 const fileIconMap: Record<FileType, string> = {
@@ -53,8 +54,9 @@ export default function KnowledgeDocumentList({
                 </strong>
                 <small>
                   创建于 {new Date(doc.createdAt).toLocaleDateString('zh-CN')} · 大小 {formatSize(doc.fileSize)} ·{' '}
-                  {statusMeta[doc.status].label}
+                  {statusMeta[doc.status]?.label ?? doc.status}
                   {doc.chunkCount > 0 && ` · ${doc.chunkCount} 个切片`}
+                  {doc.status === 'completed' && ` · ${indexStatusText(doc.indexStatus)}`}
                 </small>
               </span>
               {doc.status !== 'completed' && (

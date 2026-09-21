@@ -1,4 +1,14 @@
 import type { Citation } from '@/types';
+import type { DocumentIndexStatus } from '@/lib/document-status';
+
+export interface ApiDocumentUpload {
+  id: string;
+  filename: string;
+  status: string;
+  indexStatus: DocumentIndexStatus;
+  chunkCount: number;
+  message: string;
+}
 
 export interface ApiKnowledge {
   id: string;
@@ -18,6 +28,7 @@ export interface ApiDocument {
   mimeType: string;
   size: number;
   parseStatus: string;
+  indexStatus?: DocumentIndexStatus;
   chunkCount: number;
   charCount: number;
   enabled: boolean;
@@ -317,7 +328,7 @@ export const api = {
     knowledgeId: string,
     file: File,
     onProgress?: (percent: number) => void,
-  ): Promise<{ data: ApiDocument }> {
+  ): Promise<{ data: ApiDocumentUpload }> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       const form = new FormData();
@@ -331,7 +342,7 @@ export const api = {
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(toCamelCase(JSON.parse(xhr.responseText)) as { data: ApiDocument });
+          resolve(toCamelCase(JSON.parse(xhr.responseText)) as { data: ApiDocumentUpload });
         } else {
           try {
             const body = JSON.parse(xhr.responseText);
@@ -493,14 +504,26 @@ export const api = {
 
   getResume(
     id: string,
-  ): Promise<{ data: { id: string; filename: string; fileSize: number; score: number; content: string; analysis: string; createdAt: string } }> {
+  ): Promise<{
+    data: {
+      id: string;
+      filename: string;
+      fileSize: number;
+      score: number;
+      content: string;
+      analysis: string;
+      createdAt: string;
+    };
+  }> {
     return request(`${BASE}/resumes/${encodeURIComponent(id)}`);
   },
 
   uploadResume(
     file: File,
     onProgress?: (percent: number) => void,
-  ): Promise<{ data: { id: string; filename: string; fileSize: number; score: number; analysis: string; createdAt: string } }> {
+  ): Promise<{
+    data: { id: string; filename: string; fileSize: number; score: number; analysis: string; createdAt: string };
+  }> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       const form = new FormData();

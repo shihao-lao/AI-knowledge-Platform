@@ -67,6 +67,7 @@ def vector_store(monkeypatch):
     store = FakeVectorStore()
     monkeypatch.setattr(retrieval_service, '_manager', store)
     monkeypatch.setattr(retrieval_service, '_indexed', {})
+    monkeypatch.setattr(retrieval_service, '_document_index_status', {}, raising=False)
     monkeypatch.setattr(retrieval_service, '_locks', defaultdict(asyncio.Lock))
     async def embed(texts):
         return [[1.0, 0.0] for _ in texts]
@@ -251,13 +252,39 @@ async def test_upload_and_import_write_vectors(database, vector_store, tmp_path,
     monkeypatch.setattr(document_service.ETLPipeline, 'run_bytes', AsyncMock(
         return_value=SimpleNamespace(chunks=['A new document about Redis'])))
     uploaded = await document_service.upload_document('kb', b'file', 'new.txt', 'text/plain', 'owner')
-    assert uploaded.status == 'ready'
+    assert uploaded.status == 'completed'
+    assert uploaded.index_status == 'indexed'
+    detail = await document_service.get_document(uploaded.id, 'owner')
+    assert detail.parse_status == 'completed'
+    assert detail.index_status == 'indexed'
     result = await question_service.import_questions('kb', 'owner', QuestionImportRequest(
         questions=[QuestionCreate(question='What is Redis?', answer='A cache', keywords=['Redis'])]))
     assert result.imported == 1
     records = await retrieval_service._corpus('kb', 'owner')
     assert len(records) == 3
     assert set(records) == set(vector_store.collections[retrieval_service._collection('kb')])
+
+
+@pytest.mark.asyncio
+async def test_upload_keyword_fallback_and_index_recovery(database, vector_store, tmp_path, monkeypatch):
+    from app.services import document_service
+    from app.services.retrieval_service import retrieval_service
+    monkeypatch.chdir(tmp_path)
+    original = vector_store.ensure_connection
+    vector_store.ensure_connection = AsyncMock(side_effect=RuntimeError('offline'))
+    uploaded = await document_service.upload_document('kb', b'Redis cache', 'a.md', 'application/octet-stream', 'owner')
+    assert uploaded.status == 'completed'
+    assert uploaded.index_status == 'keyword_only'
+    docs = await document_service.get_documents_by_knowledge('kb', 'owner')
+    assert docs[0].parse_status == 'completed'
+    assert docs[0].index_status == 'keyword_only'
+    assert await retrieval_service.retrieve('Redis', 'kb', 'owner')
+    vector_store.ensure_connection = original
+    assert await retrieval_service.sync_knowledge('kb', 'owner')
+    assert (await document_service.get_document(uploaded.id, 'owner')).index_status == 'indexed'
+    # A fresh process cannot claim that a previously built index is currently available.
+    retrieval_service._document_index_status.clear()
+    assert (await document_service.get_document(uploaded.id, 'owner')).index_status == 'unknown'
 
 
 @pytest.mark.asyncio
