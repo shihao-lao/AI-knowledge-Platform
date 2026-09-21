@@ -22,6 +22,8 @@ from app.middleware.error_handler import ErrorHandlerMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.services.auth_service import get_secret_key
+    get_secret_key()
     settings = get_settings()
     logger.info("启动 {} ({})", settings.app_name, settings.app_env)
     engine = init_engine(settings.database_url)

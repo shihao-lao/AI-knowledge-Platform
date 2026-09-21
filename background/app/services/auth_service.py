@@ -35,7 +35,15 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 # JWT 配置 - 从环境变量读取，如果没有则使用默认值
-SECRET_KEY = os.environ.get("SECRET_KEY", "your-secret-key-change-in-production")
+def get_secret_key() -> str:
+    """Fail closed for missing, weak or sample JWT signing keys."""
+    key = os.environ.get("SECRET_KEY", "").strip()
+    if len(key.encode("utf-8")) < 32 or key.lower() in {
+        "your-secret-key-change-in-production",
+        "please-change-me-to-a-long-random-string",
+    }:
+        raise RuntimeError("SECRET_KEY 必须配置为至少 32 字节的随机密钥，不能使用示例值")
+    return key
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))  # 缩短过期时间
@@ -49,14 +57,14 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     else:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, get_secret_key(), algorithm=ALGORITHM)
     return encoded_jwt
 
 
 def verify_token(token: str) -> Optional[dict]:
     """验证 JWT 令牌。"""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, get_secret_key(), algorithms=[ALGORITHM])
         return payload
     except JWTError:
         return None

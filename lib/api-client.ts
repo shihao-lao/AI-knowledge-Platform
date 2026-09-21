@@ -184,7 +184,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, { ...options, headers });
   if (!res.ok) {
     // 401 未授权：token 过期或无效，清除本地 token 并跳转登录
-    if (res.status === 401) {
+    if (res.status === 401 && !/\/auth\/(login|register)$/.test(url)) {
       removeToken();
       if (typeof window !== 'undefined') {
         const currentPath = window.location.pathname;
