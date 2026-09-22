@@ -1,7 +1,7 @@
 'use client';
 
 import { FileTextOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons';
-import { Avatar, Collapse, Progress, Space, Tag, Typography } from 'antd';
+import { Avatar, Button, Progress, Space, Tag, Typography } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import type { Citation, Message } from '@/types';
 import MarkdownMessage from '@/components/markdown-message';
@@ -10,6 +10,8 @@ interface ChatMessageListProps {
   messages: Message[];
   userAvatar?: string;
   onCitationOpen?: (citation: Citation) => void;
+  onRetry?: (message: Message) => void;
+  retryDisabled?: boolean;
 }
 
 function formatTime(iso: string): string {
@@ -50,11 +52,7 @@ function CitationCard({
 
   return (
     <div className={`citation-chip ${expanded ? 'is-expanded' : ''}`}>
-      <button
-        type="button"
-        className="citation-chip__btn"
-        onClick={() => setExpanded(!expanded)}
-      >
+      <button type="button" className="citation-chip__btn" onClick={() => setExpanded(!expanded)}>
         <Tag
           icon={isQuestion ? undefined : <FileTextOutlined />}
           color={isQuestion ? 'blue' : undefined}
@@ -102,7 +100,13 @@ function CitationCard({
   );
 }
 
-export default function ChatMessageList({ messages, userAvatar, onCitationOpen }: ChatMessageListProps) {
+export default function ChatMessageList({
+  messages,
+  userAvatar,
+  onCitationOpen,
+  onRetry,
+  retryDisabled,
+}: ChatMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -132,6 +136,16 @@ export default function ChatMessageList({ messages, userAvatar, onCitationOpen }
                   <MarkdownMessage>{item.content}</MarkdownMessage>
                 )}
               </div>
+              {item.error && (
+                <div role="alert">
+                  <Typography.Text type="danger">{item.error}</Typography.Text>
+                  {item.retryQuestion && onRetry && (
+                    <Button size="small" disabled={retryDisabled} onClick={() => onRetry(item)}>
+                      重试此问题
+                    </Button>
+                  )}
+                </div>
+              )}
               <div className="chat-msg__meta">
                 <Typography.Text type="secondary" className="chat-msg__time">
                   {formatTime(item.createdAt)}

@@ -21,13 +21,16 @@ export interface ChatRequest {
 
 export interface ChatCallbacks {
   onDelta: (content: string) => void;
-  onCompleted: (content: string, citations: Array<{
-    documentId: string;
-    documentTitle: string;
-    chunkIndex: number;
-    preview: string;
-    confidenceScore: number;
-  }>) => void;
+  onCompleted: (
+    content: string,
+    citations: Array<{
+      documentId: string;
+      documentTitle: string;
+      chunkIndex: number;
+      preview: string;
+      confidenceScore: number;
+    }>,
+  ) => void;
   onError: (error: string) => void;
 }
 
@@ -106,45 +109,54 @@ export async function sendChatMessage(request: ChatRequest, callbacks: ChatCallb
       confidenceScore: number;
     }> = [];
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          callbacks.onError('回答中断：连接已结束，但未收到完成确认。可以重试此问题。');
+          return;
+        }
 
-      buffer += decoder.decode(value, { stream: true });
-
-      // 处理 SSE 事件
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') {
+        buffer += decoder.decode(value, { stream: true });
+        // Dispatch only fully framed SSE events; preserve partial UTF-8 and CRLF across reads.
+        let boundary: RegExpExecArray | null;
+        while ((boundary = /\r?\n\r?\n/.exec(buffer)) !== null) {
+          const event = buffer.slice(0, boundary.index);
+          buffer = buffer.slice(boundary.index + boundary[0].length);
+          const data = event
+            .split(/\r?\n/)
+            .filter((line) => line.startsWith('data:'))
+            .map((line) => line.slice(5).replace(/^ /, ''))
+            .join('\n');
+          if (!data) continue;
+          if (data.trim() === '[DONE]') {
             callbacks.onCompleted(fullContent, citations);
             return;
           }
 
+          let parsed;
           try {
-            const parsed = JSON.parse(data);
-            if (parsed.type === 'delta' && parsed.content) {
-              fullContent += parsed.content;
-              callbacks.onDelta(fullContent);
-            } else if (parsed.type === 'citations' && parsed.citations) {
-              citations = parsed.citations;
-            } else if (parsed.type === 'error') {
-              callbacks.onError(parsed.message || '聊天出错');
-              return;
-            }
+            parsed = JSON.parse(data);
           } catch {
-            // 忽略解析错误
+            callbacks.onError('回答中断：收到无法解析的响应，请重试此问题。');
+            return;
+          }
+          if (parsed?.type === 'delta' && typeof parsed.content === 'string') {
+            fullContent += parsed.content;
+            callbacks.onDelta(fullContent);
+          } else if (parsed?.type === 'citations' && Array.isArray(parsed.citations)) {
+            citations = parsed.citations;
+          } else if (parsed?.type === 'error') {
+            callbacks.onError(parsed.message || '聊天出错');
+            return;
           }
         }
       }
+    } finally {
+      await reader.cancel().catch(() => {});
+      reader.releaseLock();
     }
-
-    // 流结束
-    callbacks.onCompleted(fullContent, citations);
   } catch (error) {
-    callbacks.onError(error instanceof Error ? error.message : '网络错误');
+    callbacks.onError(`回答中断：${error instanceof Error ? error.message : '网络错误'}。请重试此问题。`);
   }
 }

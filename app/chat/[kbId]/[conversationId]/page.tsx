@@ -149,20 +149,16 @@ export default function ChatConversationPage() {
         },
         onCompleted: (content, citations) => {
           setMessages((prev) =>
-            prev.map((item) =>
-              item.id === assistantId ? { ...item, content, citations, streaming: false } : item,
-            ),
+            prev.map((item) => (item.id === assistantId ? { ...item, content, citations, streaming: false } : item)),
           );
           // 服务端已更新标题/消息数，刷新会话列表
           fetchConversations(activeKbId);
         },
         onError: (error) => {
-          message.error(error);
+          message.error(typeof error === 'string' ? error : '发生未知错误');
           setMessages((prev) =>
             prev.map((item) =>
-              item.id === assistantId
-                ? { ...item, content: '抱歉，获取回答时出现错误，请稍后重试。', streaming: false }
-                : item,
+              item.id === assistantId ? { ...item, error, retryQuestion: question, streaming: false } : item,
             ),
           );
         },
@@ -176,6 +172,13 @@ export default function ChatConversationPage() {
     setInput('');
     setSending(true);
     sendMessageToLLM(question).finally(() => setSending(false));
+  };
+
+  const retryMessage = (failedMessage: Message) => {
+    if (!failedMessage.retryQuestion || loading || sending) return;
+    // Send a new turn, keeping the interrupted attempt visible for comparison.
+    setSending(true);
+    sendMessageToLLM(failedMessage.retryQuestion).finally(() => setSending(false));
   };
 
   const createNewConversation = async () => {
@@ -354,7 +357,13 @@ export default function ChatConversationPage() {
                 options={knowledgeBases.map((kb) => ({ value: kb.id, label: kb.name }))}
               />
             </div>
-            <ChatMessageList messages={messages} userAvatar={me?.avatar} onCitationOpen={goToKnowledge} />
+            <ChatMessageList
+              messages={messages}
+              userAvatar={me?.avatar}
+              onCitationOpen={goToKnowledge}
+              onRetry={retryMessage}
+              retryDisabled={loading || sending}
+            />
             <ChatInputArea value={input} onChange={setInput} onSend={sendMessage} sending={sending} />
           </div>
         </section>

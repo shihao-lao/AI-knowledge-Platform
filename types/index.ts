@@ -61,6 +61,8 @@ export interface Message {
   citations?: Citation[];
   createdAt: string;
   streaming?: boolean;
+  error?: string;
+  retryQuestion?: string;
 }
 
 export interface Conversation {
