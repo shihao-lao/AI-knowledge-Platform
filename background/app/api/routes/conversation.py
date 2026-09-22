@@ -12,6 +12,7 @@ from app.api.routes.auth import get_current_user_dependency
 from app.models.schemas import (
     ConversationCreate,
     ConversationResponse,
+    ConversationUpdate,
     MessageResponse,
     UserResponse,
 )
@@ -22,6 +23,7 @@ from app.services.conversation_service import (
     get_conversation,
     get_conversations_by_knowledge,
     get_messages_by_conversation,
+    update_conversation,
 )
 
 router = APIRouter(tags=["conversations"])
@@ -119,6 +121,31 @@ async def delete_conversation_endpoint(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="删除对话失败",
+        )
+
+
+@router.put("/conversations/{conversation_id}", response_model=dict)
+async def update_conversation_endpoint(
+    conversation_id: str,
+    conv_data: ConversationUpdate,
+    current_user: UserResponse = Depends(get_current_user_dependency),
+) -> dict:
+    """更新当前用户的对话。"""
+    try:
+        conversation = await update_conversation(conversation_id, current_user.id, conv_data)
+        if not conversation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="对话不存在",
+            )
+        return {"data": conversation}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("更新对话失败: {}", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="更新对话失败",
         )
 
 

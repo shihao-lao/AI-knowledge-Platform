@@ -357,3 +357,35 @@ async def test_http_contracts_and_ownership(database, monkeypatch):
         assert (await client.get('/api/v1/citations/stats?knowledge_id=kb')).status_code == 404
         assert (await client.put('/api/v1/document/doc', json={'enabled': True})).status_code == 404
         assert (await client.delete('/api/v1/resumes/r')).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_conversation_lifecycle_returns_knowledge_and_checks_owner(database):
+    import httpx
+    from fastapi import FastAPI
+    from app.api.routes import conversation
+    from app.api.routes.auth import get_current_user_dependency
+    from app.models.schemas import UserResponse
+    app = FastAPI()
+    app.include_router(conversation.router, prefix='/api/v1')
+    user = UserResponse(id='owner', name='Owner', email='o@test.com', created_at='2026-01-01')
+    app.dependency_overrides[get_current_user_dependency] = lambda: user
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test') as client:
+        created = await client.post('/api/v1/conversations?knowledge_id=kb', json={'title': 'Chat'})
+        assert created.status_code == 201
+        conv = created.json()['data']
+        assert conv['knowledge_id'] == 'kb'
+        path = f"/api/v1/conversations/{conv['id']}"
+        assert (await client.get(path)).json()['data']['knowledge_id'] == 'kb'
+        listed = (await client.get('/api/v1/conversations?knowledge_id=kb')).json()['data']
+        assert listed[0]['knowledge_id'] == 'kb'
+        updated = await client.put(path, json={'title': 'Renamed'})
+        assert updated.status_code == 200
+        assert updated.json()['data']['title'] == 'Renamed'
+        user.id = 'other'
+        assert (await client.put(path, json={'title': 'Forbidden'})).status_code == 404
+        assert (await client.get(path)).status_code == 404
+        assert (await client.delete(path)).status_code == 404
+        user.id = 'owner'
+        assert (await client.get(path)).json()['data']['title'] == 'Renamed'
+        assert (await client.delete(path)).status_code == 200

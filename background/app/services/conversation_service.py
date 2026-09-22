@@ -13,6 +13,7 @@ from app.infrastructure.database.session import get_async_session, get_session_c
 from app.models.schemas import (
     ConversationCreate,
     ConversationResponse,
+    ConversationUpdate,
     MessageResponse,
 )
 
@@ -43,6 +44,7 @@ async def get_conversations_by_knowledge(
         return [
             ConversationResponse(
                 id=conv.id,
+                knowledge_id=conv.knowledge_id,
                 title=conv.title,
                 message_count=conv.message_count,
                 created_at=conv.created_at.isoformat(),
@@ -78,6 +80,7 @@ async def create_conversation(
 
         return ConversationResponse(
             id=conversation.id,
+            knowledge_id=conversation.knowledge_id,
             title=conversation.title,
             message_count=conversation.message_count,
             created_at=conversation.created_at.isoformat(),
@@ -110,6 +113,7 @@ async def get_conversation(conversation_id: str, user_id: str) -> Optional[Conve
 
         return ConversationResponse(
             id=conversation.id,
+            knowledge_id=conversation.knowledge_id,
             title=conversation.title,
             message_count=conversation.message_count,
             created_at=conversation.created_at.isoformat(),
@@ -228,4 +232,40 @@ async def add_message_to_conversation(
             content=message.content,
             citations=message.citations,
             created_at=message.created_at.isoformat(),
+        )
+
+
+async def update_conversation(
+    conversation_id: str,
+    user_id: str,
+    conv_data: ConversationUpdate,
+) -> Optional[ConversationResponse]:
+    """更新当前用户的对话标题。"""
+    async with get_session_context() as session:
+        result = await session.execute(
+            select(Conversation)
+            .join(Knowledge, Conversation.knowledge_id == Knowledge.id)
+            .where(
+                and_(
+                    Conversation.id == conversation_id,
+                    Knowledge.user_id == user_id,
+                )
+            )
+        )
+        conversation = result.scalar_one_or_none()
+        if not conversation:
+            return None
+
+        if conv_data.title is not None:
+            conversation.title = conv_data.title
+        await session.commit()
+        await session.refresh(conversation)
+
+        return ConversationResponse(
+            id=conversation.id,
+            knowledge_id=conversation.knowledge_id,
+            title=conversation.title,
+            message_count=conversation.message_count,
+            created_at=conversation.created_at.isoformat(),
+            updated_at=conversation.updated_at.isoformat(),
         )

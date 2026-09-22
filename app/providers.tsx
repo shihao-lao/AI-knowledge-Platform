@@ -4,6 +4,7 @@ import '@ant-design/v5-patch-for-react-19';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import { App, ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
+import { AuthProvider } from '@/lib/hooks/use-auth';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -41,7 +42,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           },
         }}
       >
-        <App>{children}</App>
+        <App>
+          <AuthProvider>{children}</AuthProvider>
+        </App>
       </ConfigProvider>
     </AntdRegistry>
   );
