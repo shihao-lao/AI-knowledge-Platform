@@ -7,16 +7,19 @@
 ## 🚀 快速开始
 
 ### 1. 进入后端目录
+
 ```bash
 cd background
 ```
 
 ### 2. 创建虚拟环境
+
 ```bash
 python -m venv venv
 ```
 
 ### 3. 激活虚拟环境
+
 ```bash
 # Windows:
 venv\Scripts\activate
@@ -26,32 +29,38 @@ source venv/bin/activate
 ```
 
 ### 4. 安装依赖
+
 ```bash
 pip install -r requirements-minimal.txt
 ```
 
 ### 5. 配置环境变量
+
 ```bash
 cp .env.example .env
 ```
 
 编辑 `.env` 文件：
+
 ```env
 SECRET_KEY=your-secret-key
 DATABASE_URL=sqlite+aiosqlite:///./app.db
 ```
 
 ### 6. 创建数据库表
+
 ```bash
 python scripts/create_tables_sqlite.py
 ```
 
 ### 7. 启动应用
+
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 8. 访问应用
+
 - **API 文档**: http://localhost:8000/docs
 - **健康检查**: http://localhost:8000/api/health
 
@@ -85,6 +94,7 @@ background/
 ## 🔧 常用命令
 
 ### 启动应用
+
 ```bash
 # 开发模式（自动重载）
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -94,6 +104,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 ### 数据库操作
+
 ```bash
 # 创建数据库表（SQLite）
 python scripts/create_tables_sqlite.py
@@ -106,6 +117,7 @@ python scripts/test_connection.py
 ```
 
 ### 测试
+
 ```bash
 # 运行所有测试
 python -m pytest tests/
@@ -117,16 +129,19 @@ python tests/test_api_routes_working.py
 ## 📚 API 端点
 
 ### 健康检查
+
 - `GET /api/health` - 健康检查
 - `GET /api/health/ready` - 就绪检查
 
 ### 认证
+
 - `POST /api/auth/register` - 用户注册
 - `POST /api/auth/login` - 用户登录
 - `POST /api/auth/logout` - 用户登出
 - `GET /api/auth/me` - 获取当前用户
 
 ### 知识库
+
 - `GET /api/knowledge` - 获取知识库列表
 - `POST /api/knowledge` - 创建知识库
 - `GET /api/knowledge/{id}` - 获取知识库详情
@@ -135,12 +150,14 @@ python tests/test_api_routes_working.py
 - `POST /api/knowledge/search` - 搜索知识库
 
 ### 文档
+
 - `GET /api/document` - 获取文档列表
 - `POST /api/document/upload` - 上传文档
 - `GET /api/document/{id}` - 获取文档详情
 - `DELETE /api/document/{id}` - 删除文档
 
 ### 对话
+
 - `GET /api/conversations` - 获取对话列表
 - `POST /api/conversations` - 创建对话
 - `GET /api/conversations/{id}` - 获取对话详情
@@ -149,19 +166,23 @@ python tests/test_api_routes_working.py
 - `POST /api/conversations/{id}/messages` - 添加消息
 
 ### 聊天
+
 - `POST /api/chat` - RAG 聊天（SSE 流式）
 
 ### 题库
+
 - `GET /api/questions` - 获取题目列表
 - `POST /api/questions/import` - 导入题目
 - `GET /api/questions/{id}` - 获取题目详情
 - `DELETE /api/questions/{id}` - 删除题目
 
 ### 练习
+
 - `POST /api/practice/evaluate` - 评估答案
 - `GET /api/practice/stats` - 获取练习统计
 
 ### 简历
+
 - `POST /api/resumes/upload` - 上传简历
 - `GET /api/resumes` - 获取简历列表
 - `GET /api/resumes/{id}` - 获取简历详情
@@ -169,6 +190,7 @@ python tests/test_api_routes_working.py
 ## 🔍 故障排除
 
 ### 问题 1: 模块导入错误
+
 ```bash
 # 确保虚拟环境已激活
 venv\Scripts\activate  # Windows
@@ -179,12 +201,14 @@ pip install -r requirements-minimal.txt
 ```
 
 ### 问题 2: 端口被占用
+
 ```bash
 # 使用其他端口
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 ### 问题 3: 数据库错误
+
 ```bash
 # 删除旧的数据库文件
 rm app.db
@@ -194,6 +218,7 @@ python scripts/create_tables_sqlite.py
 ```
 
 ### 问题 4: SECRET_KEY 未设置
+
 ```bash
 # 生成随机密钥
 python -c "import secrets; print(secrets.token_hex(32))"
@@ -205,6 +230,7 @@ echo SECRET_KEY=your-generated-key >> .env
 ## 📊 测试 API
 
 ### 使用 curl
+
 ```bash
 # 健康检查
 curl http://localhost:8000/api/health
@@ -221,6 +247,7 @@ curl -X POST http://localhost:8000/api/auth/login \
 ```
 
 ### 使用 Python
+
 ```python
 import requests
 
@@ -266,11 +293,13 @@ print(response.json())
 ## 🚀 部署
 
 ### 开发环境
+
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 生产环境
+
 ```bash
 # 使用 Gunicorn
 gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
@@ -280,6 +309,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 ### Docker 部署
+
 ```bash
 docker-compose up -d --build
 ```

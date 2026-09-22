@@ -59,6 +59,7 @@
 **文件**: `background/app/api/routes/health.py`
 
 **修复内容**:
+
 ```python
 # 修复前（错误）
 session: AsyncSession = Depends(get_async_session)
@@ -79,6 +80,7 @@ async def health_ready(
 **文件**: `background/app/infrastructure/database/session.py`
 
 **修复内容**:
+
 ```python
 kwargs = {
     "echo": False,
@@ -95,6 +97,7 @@ kwargs = {
 **文件**: `background/scripts/init_db.py`
 
 **功能**:
+
 - 创建所有数据库表
 - 支持首次部署
 - 可选删除所有表（谨慎使用）
@@ -104,6 +107,7 @@ kwargs = {
 **文件**: `background/scripts/generate_migration.py`
 
 **功能**:
+
 - 生成 Alembic 迁移脚本
 - 支持自定义迁移消息
 - 简化迁移流程
@@ -113,6 +117,7 @@ kwargs = {
 **文件**: `background/app/infrastructure/database/models.py`
 
 **添加的索引**:
+
 - `Knowledge.name` - 知识库名称索引
 - `Knowledge.status` - 状态索引
 - `Knowledge.created_at` - 创建时间索引
@@ -168,12 +173,14 @@ kwargs = {
 ## 测试验证
 
 ### 已通过的测试
+
 - ✅ 应用导入测试
 - ✅ 路由注册测试
 - ✅ 模型定义测试
 - ✅ 语法检查
 
 ### 建议添加的测试
+
 - 🔵 数据库连接测试
 - 🔵 会话管理测试
 - 🔵 事务处理测试
@@ -182,11 +189,13 @@ kwargs = {
 ## 文档更新
 
 ### 已更新的文档
+
 - ✅ README.md - 添加数据库配置说明
 - ✅ ISSUES_FIXED_REPORT.md - 记录修复的问题
 - ✅ PROJECT_STATUS_FINAL.md - 项目最终状态
 
 ### 建议添加的文档
+
 - 🔵 数据库设计文档
 - 🔵 迁移指南
 - 🔵 性能优化指南
@@ -195,12 +204,14 @@ kwargs = {
 ## 总结
 
 ### 完成情况
+
 - **发现的问题**: 8 个
 - **已修复**: 5 个 (62.5%)
 - **部分修复**: 2 个 (25%)
 - **待处理**: 1 个 (12.5%)
 
 ### 关键改进
+
 1. ✅ 修复了健康检查路由的严重错误
 2. ✅ 添加了数据库初始化脚本
 3. ✅ 优化了连接池配置
@@ -208,9 +219,11 @@ kwargs = {
 5. ✅ 创建了迁移工具
 
 ### 项目状态
+
 数据库配置已从 **不可用** 状态提升到 **基本可用** 状态。剩余问题主要是优化和增强功能，不影响基本使用。
 
 ### 后续建议
+
 1. 优先处理 JSON 字段类型转换
 2. 添加复合索引以提高查询性能
 3. 实现事务管理以确保数据一致性

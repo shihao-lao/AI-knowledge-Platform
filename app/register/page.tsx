@@ -37,22 +37,17 @@ export default function RegisterPage() {
           <Form.Item
             label="姓名"
             name="name"
-            rules={[{ required: true, message: '请输入姓名' }, { max: 50, message: '姓名不超过 50 字符' }]}
+            rules={[
+              { required: true, message: '请输入姓名' },
+              { max: 50, message: '姓名不超过 50 字符' },
+            ]}
           >
             <Input prefix={<UserOutlined />} placeholder="你的昵称" size="large" />
           </Form.Item>
-          <Form.Item
-            label="邮箱"
-            name="email"
-            rules={[{ required: true, type: 'email', message: '请输入有效邮箱' }]}
-          >
+          <Form.Item label="邮箱" name="email" rules={[{ required: true, type: 'email', message: '请输入有效邮箱' }]}>
             <Input prefix={<MailOutlined />} placeholder="name@example.com" size="large" />
           </Form.Item>
-          <Form.Item
-            label="密码"
-            name="password"
-            rules={[{ required: true, min: 8, message: '密码至少 8 位' }]}
-          >
+          <Form.Item label="密码" name="password" rules={[{ required: true, min: 8, message: '密码至少 8 位' }]}>
             <Input.Password prefix={<LockOutlined />} placeholder="至少 8 位" size="large" />
           </Form.Item>
           <Button type="primary" htmlType="submit" size="large" block loading={loading}>

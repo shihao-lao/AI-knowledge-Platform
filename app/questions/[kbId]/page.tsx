@@ -1,12 +1,6 @@
 'use client';
 
-import {
-  DeleteOutlined,
-  ImportOutlined,
-  MessageOutlined,
-  SearchOutlined,
-  EditOutlined,
-} from '@ant-design/icons';
+import { DeleteOutlined, ImportOutlined, MessageOutlined, SearchOutlined, EditOutlined } from '@ant-design/icons';
 import {
   App,
   Button,
@@ -225,13 +219,7 @@ export default function QuestionBankPage() {
                     </Typography.Paragraph>
                   </div>
                   <Space>
-                    <Button
-                      type="primary"
-                      size="small"
-                      ghost
-                      icon={<EditOutlined />}
-                      onClick={() => openPractice(q)}
-                    >
+                    <Button type="primary" size="small" ghost icon={<EditOutlined />} onClick={() => openPractice(q)}>
                       练习
                     </Button>
                     <Popconfirm
@@ -262,7 +250,8 @@ export default function QuestionBankPage() {
         width={720}
       >
         <Typography.Paragraph type="secondary">
-          粘贴 JSON 数组（字段：question / answer 必填，category / difficulty / keywords / source 可选），难度支持 easy | medium | hard：
+          粘贴 JSON 数组（字段：question / answer 必填，category / difficulty / keywords / source 可选），难度支持 easy
+          | medium | hard：
         </Typography.Paragraph>
         <Input.TextArea
           value={importText}
@@ -293,13 +282,7 @@ export default function QuestionBankPage() {
               disabled={practicing || practiceResult !== null}
             />
             {!practiceResult && (
-              <Button
-                type="primary"
-                block
-                style={{ marginTop: 12 }}
-                loading={practicing}
-                onClick={handlePractice}
-              >
+              <Button type="primary" block style={{ marginTop: 12 }} loading={practicing} onClick={handlePractice}>
                 提交并评估
               </Button>
             )}

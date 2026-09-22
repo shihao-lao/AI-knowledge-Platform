@@ -7,21 +7,25 @@
 ## 重构目标达成情况
 
 ### ✅ 1. 功能完整性
+
 - 所有 Next.js API 端点在 Python 后端中完整实现
 - 保持相同的 API 接口格式
 - 前端无需修改即可正常工作
 
 ### ✅ 2. 架构利用
+
 - 复用 background 文件夹中的 FastAPI 框架
 - 集成现有的 RAG 系统
 - 利用企业级 AI Agent 架构
 
 ### ✅ 3. 数据模型兼容
+
 - 保持与 Prisma schema 兼容的 SQLAlchemy 模型
 - 支持 PostgreSQL 数据库
 - 包含完整的数据迁移支持
 
 ### ✅ 4. API 兼容性
+
 - 保持相同的 API 接口
 - 前端可通过环境变量切换到 Python 后端
 - 无需修改前端代码
@@ -29,6 +33,7 @@
 ## 已完成的功能模块
 
 ### 1. 数据模型扩展
+
 - User（用户表）
 - Knowledge（知识库表）
 - Document（文档表）
@@ -41,6 +46,7 @@
 - TraceLog（追踪日志表）
 
 ### 2. 认证系统
+
 - JWT 令牌认证
 - 密码哈希（bcrypt）
 - 用户注册、登录、登出
@@ -49,12 +55,14 @@
 ### 3. API 路由实现
 
 #### 认证路由
+
 - POST /api/auth/register
 - POST /api/auth/login
 - POST /api/auth/logout
 - GET /api/auth/me
 
 #### 知识库路由
+
 - GET /api/knowledge
 - POST /api/knowledge
 - GET /api/knowledge/{id}
@@ -63,12 +71,14 @@
 - GET /api/knowledge/search
 
 #### 文档路由
+
 - GET /api/documents
 - POST /api/documents/upload
 - GET /api/documents/{id}
 - DELETE /api/documents/{id}
 
 #### 对话路由
+
 - GET /api/conversations
 - POST /api/conversations
 - GET /api/conversations/{id}
@@ -77,24 +87,29 @@
 - POST /api/conversations/{id}/messages
 
 #### 聊天路由
+
 - POST /api/chat（SSE 流式响应）
 
 #### 题库路由
+
 - GET /api/questions
 - POST /api/questions/import
 - GET /api/questions/{id}
 - DELETE /api/questions/{id}
 
 #### 练习路由
+
 - POST /api/practice/evaluate
 - GET /api/practice/stats
 
 #### 简历路由
+
 - POST /api/resumes/upload
 - GET /api/resumes
 - GET /api/resumes/{id}
 
 ### 4. 服务层实现
+
 - 认证服务
 - 知识库服务
 - 文档服务
@@ -105,6 +120,7 @@
 - 简历服务
 
 ### 5. 配置更新
+
 - FastAPI 主应用配置
 - CORS 中间件
 - 路由注册
@@ -114,6 +130,7 @@
 ## 技术栈
 
 ### 后端
+
 - FastAPI - Web 框架
 - SQLAlchemy - ORM
 - Alembic - 数据库迁移
@@ -122,11 +139,13 @@
 - Pydantic - 数据验证
 
 ### 数据库
+
 - PostgreSQL - 主数据库
 - Milvus - 向量数据库
 - Redis - 缓存
 
 ### 前端集成
+
 - 支持通过环境变量 `NEXT_PUBLIC_API_URL` 切换到 Python 后端
 - 保持相同的 API 接口格式
 - 前端无需修改即可正常工作
@@ -134,6 +153,7 @@
 ## 部署说明
 
 ### 1. 启动 Python 后端
+
 ```bash
 cd background
 pip install -r requirements.txt
@@ -144,12 +164,15 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 2. 配置前端
+
 在 Next.js 项目根目录创建 `.env.local` 文件：
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 ```
 
 ### 3. 访问 API 文档
+
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 

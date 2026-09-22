@@ -36,11 +36,7 @@ function LoginForm() {
       <Typography.Title level={2}>登录 AI 知识库</Typography.Title>
       <Typography.Paragraph type="secondary">进入团队知识问答工作台。</Typography.Paragraph>
       <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
-        <Form.Item
-          label="邮箱"
-          name="email"
-          rules={[{ required: true, type: 'email', message: '请输入有效邮箱' }]}
-        >
+        <Form.Item label="邮箱" name="email" rules={[{ required: true, type: 'email', message: '请输入有效邮箱' }]}>
           <Input prefix={<MailOutlined />} placeholder="name@company.com" size="large" />
         </Form.Item>
         <Form.Item label="密码" name="password" rules={[{ required: true, message: '请输入密码' }]}>

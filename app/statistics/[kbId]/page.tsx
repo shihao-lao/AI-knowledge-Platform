@@ -11,7 +11,22 @@ import {
   TeamOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
-import { App, Button, Card, Col, Empty, Progress, Row, Select, Space, Spin, Statistic, Table, Tag, Typography } from 'antd';
+import {
+  App,
+  Button,
+  Card,
+  Col,
+  Empty,
+  Progress,
+  Row,
+  Select,
+  Space,
+  Spin,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+} from 'antd';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { api, type ApiKnowledge, type CitationStatsData, type PracticeStats } from '@/lib/api-client';
@@ -214,7 +229,11 @@ export default function StatisticsPage() {
                           </Typography.Text>
                           <Typography.Text strong>{c.averageScore} 分</Typography.Text>
                         </Space>
-                        <Progress percent={c.averageScore} showInfo={false} strokeColor={c.averageScore >= 80 ? '#10b981' : c.averageScore >= 60 ? '#f59e0b' : '#ef4444'} />
+                        <Progress
+                          percent={c.averageScore}
+                          showInfo={false}
+                          strokeColor={c.averageScore >= 80 ? '#10b981' : c.averageScore >= 60 ? '#f59e0b' : '#ef4444'}
+                        />
                       </div>
                     ))
                   )}
@@ -234,7 +253,11 @@ export default function StatisticsPage() {
                           </Typography.Text>
                           <Typography.Text strong>{d.averageScore} 分</Typography.Text>
                         </Space>
-                        <Progress percent={d.averageScore} showInfo={false} strokeColor={d.averageScore >= 80 ? '#10b981' : d.averageScore >= 60 ? '#f59e0b' : '#ef4444'} />
+                        <Progress
+                          percent={d.averageScore}
+                          showInfo={false}
+                          strokeColor={d.averageScore >= 80 ? '#10b981' : d.averageScore >= 60 ? '#f59e0b' : '#ef4444'}
+                        />
                       </div>
                     ))
                   )}

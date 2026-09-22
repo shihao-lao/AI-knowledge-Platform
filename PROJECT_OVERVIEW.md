@@ -13,28 +13,28 @@
 
 ### 根目录文件
 
-| 文件/目录 | 说明 | 状态 |
-|-----------|------|------|
-| `app/` | Next.js 前端页面 | ✅ 正常 |
-| `background/` | Python 后端 | ✅ 正常 |
-| `lib/` | 前端库代码 | ✅ 正常 |
-| `docs/` | 项目文档 | ✅ 正常 |
-| `prisma/` | Prisma 配置 | ⚠️ 可选 |
-| `scripts/` | 脚本工具 | ✅ 正常 |
-| `.env.local` | 前端环境变量 | ✅ 已配置 |
-| `README.md` | 项目主文档 | ✅ 完整 |
-| `PROJECT_STRUCTURE.md` | 项目结构说明 | ✅ 完整 |
+| 文件/目录              | 说明             | 状态      |
+| ---------------------- | ---------------- | --------- |
+| `app/`                 | Next.js 前端页面 | ✅ 正常   |
+| `background/`          | Python 后端      | ✅ 正常   |
+| `lib/`                 | 前端库代码       | ✅ 正常   |
+| `docs/`                | 项目文档         | ✅ 正常   |
+| `prisma/`              | Prisma 配置      | ⚠️ 可选   |
+| `scripts/`             | 脚本工具         | ✅ 正常   |
+| `.env.local`           | 前端环境变量     | ✅ 已配置 |
+| `README.md`            | 项目主文档       | ✅ 完整   |
+| `PROJECT_STRUCTURE.md` | 项目结构说明     | ✅ 完整   |
 
 ### 统计数据
 
-| 目录 | 文件数 | 说明 |
-|------|--------|------|
-| `app/` | 23 | Next.js 前端页面 |
-| `background/` | 58,572 | Python 后端（含依赖） |
-| `background/app/` | 119 | Python 应用代码 |
-| `lib/` | 24 | 前端库代码 |
-| `docs/` | 7 | 项目文档 |
-| **总计** | **58,745** | 项目文件 |
+| 目录              | 文件数     | 说明                  |
+| ----------------- | ---------- | --------------------- |
+| `app/`            | 23         | Next.js 前端页面      |
+| `background/`     | 58,572     | Python 后端（含依赖） |
+| `background/app/` | 119        | Python 应用代码       |
+| `lib/`            | 24         | 前端库代码            |
+| `docs/`           | 7          | 项目文档              |
+| **总计**          | **58,745** | 项目文件              |
 
 ---
 
@@ -101,16 +101,19 @@ background/
 ### API 端点 (32 个)
 
 #### 健康检查
+
 - `GET /api/health` - 健康检查
 - `GET /api/health/ready` - 就绪检查
 
 #### 认证 (4 个)
+
 - `POST /api/auth/register` - 用户注册
 - `POST /api/auth/login` - 用户登录
 - `POST /api/auth/logout` - 用户登出
 - `GET /api/auth/me` - 获取当前用户
 
 #### 知识库 (6 个)
+
 - `GET /api/knowledge` - 获取知识库列表
 - `POST /api/knowledge` - 创建知识库
 - `GET /api/knowledge/{id}` - 获取知识库详情
@@ -119,12 +122,14 @@ background/
 - `POST /api/knowledge/search` - 搜索知识库
 
 #### 文档 (4 个)
+
 - `GET /api/document` - 获取文档列表
 - `POST /api/document/upload` - 上传文档
 - `GET /api/document/{id}` - 获取文档详情
 - `DELETE /api/document/{id}` - 删除文档
 
 #### 对话 (6 个)
+
 - `GET /api/conversations` - 获取对话列表
 - `POST /api/conversations` - 创建对话
 - `GET /api/conversations/{id}` - 获取对话详情
@@ -133,32 +138,36 @@ background/
 - `POST /api/conversations/{id}/messages` - 添加消息
 
 #### 聊天 (1 个)
+
 - `POST /api/chat` - RAG 聊天（SSE 流式）
 
 #### 题库 (4 个)
+
 - `GET /api/questions` - 获取题目列表
 - `POST /api/questions/import` - 导入题目
 - `GET /api/questions/{id}` - 获取题目详情
 - `DELETE /api/questions/{id}` - 删除题目
 
 #### 练习 (2 个)
+
 - `POST /api/practice/evaluate` - 评估答案
 - `GET /api/practice/stats` - 获取练习统计
 
 #### 简历 (3 个)
+
 - `POST /api/resumes/upload` - 上传简历
 - `GET /api/resumes` - 获取简历列表
 - `GET /api/resumes/{id}` - 获取简历详情
 
 ### 技术栈
 
-| 类别 | 技术 | 说明 |
-|------|------|------|
-| 框架 | FastAPI | 高性能异步框架 |
-| ORM | SQLAlchemy | 数据库 ORM |
-| 数据库 | SQLite / PostgreSQL | 开发/生产 |
-| 认证 | JWT + bcrypt | 安全认证 |
-| 文档 | Swagger UI / ReDoc | API 文档 |
+| 类别   | 技术                | 说明           |
+| ------ | ------------------- | -------------- |
+| 框架   | FastAPI             | 高性能异步框架 |
+| ORM    | SQLAlchemy          | 数据库 ORM     |
+| 数据库 | SQLite / PostgreSQL | 开发/生产      |
+| 认证   | JWT + bcrypt        | 安全认证       |
+| 文档   | Swagger UI / ReDoc  | API 文档       |
 
 ---
 
@@ -201,26 +210,26 @@ lib/
 
 ### 技术栈
 
-| 类别 | 技术 | 说明 |
-|------|------|------|
-| 框架 | Next.js 16 | App Router |
-| UI | Ant Design 5 | 组件库 |
-| 语言 | TypeScript | 类型安全 |
-| 样式 | CSS Modules | 样式隔离 |
+| 类别 | 技术         | 说明       |
+| ---- | ------------ | ---------- |
+| 框架 | Next.js 16   | App Router |
+| UI   | Ant Design 5 | 组件库     |
+| 语言 | TypeScript   | 类型安全   |
+| 样式 | CSS Modules  | 样式隔离   |
 
 ---
 
 ## 📚 项目文档 (docs/)
 
-| 文档 | 大小 | 说明 |
-|------|------|------|
-| `README.md` | 2KB | 文档目录说明 |
-| `PYTHON_BACKEND_REFACTOR_COMPLETE.md` | 7KB | Python 后端重构完成报告 |
-| `REFACTOR_COMPLETE_SUMMARY.md` | 5KB | 重构完成总结 |
-| `TESTING_COMPLETE_SUMMARY.md` | 9KB | 测试完成总结 |
-| `DATABASE_TEST_SUMMARY.md` | 3KB | 数据库测试总结 |
-| `PROJECT_STATUS_FINAL.md` | 7KB | 项目最终状态 |
-| `DATABASE_ANALYSIS_SUMMARY.md` | 6KB | 数据库配置分析 |
+| 文档                                  | 大小 | 说明                    |
+| ------------------------------------- | ---- | ----------------------- |
+| `README.md`                           | 2KB  | 文档目录说明            |
+| `PYTHON_BACKEND_REFACTOR_COMPLETE.md` | 7KB  | Python 后端重构完成报告 |
+| `REFACTOR_COMPLETE_SUMMARY.md`        | 5KB  | 重构完成总结            |
+| `TESTING_COMPLETE_SUMMARY.md`         | 9KB  | 测试完成总结            |
+| `DATABASE_TEST_SUMMARY.md`            | 3KB  | 数据库测试总结          |
+| `PROJECT_STATUS_FINAL.md`             | 7KB  | 项目最终状态            |
+| `DATABASE_ANALYSIS_SUMMARY.md`        | 6KB  | 数据库配置分析          |
 
 ---
 
@@ -229,6 +238,7 @@ lib/
 ### 方案一：直接启动（推荐）
 
 #### 启动后端
+
 ```bash
 cd background
 python -m venv venv
@@ -241,6 +251,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 #### 启动前端
+
 ```bash
 # 新终端
 npm install
@@ -248,6 +259,7 @@ npm run dev
 ```
 
 #### 访问应用
+
 - **前端**: http://localhost:3000
 - **后端 API**: http://localhost:8000/docs
 
@@ -264,22 +276,22 @@ docker-compose up -d --build
 
 ### 前端配置
 
-| 文件 | 说明 |
-|------|------|
-| `.env.local` | 前端环境变量 |
-| `package.json` | Node.js 依赖 |
-| `tsconfig.json` | TypeScript 配置 |
-| `next.config.ts` | Next.js 配置 |
+| 文件             | 说明            |
+| ---------------- | --------------- |
+| `.env.local`     | 前端环境变量    |
+| `package.json`   | Node.js 依赖    |
+| `tsconfig.json`  | TypeScript 配置 |
+| `next.config.ts` | Next.js 配置    |
 
 ### 后端配置
 
-| 文件 | 说明 |
-|------|------|
-| `background/.env` | 后端环境变量 |
-| `background/requirements-minimal.txt` | 轻量级依赖 |
-| `background/requirements.txt` | 完整依赖 |
-| `background/pyproject.toml` | Python 项目配置 |
-| `background/alembic.ini` | Alembic 配置 |
+| 文件                                  | 说明            |
+| ------------------------------------- | --------------- |
+| `background/.env`                     | 后端环境变量    |
+| `background/requirements-minimal.txt` | 轻量级依赖      |
+| `background/requirements.txt`         | 完整依赖        |
+| `background/pyproject.toml`           | Python 项目配置 |
+| `background/alembic.ini`              | Alembic 配置    |
 
 ---
 
@@ -345,12 +357,14 @@ d4d13a7 feat(python-backend): 完成 Next.js API 后端重构为 Python FastAPI
 ### 一键启动脚本
 
 **Windows:**
+
 ```bash
 cd background
 start.bat
 ```
 
 **Mac/Linux:**
+
 ```bash
 cd background
 chmod +x start.sh
@@ -387,16 +401,16 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ## 📈 项目统计
 
-| 指标 | 数量 |
-|------|------|
+| 指标     | 数量   |
+| -------- | ------ |
 | 总文件数 | 58,745 |
-| 后端文件 | 119 |
-| 前端文件 | 23 |
-| API 端点 | 32 |
-| 数据模型 | 10 |
-| 服务层 | 8 |
-| 文档 | 7 |
-| Git 提交 | 28 |
+| 后端文件 | 119    |
+| 前端文件 | 23     |
+| API 端点 | 32     |
+| 数据模型 | 10     |
+| 服务层   | 8      |
+| 文档     | 7      |
+| Git 提交 | 28     |
 
 ---
 

@@ -1,12 +1,6 @@
 'use client';
 
-import {
-  DeleteOutlined,
-  FilePdfOutlined,
-  FileTextOutlined,
-  FileWordOutlined,
-  InboxOutlined,
-} from '@ant-design/icons';
+import { DeleteOutlined, FilePdfOutlined, FileTextOutlined, FileWordOutlined, InboxOutlined } from '@ant-design/icons';
 import { App, Button, Card, Empty, Popconfirm, Progress, Space, Spin, Typography, Upload } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api-client';
@@ -163,10 +157,7 @@ export default function ResumesPage() {
         {/* 分析结果 */}
         {current && (
           <div ref={resultRef}>
-            <Card
-              styles={{ body: { padding: 0 } }}
-              style={{ marginBottom: 24, overflow: 'hidden' }}
-            >
+            <Card styles={{ body: { padding: 0 } }} style={{ marginBottom: 24, overflow: 'hidden' }}>
               {/* 分数头部 */}
               <div
                 style={{
@@ -183,7 +174,9 @@ export default function ResumesPage() {
                   percent={current.score}
                   size={96}
                   strokeColor={scoreColor(current.score)}
-                  format={(p) => <span style={{ fontSize: 24, fontWeight: 700, color: scoreColor(current.score) }}>{p}</span>}
+                  format={(p) => (
+                    <span style={{ fontSize: 24, fontWeight: 700, color: scoreColor(current.score) }}>{p}</span>
+                  )}
                 />
                 <div>
                   <Typography.Title level={4} style={{ marginBottom: 4 }}>
@@ -193,8 +186,15 @@ export default function ResumesPage() {
                     {formatSize(current.fileSize)} · 分析于 {new Date(current.createdAt).toLocaleString('zh-CN')}
                   </Typography.Text>
                   <br />
-                  <Typography.Text strong style={{ color: scoreColor(current.score), marginTop: 4, display: 'inline-block' }}>
-                    {current.score >= 80 ? '👍 简历质量不错' : current.score >= 60 ? '⚠️ 有改进空间' : '🔧 建议重点优化'}
+                  <Typography.Text
+                    strong
+                    style={{ color: scoreColor(current.score), marginTop: 4, display: 'inline-block' }}
+                  >
+                    {current.score >= 80
+                      ? '👍 简历质量不错'
+                      : current.score >= 60
+                        ? '⚠️ 有改进空间'
+                        : '🔧 建议重点优化'}
                   </Typography.Text>
                 </div>
               </div>
@@ -212,7 +212,9 @@ export default function ResumesPage() {
         </Typography.Title>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 32 }}><Spin /></div>
+          <div style={{ textAlign: 'center', padding: 32 }}>
+            <Spin />
+          </div>
         ) : list.length === 0 ? (
           <Empty description="暂无分析记录，上传简历开始体验" />
         ) : (
@@ -224,7 +226,14 @@ export default function ResumesPage() {
                 hoverable
                 onClick={() => handleView(item.id)}
                 style={{ cursor: 'pointer', opacity: viewLoading && current?.id !== item.id ? 0.6 : 1 }}
-                styles={{ body: { padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' } }}
+                styles={{
+                  body: {
+                    padding: '10px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  },
+                }}
               >
                 <Space size={12}>
                   {fileIcon(item.filename)}

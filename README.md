@@ -5,31 +5,34 @@
 ## 技术栈
 
 ### 前端
-| 层级       | 技术                                                         |
-| ---------- | ------------------------------------------------------------ |
-| 前端框架   | Next.js 16 (App Router) + React 19 + TypeScript              |
-| UI 组件库  | Ant Design 5 (zh_CN, react-19 patch)                         |
-| Markdown   | react-markdown + remark-gfm + rehype-prism-plus              |
+
+| 层级      | 技术                                            |
+| --------- | ----------------------------------------------- |
+| 前端框架  | Next.js 16 (App Router) + React 19 + TypeScript |
+| UI 组件库 | Ant Design 5 (zh_CN, react-19 patch)            |
+| Markdown  | react-markdown + remark-gfm + rehype-prism-plus |
 
 ### 后端（Python FastAPI）
-| 层级       | 技术                                                         |
-| ---------- | ------------------------------------------------------------ |
-| Web 框架   | FastAPI + Uvicorn                                            |
-| ORM        | SQLAlchemy 2.0 + Alembic                                     |
-| 数据库     | PostgreSQL（主数据库）+ Milvus（向量库）+ Redis（缓存）      |
-| 认证       | JWT + bcrypt 密码哈希                                        |
-| LLM 集成   | LangChain + LangGraph + OpenAI 兼容 API                      |
-| 文档处理   | unstructured + pypdf + sentence-transformers                 |
+
+| 层级     | 技术                                                    |
+| -------- | ------------------------------------------------------- |
+| Web 框架 | FastAPI + Uvicorn                                       |
+| ORM      | SQLAlchemy 2.0 + Alembic                                |
+| 数据库   | PostgreSQL（主数据库）+ Milvus（向量库）+ Redis（缓存） |
+| 认证     | JWT + bcrypt 密码哈希                                   |
+| LLM 集成 | LangChain + LangGraph + OpenAI 兼容 API                 |
+| 文档处理 | unstructured + pypdf + sentence-transformers            |
 
 ### 后端（Next.js API 路由 - 可选）
-| 层级       | 技术                                                         |
-| ---------- | ------------------------------------------------------------ |
-| 数据库     | Prisma + SQLite                                              |
-| 向量库     | LanceDB（BGE 512 维向量 + FTS BM25 混合检索）                |
-| Embedding  | 本地 BGE 中文模型 `bge-small-zh-v1.5`（transformers.js/ONNX，首次运行自动下载） |
-| LLM        | 小米 MiMo (mimo-v2.5)，SSE 流式输出；`LLM_MOCK=1` 可离线开发 |
-| 认证       | 自研 HMAC 会话（Web Crypto）+ scrypt 密码哈希，proxy.ts 保护 |
-| 测试       | vitest 单元测试                                              |
+
+| 层级      | 技术                                                                            |
+| --------- | ------------------------------------------------------------------------------- |
+| 数据库    | Prisma + SQLite                                                                 |
+| 向量库    | LanceDB（BGE 512 维向量 + FTS BM25 混合检索）                                   |
+| Embedding | 本地 BGE 中文模型 `bge-small-zh-v1.5`（transformers.js/ONNX，首次运行自动下载） |
+| LLM       | 小米 MiMo (mimo-v2.5)，SSE 流式输出；`LLM_MOCK=1` 可离线开发                    |
+| 认证      | 自研 HMAC 会话（Web Crypto）+ scrypt 密码哈希，proxy.ts 保护                    |
+| 测试      | vitest 单元测试                                                                 |
 
 ## 功能特性
 
@@ -47,6 +50,7 @@
 ### 方案一：使用 Python 后端（推荐）
 
 #### 环境要求
+
 - Python >= 3.11
 - PostgreSQL（可选，生产环境使用）
 - Redis（可选，缓存使用）
@@ -160,41 +164,45 @@ npx tsx scripts/reingest-vectors.ts   # 删除向量表并重新索引全部文�
 ## 常用脚本
 
 ### Python 后端相关
-| 命令                                      | 说明                             |
-| ----------------------------------------- | -------------------------------- |
-| `cd background && uvicorn app.main:app --reload` | 启动 Python 后端开发服务器 |
-| `cd background && alembic upgrade head`   | 运行数据库迁移                   |
-| `cd background && alembic revision --autogenerate -m "描述"` | 生成数据库迁移脚本 |
-| `cd background && pytest`                 | 运行 Python 后端测试             |
+
+| 命令                                                         | 说明                       |
+| ------------------------------------------------------------ | -------------------------- |
+| `cd background && uvicorn app.main:app --reload`             | 启动 Python 后端开发服务器 |
+| `cd background && alembic upgrade head`                      | 运行数据库迁移             |
+| `cd background && alembic revision --autogenerate -m "描述"` | 生成数据库迁移脚本         |
+| `cd background && pytest`                                    | 运行 Python 后端测试       |
 
 ### Next.js 相关
-| 命令                                      | 说明                             |
-| ----------------------------------------- | -------------------------------- |
-| `npm test`                                | vitest 单元测试                  |
-| `npm run test:pipeline`                   | RAG 管线诊断                     |
-| `npx tsx scripts/compare-embedding.ts`    | local 与 BGE 语义对比            |
-| `npx tsx scripts/reingest-vectors.ts`     | 重建全部向量（文档+题目）        |
-| `node scripts/smoke-chat.cjs` 等           | 各功能的冒烟测试（需服务运行中） |
+
+| 命令                                   | 说明                             |
+| -------------------------------------- | -------------------------------- |
+| `npm test`                             | vitest 单元测试                  |
+| `npm run test:pipeline`                | RAG 管线诊断                     |
+| `npx tsx scripts/compare-embedding.ts` | local 与 BGE 语义对比            |
+| `npx tsx scripts/reingest-vectors.ts`  | 重建全部向量（文档+题目）        |
+| `node scripts/smoke-chat.cjs` 等       | 各功能的冒烟测试（需服务运行中） |
 
 ## 主要路由
 
-| 路径                          | 说明                           |
-| ----------------------------- | ------------------------------ |
-| `/knowledge/:kbId`            | 知识管理（三栏工作区）         |
-| `/chat/:kbId/:conversationId` | 对话（知识问答 / 模拟面试）    |
-| `/questions/:kbId`            | 面试题库（导入/筛选/练习）     |
-| `/statistics/:kbId`           | 引用统计 + 练习掌握度          |
-| `/knowledge-bases`            | 知识库管理网格                 |
+| 路径                          | 说明                        |
+| ----------------------------- | --------------------------- |
+| `/knowledge/:kbId`            | 知识管理（三栏工作区）      |
+| `/chat/:kbId/:conversationId` | 对话（知识问答 / 模拟面试） |
+| `/questions/:kbId`            | 面试题库（导入/筛选/练习）  |
+| `/statistics/:kbId`           | 引用统计 + 练习掌握度       |
+| `/knowledge-bases`            | 知识库管理网格              |
 
 ## API 端点（Python 后端）
 
 ### 认证相关
+
 - `POST /api/v1/auth/register` - 用户注册
 - `POST /api/v1/auth/login` - 用户登录
 - `POST /api/v1/auth/logout` - 用户登出
 - `GET /api/v1/auth/me` - 获取当前用户信息
 
 ### 知识库管理
+
 - `GET /api/v1/knowledge` - 获取知识库列表
 - `POST /api/v1/knowledge` - 创建知识库
 - `GET /api/v1/knowledge/{id}` - 获取知识库详情
@@ -203,12 +211,14 @@ npx tsx scripts/reingest-vectors.ts   # 删除向量表并重新索引全部文�
 - `GET /api/v1/knowledge/search?q=关键词` - 搜索知识库
 
 ### 文档管理
+
 - `GET /api/v1/documents?knowledgeId=xxx` - 获取文档列表
 - `POST /api/v1/documents/upload?knowledgeId=xxx` - 上传文档
 - `GET /api/v1/documents/{id}` - 获取文档详情
 - `DELETE /api/v1/documents/{id}` - 删除文档
 
 ### 对话管理
+
 - `GET /api/v1/conversations?knowledgeId=xxx` - 获取对话列表
 - `POST /api/v1/conversations?knowledgeId=xxx` - 创建对话
 - `GET /api/v1/conversations/{id}` - 获取对话详情
@@ -217,19 +227,23 @@ npx tsx scripts/reingest-vectors.ts   # 删除向量表并重新索引全部文�
 - `POST /api/v1/conversations/{id}/messages` - 添加消息
 
 ### 聊天功能
+
 - `POST /api/v1/chat` - RAG 聊天（SSE 流式响应）
 
 ### 题库管理
+
 - `GET /api/v1/questions?knowledgeId=xxx` - 获取题目列表
 - `POST /api/v1/questions/import?knowledgeId=xxx` - 导入题目
 - `GET /api/v1/questions/{id}` - 获取题目详情
 - `DELETE /api/v1/questions/{id}` - 删除题目
 
 ### 练习功能
+
 - `POST /api/v1/practice/evaluate` - 评估答案
 - `GET /api/v1/practice/stats?knowledgeId=xxx` - 获取练习统计
 
 ### 简历功能
+
 - `POST /api/v1/resumes/upload` - 上传简历
 - `GET /api/v1/resumes` - 获取简历列表
 - `GET /api/v1/resumes/{id}` - 获取简历详情
@@ -288,6 +302,7 @@ docker-compose logs -f app
 ### 方案二：手动部署
 
 #### Python 后端部署
+
 ```bash
 cd background
 pip install -r requirements.txt
@@ -298,6 +313,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 #### Next.js 前端部署
+
 ```bash
 npm install
 npm run build

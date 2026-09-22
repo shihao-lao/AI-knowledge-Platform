@@ -502,9 +502,7 @@ export const api = {
     return request(`${BASE}/resumes`);
   },
 
-  getResume(
-    id: string,
-  ): Promise<{
+  getResume(id: string): Promise<{
     data: {
       id: string;
       filename: string;

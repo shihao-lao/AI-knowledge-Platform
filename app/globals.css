@@ -1105,7 +1105,9 @@ textarea {
   border-radius: 24px;
   background: #fff;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .composer:focus-within {
@@ -1595,8 +1597,13 @@ textarea {
 }
 
 @keyframes gradient-shift {
-  0%, 100% { background-position: 0% center; }
-  50% { background-position: 100% center; }
+  0%,
+  100% {
+    background-position: 0% center;
+  }
+  50% {
+    background-position: 100% center;
+  }
 }
 
 .home-hero__subtitle {
@@ -1647,9 +1654,15 @@ textarea {
   background: #e5e7eb;
 }
 
-.mockup-bar span:first-child { background: #ef4444; }
-.mockup-bar span:nth-child(2) { background: #f59e0b; }
-.mockup-bar span:nth-child(3) { background: #10b981; }
+.mockup-bar span:first-child {
+  background: #ef4444;
+}
+.mockup-bar span:nth-child(2) {
+  background: #f59e0b;
+}
+.mockup-bar span:nth-child(3) {
+  background: #10b981;
+}
 
 .mockup-body {
   display: flex;
@@ -1709,8 +1722,13 @@ textarea {
 }
 
 @keyframes mockup-pulse {
-  0%, 100% { opacity: 0.7; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* -- Stats -- */
@@ -1853,8 +1871,14 @@ textarea {
   flex-shrink: 0;
 }
 
-.highlight-tag.green { background: rgba(16, 185, 129, 0.08); color: #10b981; }
-.highlight-tag.blue { background: rgba(59, 130, 246, 0.08); color: #3b82f6; }
+.highlight-tag.green {
+  background: rgba(16, 185, 129, 0.08);
+  color: #10b981;
+}
+.highlight-tag.blue {
+  background: rgba(59, 130, 246, 0.08);
+  color: #3b82f6;
+}
 
 .highlight-card__arrow {
   text-align: center;
@@ -1900,9 +1924,15 @@ textarea {
 
 /* -- 隐藏移动端换行 -- */
 @media (max-width: 768px) {
-  .hide-mobile { display: none; }
-  .home-nav { display: none; }
-  .home-hero__mockup { transform: none; }
+  .hide-mobile {
+    display: none;
+  }
+  .home-nav {
+    display: none;
+  }
+  .home-hero__mockup {
+    transform: none;
+  }
 }
 
 /* Interaction polish and responsive defaults */

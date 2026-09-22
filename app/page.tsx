@@ -144,7 +144,9 @@ export default function HomePage() {
           <div className="home-hero__visual">
             <div className="home-hero__mockup">
               <div className="mockup-bar">
-                <span /><span /><span />
+                <span />
+                <span />
+                <span />
               </div>
               <div className="mockup-body">
                 <div className="mockup-sidebar">
@@ -212,9 +214,8 @@ export default function HomePage() {
               <div className="highlight-text">
                 <Typography.Title level={3}>真实语义，不只是关键词匹配</Typography.Title>
                 <Typography.Paragraph type="secondary">
-                  基于 BGE 中文大模型 512 维语义向量 + BM25 全文检索双路融合，
-                  "闭包"和"作用域链"能匹配、"Event Loop"和"事件循环"能关联——
-                  这是传统关键词搜索做不到的。
+                  基于 BGE 中文大模型 512 维语义向量 + BM25 全文检索双路融合， "闭包"和"作用域链"能匹配、"Event
+                  Loop"和"事件循环"能关联—— 这是传统关键词搜索做不到的。
                 </Typography.Paragraph>
               </div>
             </Col>

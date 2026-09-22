@@ -33,18 +33,18 @@ npx tsx scripts/reingest-vectors.ts  # 切换 embedding 后重建向量（含文
 
 ### Routing
 
-| Route                           | Purpose                                      |
-| ------------------------------- | -------------------------------------------- |
-| `/`                             | 产品落地页                                   |
-| `/login`, `/register`           | 真实认证（HMAC 会话 cookie，proxy.ts 保护） |
-| `/knowledge/:kbId`              | 知识管理工作区（三栏）                       |
-| `/chat/:kbId/:conversationId`   | 对话工作区（三栏，支持 知识问答/模拟面试）   |
-| `/questions/:kbId`              | 面试题库管理（导入/筛选/练习）               |
-| `/statistics/:kbId`             | 引用统计 + 练习掌握度                        |
-| `/knowledge-bases`              | 知识库管理网格                               |
-| `/api/auth/*`                   | 注册/登录/登出/me（公开）                    |
-| `/api/chat`                     | 服务端 RAG/面试 SSE 端点（受保护）           |
-| `/api/question`, `/api/practice`| 题库与练习评估/统计（受保护）                |
+| Route                            | Purpose                                     |
+| -------------------------------- | ------------------------------------------- |
+| `/`                              | 产品落地页                                  |
+| `/login`, `/register`            | 真实认证（HMAC 会话 cookie，proxy.ts 保护） |
+| `/knowledge/:kbId`               | 知识管理工作区（三栏）                      |
+| `/chat/:kbId/:conversationId`    | 对话工作区（三栏，支持 知识问答/模拟面试）  |
+| `/questions/:kbId`               | 面试题库管理（导入/筛选/练习）              |
+| `/statistics/:kbId`              | 引用统计 + 练习掌握度                       |
+| `/knowledge-bases`               | 知识库管理网格                              |
+| `/api/auth/*`                    | 注册/登录/登出/me（公开）                   |
+| `/api/chat`                      | 服务端 RAG/面试 SSE 端点（受保护）          |
+| `/api/question`, `/api/practice` | 题库与练习评估/统计（受保护）               |
 
 ### Key Patterns
 

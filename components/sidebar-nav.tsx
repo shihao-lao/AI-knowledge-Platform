@@ -41,11 +41,7 @@ export default function SidebarNav({ knowledgeBases, activeKbId, onSelectKb }: S
       {/* 主导航 */}
       <nav className="hub-nav">
         {navItems.map((item) => (
-          <Link
-            key={item.key}
-            href={item.path}
-            className={`hub-nav__item ${isActive(item.path) ? 'is-active' : ''}`}
-          >
+          <Link key={item.key} href={item.path} className={`hub-nav__item ${isActive(item.path) ? 'is-active' : ''}`}>
             <span>{item.icon}</span>
             <span>{item.label}</span>
           </Link>
