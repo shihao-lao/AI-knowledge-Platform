@@ -46,7 +46,7 @@ def get_secret_key() -> str:
     return key
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))  # 缩短过期时间
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))  # 默认保持登录 7 天，可通过环境变量覆盖
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

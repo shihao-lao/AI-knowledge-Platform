@@ -153,6 +153,24 @@ const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 // Token 存储
 const TOKEN_KEY = 'auth_token';
+const USER_KEY = 'auth_user';
+
+function cacheUser(token: string, user: ApiUser): void {
+  if (typeof window !== 'undefined' && getToken() === token) {
+    localStorage.setItem(USER_KEY, JSON.stringify({ token, user }));
+  }
+}
+
+function cachedUser(token: string): ApiUser | null {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (typeof payload.exp !== 'number' || payload.exp * 1000 <= Date.now()) return null;
+    const cached = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
+    return cached?.token === token && cached.user?.id === payload.sub ? cached.user : null;
+  } catch {
+    return null;
+  }
+}
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -167,6 +185,7 @@ function setToken(token: string): void {
 function removeToken(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
 }
 
 function toCamelCase(value: unknown): unknown {
@@ -196,6 +215,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   if (!res.ok) {
     // 401 未授权：token 过期或无效，清除本地 token 并跳转登录
     if (res.status === 401 && !/\/auth\/(login|register)$/.test(url)) {
+      if (getToken() !== token) throw new Error('请求的登录状态已变更，请重试');
       removeToken();
       if (typeof window !== 'undefined') {
         const currentPath = window.location.pathname;
@@ -236,6 +256,7 @@ export const api = {
     // 存储 token
     if (result.accessToken) {
       setToken(result.accessToken);
+      cacheUser(result.accessToken, result.data);
     }
     return result;
   },
@@ -255,6 +276,7 @@ export const api = {
     });
     if (loginResult.accessToken) {
       setToken(loginResult.accessToken);
+      cacheUser(loginResult.accessToken, loginResult.data);
     }
     return result;
   },
@@ -267,22 +289,29 @@ export const api = {
 
   /** 获取当前登录用户；未登录返回 null（不抛错） */
   async me(): Promise<ApiUser | null> {
+    const token = getToken();
+    if (!token) return null;
     try {
-      const token = getToken();
-      if (!token) return null;
       const res = await fetch(`${BASE}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(10000),
       });
+      // 旧请求不能清除后来登录的新令牌。
+      if (getToken() !== token) return null;
       if (res.status === 401) {
-        // token 过期，清除
         removeToken();
         return null;
       }
-      if (!res.ok) return null;
-      const body = await res.json();
-      return body.data ?? null;
+      if (!res.ok) {
+        if (res.status >= 500) return cachedUser(token);
+        return null;
+      }
+      const body = toCamelCase(await res.json()) as { data?: ApiUser };
+      if (!body.data) throw new Error('用户信息响应无效');
+      cacheUser(token, body.data);
+      return body.data;
     } catch {
-      return null;
+      return getToken() === token ? cachedUser(token) : null;
     }
   },
 

@@ -1,8 +1,9 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, type ApiUser } from '@/lib/api-client';
+import { getLoginRedirect } from '@/lib/routes';
 
 interface AuthContextType {
   user: ApiUser | null;
@@ -18,27 +19,34 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<ApiUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const revision = useRef(0);
+
   // 获取当前用户
   const fetchUser = useCallback(async (silent = false) => {
+    const requestRevision = ++revision.current;
     try {
       if (!silent) setLoading(true);
       const currentUser = await api.me();
-      setUser(currentUser);
+      if (requestRevision === revision.current) setUser(currentUser);
     } catch {
-      setUser(null);
+      if (requestRevision === revision.current) setUser(null);
     } finally {
-      if (!silent) setLoading(false);
+      if (!silent && requestRevision === revision.current) setLoading(false);
     }
   }, []);
 
   // 登录
   const login = useCallback(async (email: string, password: string) => {
+    ++revision.current;
     const result = await api.login(email, password);
     // 登录成功后立即更新用户状态
+    ++revision.current;
     setUser(result.data);
+    setLoading(false);
     return result;
   }, []);
 
@@ -55,6 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 登出
   const logout = useCallback(async () => {
+    ++revision.current;
+    setLoading(false);
     try {
       await api.logout();
     } catch (err) {
@@ -68,6 +78,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 初始加载
   useEffect(() => {
     fetchUser();
+  }, [fetchUser]);
+
+  // 已恢复登录时，直接访问登录页也应回到工作台。
+  useEffect(() => {
+    if (!loading && user && pathname === '/login') {
+      router.replace(getLoginRedirect(new URLSearchParams(window.location.search).get('from') ?? undefined));
+    }
+  }, [loading, user, pathname, router]);
+
+  // 同一站点的多个标签页同步登录和退出。
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === 'auth_token' || event.key === null) void fetchUser();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, [fetchUser]);
 
   const value: AuthContextType = {
