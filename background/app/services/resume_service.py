@@ -249,12 +249,22 @@ async def reparse_resume_structure(
         if not resume:
             return None
         content = resume.content or ''
+        # 历史记录曾仅保存前 8000 字，优先从保留的上传文件恢复完整正文。
+        root = Path('uploads/resumes').resolve()
+        source_path = (root / f'{resume.id}_{resume.filename}').resolve()
+        if source_path.is_relative_to(root) and source_path.is_file():
+            try:
+                parsed = await asyncio.to_thread(DocumentParser().parse_file, source_path)
+                content = parsed.text.strip()
+            except Exception as exc:
+                logger.warning('读取简历原文件失败，使用已存正文重新解析: {}', exc)
         try:
             structured = await parse_resume_structure(content)
         except Exception as exc:
             logger.warning("重新结构化失败，回退启发式: {}", exc)
             structured = heuristic_or_empty(content)
         resume.structured = structured.model_dump()
+        resume.content = content
         await session.commit()
         await session.refresh(resume)
         return ResumeResponse(

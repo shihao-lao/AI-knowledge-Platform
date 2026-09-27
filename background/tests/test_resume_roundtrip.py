@@ -85,3 +85,15 @@ def test_fallback_does_not_drop_long_skill_descriptions_or_bullets():
     for bullet in bullets:
         assert bullet in exported
     assert '复杂业务状态设计' in exported
+
+
+def test_repeated_sections_and_explicit_custom_headings_keep_their_content():
+    source = '基本信息\n张三\n前端工程师\n项目经验\n项目名称：甲\n实现甲能力\n项目经验\n项目名称：乙\n实现乙能力\n## 分享记录\n举办技术分享。'
+    data = heuristic_or_empty(source)
+    lines = structure_to_lines(data)
+    headings = [text for kind, text in lines if kind == 'heading']
+    assert headings == ['项目经验', '项目经验', '分享记录']
+    text = '\n'.join(text for _, text in lines)
+    assert text.count('实现乙能力') == 1
+    assert '举办技术分享。' in text
+    assert data.basics.name == '张三'

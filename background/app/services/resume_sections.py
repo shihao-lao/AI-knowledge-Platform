@@ -59,6 +59,8 @@ def heading(line: str) -> tuple[str | None, str] | None:
     # 自定义标题需有明确标记或栏目词，避免把姓名、职位、项目名当作标题。
     marked = raw.startswith('#') or (raw.startswith('**') and raw.endswith('**'))
     custom = re.fullmatch(r'[\u4e00-\u9fffA-Za-z ]{2,16}(?:贡献|活动|经历|作品|发表|出版|成果|能力|爱好|意向|信息|评价)', title)
+    if not marked and re.match(r'^(实现|负责|参与|完成|主导|维护|优化|开发|搭建|熟悉|掌握|使用|提升|支持|设计|重构|修复|构建|举办|通过|具有|具备|能够|了解|学习|获得|担任)', title):
+        return None
     if (marked or custom or title in CUSTOM_TITLES) and len(title) <= 40 and not re.search(r'[@：:，,；;。]', title):
         return None, title
     return None

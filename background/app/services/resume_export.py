@@ -6,7 +6,10 @@ from __future__ import annotations
 import io
 import re
 import zipfile
+import os
 from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
 from xml.sax.saxutils import escape
 
 from app.models.resume_structure import StructuredResume
@@ -48,7 +51,7 @@ STYLES: dict[str, StyleTheme] = {
     ),
     'compact': StyleTheme(
         key='compact',
-        label='紧凑一页',
+        label='紧凑排版',
         name_size=28,
         heading_size=23,
         body_size=19,
@@ -70,7 +73,7 @@ STYLES: dict[str, StyleTheme] = {
         text_color='292524',
         accent='D97706',
         line_gap=100,
-        bullet_marker='▸ ',
+        bullet_marker='• ',
         name_align='center',
         tight=False,
     ),
@@ -309,14 +312,12 @@ def export_pdf(data: StructuredResume, style: str | None = None) -> bytes:
         from reportlab.lib.units import mm
         from reportlab.lib.enums import TA_CENTER, TA_LEFT
         from reportlab.pdfbase import pdfmetrics
-        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
         from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer
     except ImportError as exc:
         raise RuntimeError('导出 PDF 需要安装 reportlab：pip install reportlab') from exc
 
     theme = resolve_style(style)
-    pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
-    font = 'STSong-Light'
+    font = _pdf_font()
 
     def hex_color(value: str):
         from reportlab.lib.colors import HexColor
@@ -340,7 +341,7 @@ def export_pdf(data: StructuredResume, style: str | None = None) -> bytes:
             fontSize=base_size - 1,
             leading=base_size + 2,
             textColor=hex_color('6B7280'),
-            alignment=name_align,
+            alignment=TA_LEFT,
             spaceAfter=4,
         ),
         'heading': ParagraphStyle(
@@ -416,6 +417,34 @@ def export_pdf(data: StructuredResume, style: str | None = None) -> bytes:
             )
     doc.build(story)
     return buf.getvalue()
+
+
+@lru_cache(maxsize=1)
+def _pdf_font() -> str:
+    """优先嵌入中文字体，防止阅读器替换字体造成英文间距和符号异常。"""
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+
+    candidates = [
+        os.getenv('RESUME_PDF_FONT', ''),
+        str(Path(os.getenv('WINDIR', 'C:/Windows')) / 'Fonts/msyh.ttc'),
+        str(Path(os.getenv('WINDIR', 'C:/Windows')) / 'Fonts/simhei.ttf'),
+        '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',
+        '/usr/share/fonts/truetype/noto/NotoSansSC-Regular.ttf',
+        '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+    ]
+    for path in candidates:
+        if not path or not Path(path).is_file():
+            continue
+        try:
+            pdfmetrics.registerFont(TTFont('ResumeBody', path, subfontIndex=0))
+            return 'ResumeBody'
+        except Exception:
+            # 部分 OTF/CFF 字体不受 ReportLab 支持，尝试下一候选。
+            continue
+    pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
+    return 'STSong-Light'
 
 
 def export_bytes(
