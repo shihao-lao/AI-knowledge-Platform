@@ -1,4 +1,4 @@
-import type { Citation } from '@/types';
+import type { Citation, StructuredResume } from '@/types';
 import type { DocumentIndexStatus } from '@/lib/document-status';
 
 export interface ApiDocumentUpload {
@@ -511,16 +511,92 @@ export const api = {
       content: string;
       analysis: string;
       createdAt: string;
+      structured?: StructuredResume | null;
     };
   }> {
     return request(`${BASE}/resumes/${encodeURIComponent(id)}`);
+  },
+
+  updateResumeStructure(id: string, structured: StructuredResume): Promise<{
+    data: {
+      id: string;
+      filename: string;
+      fileSize: number;
+      score: number;
+      content: string;
+      analysis: string;
+      createdAt: string;
+      structured?: StructuredResume | null;
+    };
+  }> {
+    return request(`${BASE}/resumes/${encodeURIComponent(id)}/structure`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ structured }),
+    });
+  },
+
+  reparseResumeStructure(id: string): Promise<{
+    data: {
+      id: string;
+      filename: string;
+      fileSize: number;
+      score: number;
+      content: string;
+      analysis: string;
+      createdAt: string;
+      structured?: StructuredResume | null;
+    };
+  }> {
+    return request(`${BASE}/resumes/${encodeURIComponent(id)}/structure/parse`, { method: 'POST' });
+  },
+
+  async exportResume(id: string, format: 'pdf' | 'docx', style: 'classic' | 'compact' | 'modern' = 'classic'): Promise<void> {
+    const token = getToken();
+    const res = await fetch(
+      `${BASE}/resumes/${encodeURIComponent(id)}/export?format=${format}&style=${encodeURIComponent(style)}`,
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      },
+    );
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const detail = typeof body?.detail === 'string' ? body.detail : `HTTP ${res.status}`;
+      throw new Error(detail);
+    }
+    const blob = await res.blob();
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+    const plainMatch = disposition.match(/filename="?([^";]+)"?/i);
+    const filename = utf8Match
+      ? decodeURIComponent(utf8Match[1])
+      : plainMatch
+        ? plainMatch[1]
+        : `resume${style === 'classic' ? '' : `-${style}`}.${format}`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   },
 
   uploadResume(
     file: File,
     onProgress?: (percent: number) => void,
   ): Promise<{
-    data: { id: string; filename: string; fileSize: number; score: number; analysis: string; createdAt: string };
+    data: {
+      id: string;
+      filename: string;
+      fileSize: number;
+      score: number;
+      analysis: string;
+      createdAt: string;
+      structured?: StructuredResume | null;
+      content?: string;
+    };
   }> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -529,17 +605,24 @@ export const api = {
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable && onProgress) {
-          onProgress(Math.round((e.loaded / e.total) * 100));
+          onProgress(Math.min(Math.round((e.loaded / e.total) * 70), 70));
         }
+      };
+      xhr.upload.onload = () => {
+        onProgress?.(75);
       };
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(toCamelCase(JSON.parse(xhr.responseText)) as Awaited<ReturnType<typeof api.uploadResume>>);
+          try {
+            resolve(toCamelCase(JSON.parse(xhr.responseText)) as Awaited<ReturnType<typeof api.uploadResume>>);
+          } catch {
+            reject(new Error('简历分析返回了无效数据，请重试'));
+          }
         } else {
           try {
             const body = JSON.parse(xhr.responseText);
-            reject(new Error(body.error || `HTTP ${xhr.status}`));
+            reject(new Error(body.detail || body.error || `HTTP ${xhr.status}`));
           } catch {
             reject(new Error(`HTTP ${xhr.status}`));
           }
@@ -547,6 +630,8 @@ export const api = {
       };
 
       xhr.onerror = () => reject(new Error('网络错误'));
+      xhr.timeout = 240000;
+      xhr.ontimeout = () => reject(new Error('简历分析超时，请稍后查看历史记录或重试'));
       xhr.open('POST', `${BASE}/resumes/upload`);
       const token = getToken();
       if (token) {

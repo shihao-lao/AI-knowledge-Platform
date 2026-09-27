@@ -73,3 +73,77 @@ export interface Conversation {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface ResumeBasics {
+  name: string;
+  title: string;
+  email: string;
+  phone: string;
+  location: string;
+  website: string;
+  summary: string;
+}
+
+export interface ResumeEducation {
+  school: string;
+  degree: string;
+  major: string;
+  start: string;
+  end: string;
+  description: string;
+}
+
+export interface ResumeExperience {
+  company: string;
+  title: string;
+  location: string;
+  start: string;
+  end: string;
+  bullets: string[];
+}
+
+export interface ResumeProject {
+  name: string;
+  role: string;
+  start: string;
+  end: string;
+  description: string;
+  bullets: string[];
+  tech: string[];
+}
+
+export interface ResumeSkillGroup {
+  category: string;
+  items: string[];
+}
+
+export interface ResumeCertification {
+  name: string;
+  issuer: string;
+  date: string;
+  description: string;
+}
+
+export interface StructuredResume {
+  basics: ResumeBasics;
+  education: ResumeEducation[];
+  experience: ResumeExperience[];
+  projects: ResumeProject[];
+  skills: ResumeSkillGroup[];
+  certifications: ResumeCertification[];
+  customSections: Array<{ id: string; title: string; content: string }>;
+  layout: { sections: Array<{ key: string; title: string }> };
+}
+
+export function emptyStructuredResume(): StructuredResume {
+  return {
+    basics: { name: '', title: '', email: '', phone: '', location: '', website: '', summary: '' },
+    education: [],
+    experience: [],
+    projects: [],
+    skills: [],
+    certifications: [],
+    customSections: [],
+    layout: { sections: [] },
+  };
+}
