@@ -352,6 +352,7 @@ class ResumeResponse(BaseModel):
     created_at: str
     content: str = ''
     analysis: str = ''
+    structured: dict[str, Any] | None = None
 
 
 class ResumeAnalysisResponse(BaseModel):
@@ -359,6 +360,9 @@ class ResumeAnalysisResponse(BaseModel):
 
     id: str
     filename: str
+    file_size: int = 0
     score: int
     analysis: str
     created_at: str
+    structured: dict[str, Any] | None = None
+    content: str = ''
