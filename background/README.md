@@ -31,7 +31,7 @@ source venv/bin/activate
 ### 4. 安装依赖
 
 ```bash
-pip install -r requirements-minimal.txt
+pip install -r requirements.txt
 ```
 
 ### 5. 配置环境变量
@@ -43,14 +43,18 @@ cp .env.example .env
 编辑 `.env` 文件：
 
 ```env
-SECRET_KEY=your-secret-key
-DATABASE_URL=sqlite+aiosqlite:///./app.db
+SECRET_KEY=<至少 32 字节的随机密钥，示例值会被拒绝启动>
+DATABASE_URL=mysql+aiomysql://root:root@localhost:3306/ai_knowledge_platform
 ```
 
-### 6. 创建数据库表
+### 6. 创建数据库与表
 
 ```bash
-python scripts/create_tables_sqlite.py
+# 建库（若不存在）+ 建表
+python scripts/init_db.py
+
+# 或者使用迁移建表
+alembic upgrade head
 ```
 
 ### 7. 启动应用
@@ -82,8 +86,7 @@ background/
 ├── scripts/                  # 脚本工具
 ├── tests/                    # 测试文件
 │
-├── requirements.txt          # 完整依赖
-├── requirements-minimal.txt  # 轻量级依赖
+├── requirements.txt          # 依赖
 ├── pyproject.toml            # 项目配置
 ├── alembic.ini               # Alembic 配置
 ├── Dockerfile                # Docker 配置
@@ -106,11 +109,12 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ### 数据库操作
 
 ```bash
-# 创建数据库表（SQLite）
-python scripts/create_tables_sqlite.py
+# 建库 + 建表（幂等）
+python scripts/init_db.py
 
-# 创建数据库表（PostgreSQL）
-python scripts/create_tables.py
+# 迁移管理
+alembic revision --autogenerate -m "描述"
+alembic upgrade head
 
 # 测试数据库连接
 python scripts/test_connection.py
@@ -210,11 +214,9 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ### 问题 3: 数据库错误
 
 ```bash
-# 删除旧的数据库文件
-rm app.db
-
-# 重新创建数据库表
-python scripts/create_tables_sqlite.py
+# 回滚并重建所有表（会清空数据）
+alembic downgrade base
+alembic upgrade head
 ```
 
 ### 问题 4: SECRET_KEY 未设置
@@ -278,7 +280,7 @@ print(response.json())
 
 - **框架**: FastAPI
 - **ORM**: SQLAlchemy
-- **数据库**: SQLite (开发) / PostgreSQL (生产)
+- **数据库**: MySQL 8（utf8mb4 / utf8mb4_unicode_ci，异步驱动 aiomysql）
 - **认证**: JWT + bcrypt
 - **文档**: Swagger UI / ReDoc
 
@@ -338,11 +340,14 @@ pip install -e .
 cp .env.example .env
 ```
 
-3. 启动 API（需本机或 Compose 中已启动 Postgres / Redis / Milvus 若你要联调全栈）：
+3. 启动 API（需本机 MySQL 8 已启动；Milvus 可用 Compose 起，未启动时检索自动降级为关键词模式）：
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+> 用 `python -m uvicorn` 而不是裸 `uvicorn`，避免在多虚拟环境下用到错误解释器。
+> 国内网络需在 `.env` 配置 `HF_ENDPOINT=https://hf-mirror.com`，否则模型无法下载。
 
 4. 访问健康检查：<http://127.0.0.1:8000/api/v1/health>
 
@@ -354,7 +359,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 docker compose up -d --build
 ```
 
-Compose 包含 **app、postgres、redis、milvus**，以及 Milvus 官方 Standalone 模式所需的 **etcd、minio**（向量与元数据存储依赖，非业务微服务）。应用默认映射 `8000` 端口。
+Compose 包含 **app、mysql、milvus**，以及 Milvus 官方 Standalone 模式所需的 **etcd、minio**（向量与元数据存储依赖，非业务微服务）。应用默认映射 `8000` 端口，MySQL 映射到宿主机 `3307` 以避开本地已有的 3306 实例。
 
 首次启动 Milvus 可能需要数十秒就绪；若应用启动过快导致连不上 Milvus，可在生产环境中为 app 增加重试或 `depends_on` 健康检查策略。
 

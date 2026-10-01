@@ -6,9 +6,11 @@ AI 面试知识库智能问答平台，采用 Next.js 前端与 Python FastAPI �
 
 - 前端：Next.js 16（App Router）、React 19、TypeScript、Ant Design 5。
 - 后端：`background/app/main.py` 创建 FastAPI 应用，由 Uvicorn 运行，默认端口 8000。
-- 数据层：SQLAlchemy 异步会话与 Alembic 迁移；默认 PostgreSQL，Milvus 用于向量检索，Redis 用于缓存。
+- 数据层：SQLAlchemy 异步会话与 Alembic 迁移；默认 MySQL 8（utf8mb4，异步驱动 aiomysql；迁移走同步的 pymysql），Milvus 用于向量检索。
+- 检索：向量 + BM25 双路并发召回 → RRF 融合 → Cross-Encoder 精排；任一环节失败均降级而非中断（详见下文）。
 - AI：Python 后端实现文档处理、RAG、LLM 调用、流式聊天和练习评估。
 - Next.js 负责页面服务；业务 API 在 Python 后端实现。
+- 模型下载：本机通常无法直连 `huggingface.co`，`.env` 必须配置 `HF_ENDPOINT=https://hf-mirror.com`，否则向量/精排模型加载失败并退化为关键词检索。
 
 ## Commands
 
@@ -26,10 +28,14 @@ npm run format            # Prettier（写入）
 
 ```bash
 pip install -r requirements.txt
-alembic upgrade head
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-python -m pytest tests    # 需安装 pyproject.toml 中的 dev 测试依赖；数据库测试需对应服务
+python scripts/init_db.py   # 建库 + 建表（幂等）
+alembic upgrade head        # 或使用迁移建表
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python -m pytest tests      # 需安装 pyproject.toml 中的 dev 测试依赖；测试连 MySQL 测试库 ai_knowledge_platform_test
 ```
+
+> 务必使用 `python -m uvicorn`，不要用裸 `uvicorn`：后者按 PATH 解析，
+> 在多虚拟环境或 conda 共存时会静默选用错误解释器，报出难以定位的依赖错误。
 
 ## Architecture
 
@@ -56,9 +62,9 @@ background/
     config.py                    # 后端配置
     api/routes/                  # HTTP API
     services/                    # 认证、聊天、知识库、文档、题库、练习、简历业务
-    core/                        # RAG、Agent、记忆、意图与工具
+    core/rag/                    # BM25 索引（retriever）与 Cross-Encoder 精排（reranker）
     etl/                         # 文档解析、分块与处理流水线
-    infrastructure/              # SQLAlchemy、Milvus、Redis、LLM 与追踪
+    infrastructure/              # SQLAlchemy、Milvus、LLM
     models/                      # Pydantic schema 与枚举
     middleware/                  # 限流与错误处理
   alembic/                       # 数据库迁移
@@ -66,8 +72,29 @@ background/
 ```
 
 - ORM 数据模型以 `background/app/infrastructure/database/models.py` 为准。
-- 修改聊天逻辑时检查 `background/app/services/chat_service.py`；检索相关实现位于 `background/app/core/rag/`。
+- 修改聊天逻辑时检查 `background/app/services/chat_service.py`；检索编排在
+  `background/app/services/retrieval_service.py`，BM25 与精排组件在 `background/app/core/rag/`。
 - 新增业务能力时，在 Python 后端添加路由和服务，再更新前端 API 客户端。
+
+### 检索链路与降级
+
+```
+query → BM25 召回 ┐
+                  ├→ RRF 融合(k=60) → 候选池 top_k×4 → Cross-Encoder 精排 → Top-5
+       → 向量召回  ┘
+```
+
+两路用 `asyncio.gather` 并发（BM25 走线程池，向量那一路主要是 IO 等待）。
+所有环节都只降级、不中断：
+
+| 故障                           | 行为                                                        |
+| ------------------------------ | ----------------------------------------------------------- |
+| Milvus 不可达 / embedding 失败 | 退化为纯关键词检索，标记 `keyword_only`，下一请求重试建索引 |
+| 精排失败                       | 退回 RRF 顺序（`RERANK_ENABLED=0` 可关闭精排）              |
+| 单路召回失败                   | 仅使用另一路结果                                            |
+
+配置项：`EMBEDDING_MODEL`、`RERANK_ENABLED`、`RERANK_MODEL`、`RERANK_DEVICE`、`HF_ENDPOINT`。
+切换 `EMBEDDING_MODEL` 会改变向量维度，集合名含模型名因而天然隔离，但需要对新集合重新索引。
 
 ## 工作规范（长期约定）
 
