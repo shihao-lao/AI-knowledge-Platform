@@ -32,11 +32,9 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -51,6 +49,7 @@ wheels/
 venv/
 ENV/
 env/
+background/venv/
 
 # Database
 *.db
@@ -89,6 +88,25 @@ docker-compose.override.yml
 .coverage
 htmlcov/
 .pytest_cache/
+
+# 本地运行产物
+pip-unpack-*/
+pip-build-tracker-*/
+pip-install-*/
+pytest-of-*/
+data-gym-cache/
+
+# 一次性脚本输出（冒烟/集成测试日志，非源码）
+background/integration-resume-*.txt
+
+# 独立的静态原型（未接入 Next.js 应用，仅供演示，不进入版本库）
+/app.js
+/index.html
+/styles.css
+
+# 个人求职材料（简历优化稿与面试准备，不属于项目产物）
+docs/interview/
+docs/项目事实清单.md
 
 # Type checking
 .mypy_cache/
