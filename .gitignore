@@ -93,6 +93,7 @@ htmlcov/
 pip-unpack-*/
 pip-build-tracker-*/
 pip-install-*/
+pip-ephem-wheel-cache-*/
 pytest-of-*/
 data-gym-cache/
 
