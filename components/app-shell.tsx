@@ -36,6 +36,10 @@ export default function AppShell({ children, activeNav }: AppShellProps) {
 
   const isActive = (key: string) => activeNav === key;
 
+  // 当前页面没有 kbId 时（如知识库列表页）回退到第一个知识库，
+  // 避免导航项变成点了没反应的死链
+  const navKbId = currentKbId || knowledgeBases[0]?.id || '';
+
   const kbConversations: never[] = []; // AppShell 不管理对话列表
 
   return (
@@ -57,21 +61,17 @@ export default function AppShell({ children, activeNav }: AppShellProps) {
             <span>知识库</span>
           </Link>
           <Link
-            href={currentKbId ? chatPath(currentKbId) : '#'}
+            href={navKbId ? chatPath(navKbId) : ROUTES.KNOWLEDGE_BASES}
             className={`hub-nav__item ${isActive('chat') ? 'is-active' : ''}`}
-            onClick={(e) => {
-              if (!currentKbId) e.preventDefault();
-            }}
+            title={navKbId ? undefined : '请先创建知识库'}
           >
             <span>💬</span>
             <span>AI 对话</span>
           </Link>
           <Link
-            href={currentKbId ? questionsPath(currentKbId) : '#'}
+            href={navKbId ? questionsPath(navKbId) : ROUTES.KNOWLEDGE_BASES}
             className={`hub-nav__item ${isActive('questions') ? 'is-active' : ''}`}
-            onClick={(e) => {
-              if (!currentKbId) e.preventDefault();
-            }}
+            title={navKbId ? undefined : '请先创建知识库'}
           >
             <span>❓</span>
             <span>面试题库</span>
@@ -81,11 +81,9 @@ export default function AppShell({ children, activeNav }: AppShellProps) {
             <span>简历分析</span>
           </Link>
           <Link
-            href={currentKbId ? statisticsPath(currentKbId) : '#'}
+            href={navKbId ? statisticsPath(navKbId) : ROUTES.KNOWLEDGE_BASES}
             className={`hub-nav__item ${isActive('statistics') ? 'is-active' : ''}`}
-            onClick={(e) => {
-              if (!currentKbId) e.preventDefault();
-            }}
+            title={navKbId ? undefined : '请先创建知识库'}
           >
             <span>📊</span>
             <span>引用统计</span>
