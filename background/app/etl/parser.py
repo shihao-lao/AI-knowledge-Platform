@@ -40,7 +40,7 @@ class DocumentParser:
                 text = data.decode("utf-8-sig")
             except UnicodeDecodeError as exc:
                 raise ValueError("文本编码不支持，请另存为 UTF-8 后上传") from exc
-            parsed = ParsedDocument(text=text[: self._max_chars], mime_type=mime, meta={})
+            parsed = ParsedDocument(text=text[: self._max_chars], mime_type=mime, meta={"source": "text"})
         elif suffix == ".docx":
             parsed = self._parse_docx(data, mime)
         elif suffix == ".pdf":
@@ -57,7 +57,7 @@ class DocumentParser:
         return parsed
 
     def _parse_docx(self, data: bytes, mime: str) -> ParsedDocument:
-        """读取 OOXML 正文，不解压文件到磁盘，限制展开后的 XML 大小。"""
+        """读取 OOXML 正文与表格，不解压文件到磁盘，限制展开后的 XML 大小。"""
         try:
             with ZipFile(BytesIO(data)) as archive:
                 info = archive.getinfo("word/document.xml")
@@ -68,14 +68,29 @@ class DocumentParser:
                 raise ValueError("Word 文件包含不支持的 XML 声明")
             root = ElementTree.fromstring(xml)
             ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
-            paragraphs = []
-            for paragraph in root.iter(f"{ns}p"):
-                paragraphs.append("".join(
-                    (node.text or "") if node.tag == f"{ns}t" else
-                    "\t" if node.tag == f"{ns}tab" else "\n" if node.tag in {f"{ns}br", f"{ns}cr"} else ""
-                    for node in paragraph.iter()
-                ))
-            return ParsedDocument("\n".join(paragraphs)[: self._max_chars], mime, {})
+            body = root.find(f"{ns}body")
+            paragraphs: list[str] = []
+            for child in list(body) if body is not None else []:
+                if child.tag == f"{ns}p":
+                    paragraphs.append("".join(
+                        (node.text or "") if node.tag == f"{ns}t" else
+                        "\t" if node.tag == f"{ns}tab" else
+                        "\n" if node.tag in {f"{ns}br", f"{ns}cr"} else ""
+                        for node in child.iter()
+                    ))
+                elif child.tag == f"{ns}tbl":
+                    for row in child.findall(f"{ns}tr"):
+                        cells = []
+                        for cell in row.findall(f"{ns}tc"):
+                            cell_text = "".join(
+                                (node.text or "") if node.tag == f"{ns}t" else " "
+                                for node in cell.iter()
+                            ).strip()
+                            cells.append(cell_text)
+                        if any(cells):
+                            paragraphs.append(" | ".join(cells))
+            text = "\n".join(line for line in paragraphs if line.strip())
+            return ParsedDocument(text[: self._max_chars], mime, {"source": "docx-ooxml"})
         except ValueError:
             raise
         except Exception as exc:
@@ -100,4 +115,4 @@ class DocumentParser:
                 logger.warning("单页 PDF 抽取失败: {}", exc)
 
         text = "\n".join(parts)[: self._max_chars]
-        return ParsedDocument(text=text, mime_type=mime, meta={"pages": str(len(reader.pages))})
+        return ParsedDocument(text=text, mime_type=mime, meta={"pages": str(len(reader.pages)), "source": "pdf-pypdf"})

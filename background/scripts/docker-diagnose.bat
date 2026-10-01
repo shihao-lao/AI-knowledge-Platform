@@ -45,7 +45,7 @@ docker-compose ps 2>nul || docker compose ps 2>nul
 REM 检查镜像下载进度
 echo.
 echo 4. 检查镜像下载进度...
-docker images | findstr /i "postgres redis milvus minio etcd"
+docker images | findstr /i "mysql milvus minio etcd"
 
 REM 检查日志
 echo.
@@ -55,7 +55,7 @@ docker-compose logs --tail=20 app 2>nul || docker compose logs --tail=20 app 2>n
 REM 检查数据库日志
 echo.
 echo 6. 查看数据库日志（最后 10 行）...
-docker-compose logs --tail=10 postgres 2>nul || docker compose logs --tail=10 postgres 2>nul
+docker-compose logs --tail=10 mysql 2>nul || docker compose logs --tail=10 mysql 2>nul
 
 REM 检查网络
 echo.

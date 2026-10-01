@@ -1,5 +1,6 @@
-"""通过实际路由与 SQLite 验证上传、保存、重载、导出及资源归属。"""
+"""通过实际路由与 MySQL 测试库验证上传、保存、重载、导出及资源归属。"""
 
+import os
 from contextlib import asynccontextmanager
 from io import BytesIO
 
@@ -17,7 +18,7 @@ from app.services import resume_service
 
 @pytest.mark.asyncio
 async def test_upload_edit_reload_export_and_ownership(monkeypatch, tmp_path):
-    engine = create_async_engine('sqlite+aiosqlite:///:memory:')
+    engine = create_async_engine(os.environ['DATABASE_URL'])
     sessions = async_sessionmaker(engine, expire_on_commit=False)
 
     @asynccontextmanager
@@ -39,6 +40,7 @@ async def test_upload_edit_reload_export_and_ownership(monkeypatch, tmp_path):
     app.dependency_overrides[get_current_user_dependency] = lambda: user
     try:
         async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)
         async with sessions() as session:
             session.add(User(id=user.id, name=user.name, email=user.email, password_hash='unused-test-hash'))

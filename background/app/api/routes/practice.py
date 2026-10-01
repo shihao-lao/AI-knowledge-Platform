@@ -63,6 +63,11 @@ async def evaluate_answer_endpoint(
         )
     except HTTPException:
         raise
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        ) from e
     except Exception as e:
         logger.exception("评估答案失败: {}", e)
         raise HTTPException(
