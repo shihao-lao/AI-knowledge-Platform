@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
-"""RAG 子系统：检索、重排、生成。"""
+"""RAG 子系统：检索（BM25 关键词 + 向量混合）。"""
 
-from app.core.rag.generator import RAGGenerator
-from app.core.rag.reranker import Reranker
 from app.core.rag.retriever import MultiRetriever
 
-__all__ = ["MultiRetriever", "Reranker", "RAGGenerator"]
+__all__ = ["MultiRetriever"]
