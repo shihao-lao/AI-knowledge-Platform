@@ -367,3 +367,70 @@ class ResumeAnalysisResponse(BaseModel):
     created_at: str
     structured: dict[str, Any] | None = None
     content: str = ''
+
+
+# ==================== 用户大模型配置 ====================
+
+
+class LLMConfigUpdate(BaseModel):
+    """保存用户大模型配置的请求。"""
+
+    provider: str = Field(default="custom", max_length=50, description="服务商标识，仅用于展示")
+    base_url: str = Field(default="", max_length=500, description="OpenAI 兼容 API Base")
+    api_key: str | None = Field(
+        default=None,
+        max_length=500,
+        description="留空或省略表示保持原密钥不变；显式清空请用 clear_api_key",
+    )
+    model: str = Field(default="", max_length=200, description="模型名")
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=2048, ge=1, le=131072)
+    timeout: int = Field(default=60, ge=5, le=600, description="单次请求超时（秒）")
+    clear_api_key: bool = Field(default=False, description="显式清除已保存的密钥")
+
+
+class LLMConfigResponse(BaseModel):
+    """大模型配置响应：密钥只以脱敏形式返回。"""
+
+    provider: str = "custom"
+    base_url: str = ""
+    model: str = ""
+    temperature: float = 0.7
+    max_tokens: int = 2048
+    timeout: int = 60
+    api_key_set: bool = False
+    api_key_masked: str = ""
+    source: str = Field(default="none", description="user / server / none")
+    configured: bool = False
+    is_custom: bool = Field(default=False, description="是否已保存过用户自己的配置")
+
+
+class LLMTestRequest(BaseModel):
+    """连通性测试请求：未保存时可直接带上待测参数。"""
+
+    provider: str | None = None
+    base_url: str | None = None
+    api_key: str | None = None
+    model: str | None = None
+    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
+    max_tokens: int | None = Field(default=None, ge=1, le=131072)
+    timeout: int | None = Field(default=None, ge=5, le=600)
+
+
+class LLMTestResponse(BaseModel):
+    """连通性测试结果。"""
+
+    ok: bool
+    message: str
+    latency_ms: int = 0
+    model: str = ""
+    reply: str = ""
+    models_available: int = 0
+
+
+class LLMModelsResponse(BaseModel):
+    """模型列表响应。"""
+
+    ok: bool
+    message: str = ""
+    data: list[str] = Field(default_factory=list)
