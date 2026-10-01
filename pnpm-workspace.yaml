@@ -1,0 +1,6 @@
+# pnpm 10 的设置集中放在这里。
+#
+# sharp 是 Next.js 图片优化的可选依赖；这里显式允许其构建脚本，
+# 以免每次安装都提示 "Ignored build scripts"。
+onlyBuiltDependencies:
+  - sharp

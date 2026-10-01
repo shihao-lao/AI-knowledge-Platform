@@ -1,6 +1,11 @@
 # Dependencies
 node_modules/
 
+# 本项目统一用 pnpm，pnpm-lock.yaml 是唯一锁文件；
+# 防止 npm/yarn 再次生成第二份锁文件而造成依赖树漂移
+package-lock.json
+yarn.lock
+
 # Next.js
 .next/
 out/
