@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, JSON, Boolean
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, JSON, Boolean
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator
@@ -348,4 +348,35 @@ class Resume(Base):
     # 索引
     __table_args__ = (
         {"comment": "简历分析记录：上传简历 → 解析内容 → AI 分析报告"},
+    )
+
+
+class UserLLMConfig(Base):
+    """用户级大模型配置。
+
+    每个用户可以接入任意 OpenAI 兼容服务（官方、中转、本地 Ollama 等），
+    留空时回落到服务端 .env 中的默认配置。user_id 即主键，一个用户一份配置。
+    """
+
+    __tablename__ = "user_llm_configs"
+    __table_args__ = (
+        {"comment": "用户大模型配置：Base URL、API Key、模型名与请求参数"},
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        String(50),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    provider: Mapped[str] = mapped_column(String(50), default="custom")  # 展示用：openai/deepseek/ollama...
+    base_url: Mapped[str] = mapped_column(String(500), default="")
+    api_key: Mapped[str] = mapped_column(String(500), default="")
+    model: Mapped[str] = mapped_column(String(200), default="")
+    temperature: Mapped[float] = mapped_column(Float, default=0.7)
+    max_tokens: Mapped[int] = mapped_column(Integer, default=2048)
+    timeout: Mapped[int] = mapped_column(Integer, default=60)  # 单次请求超时（秒）
+    updated_at: Mapped[datetime] = mapped_column(
+        UTCDateTime,
+        default=_utcnow,
+        onupdate=_utcnow,
     )
