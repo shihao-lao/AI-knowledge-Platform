@@ -17,7 +17,7 @@ export interface ApiKnowledge {
   status: string;
   createdAt: string;
   updatedAt: string;
-  _count?: { documents: number };
+  documentCount: number;
 }
 
 export interface ApiDocument {
@@ -101,6 +101,25 @@ export interface ApiMessage {
     confidenceScore: number;
   }>;
   createdAt: string;
+}
+
+/**
+ * 归一化消息引用字段。
+ *
+ * 历史数据把 citations 以 JSON 文本入库，接口曾原样返回字符串（如 "[]"）。
+ * 字符串同样有 length，能骗过 `citations.length > 0` 判断，最终渲染时抛
+ * `citations.map is not a function` 导致整页白屏，这里统一收敛为数组。
+ */
+export function normalizeCitations(raw: unknown): ApiMessage['citations'] {
+  let value = raw;
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(value) ? (value as ApiMessage['citations']) : [];
 }
 
 export interface ApiUser {
@@ -194,7 +213,8 @@ function toCamelCase(value: unknown): unknown {
 
   return Object.fromEntries(
     Object.entries(value).map(([key, nestedValue]) => [
-      key.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase()),
+      // 下划线开头的键（如 _count）整体保留，否则会被改写成 Count 而丢失
+      key.startsWith('_') ? key : key.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase()),
       toCamelCase(nestedValue),
     ]),
   );
@@ -453,8 +473,9 @@ export const api = {
   },
 
   // Message
-  listMessages(conversationId: string): Promise<{ data: ApiMessage[] }> {
-    return request(`${BASE}/conversations/${conversationId}/messages`);
+  async listMessages(conversationId: string): Promise<{ data: ApiMessage[] }> {
+    const result = await request<{ data: ApiMessage[] }>(`${BASE}/conversations/${conversationId}/messages`);
+    return { ...result, data: (result?.data ?? []).map((m) => ({ ...m, citations: normalizeCitations(m.citations) })) };
   },
 
   createMessage(
@@ -499,7 +520,7 @@ export const api = {
       keywords?: string[];
       source?: string;
     }>,
-  ): Promise<{ data: { count: number } }> {
+  ): Promise<{ data: { imported: number; skipped: number; errors: string[]; message: string } }> {
     return request(`${BASE}/questions/import?knowledge_id=${encodeURIComponent(knowledgeId)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -546,7 +567,10 @@ export const api = {
     return request(`${BASE}/resumes/${encodeURIComponent(id)}`);
   },
 
-  updateResumeStructure(id: string, structured: StructuredResume): Promise<{
+  updateResumeStructure(
+    id: string,
+    structured: StructuredResume,
+  ): Promise<{
     data: {
       id: string;
       filename: string;
@@ -580,7 +604,11 @@ export const api = {
     return request(`${BASE}/resumes/${encodeURIComponent(id)}/structure/parse`, { method: 'POST' });
   },
 
-  async exportResume(id: string, format: 'pdf' | 'docx', style: 'classic' | 'compact' | 'modern' = 'classic'): Promise<void> {
+  async exportResume(
+    id: string,
+    format: 'pdf' | 'docx',
+    style: 'classic' | 'compact' | 'modern' = 'classic',
+  ): Promise<void> {
     const token = getToken();
     const res = await fetch(
       `${BASE}/resumes/${encodeURIComponent(id)}/export?format=${format}&style=${encodeURIComponent(style)}`,
