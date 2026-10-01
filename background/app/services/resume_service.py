@@ -38,7 +38,7 @@ def _heuristic_analysis(content: str) -> tuple[str, int]:
     total_score = min(max(int(keyword_score + length_score + structure_score), 0), 100)
     analysis = f"""# 简历分析报告（本地规则）
 
-> 当前未配置模型 API，以下为规则分析结果。配置 `MIMO_API_KEY` 后可获得完整 AI 诊断。
+> 当前未配置模型 API，以下为规则分析结果。到「设置 → 模型配置」填写 API Key 后可获得完整 AI 诊断。
 
 ## 总评
 - 文件长度：{len(content)} 字符
@@ -103,8 +103,8 @@ async def upload_and_analyze_resume(
             raise ValueError("未能从文件中提取到文本内容")
 
         # 第二步：并行做 HR 分析与结构化抽取
-        analysis_task = analyze_resume(content)
-        structure_task = parse_resume_structure(content)
+        analysis_task = analyze_resume(content, user_id)
+        structure_task = parse_resume_structure(content, user_id)
         analysis_result, structure_result = await asyncio.gather(
             analysis_task, structure_task, return_exceptions=True
         )

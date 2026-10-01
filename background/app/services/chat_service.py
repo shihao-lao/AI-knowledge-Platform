@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import json
-import os
 import uuid
 from typing import Any
 
@@ -17,38 +16,23 @@ from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_openai import ChatOpenAI
 from loguru import logger
 from sqlalchemy import and_, select
 
 from app.services.retrieval_service import retrieval_service
 from app.infrastructure.database.models import Conversation, Knowledge, Message
 from app.infrastructure.database.session import get_session_context
+from app.infrastructure.llm.config import (
+    NOT_CONFIGURED_HINT,
+    build_chat_model,
+    resolve_llm_config,
+)
 from app.models.schemas import RetrievalResult
 
 
 # ==================== LLM 初始化 ====================
-
-
-def _create_llm(streaming: bool = False) -> ChatOpenAI:
-    """创建 LangChain LLM 实例（OpenAI 兼容 API → MiMo）。"""
-    base_url = os.getenv("MIMO_BASE_URL", "https://api.xiaomimimo.com/v1")
-    api_key = os.getenv("MIMO_API_KEY", "")
-    model = os.getenv("MIMO_MODEL", "mimo-v2.5")
-    temperature = float(os.getenv("LLM_TEMPERATURE", "0.7"))
-    max_tokens = int(os.getenv("LLM_MAX_TOKENS", "2048"))
-
-    if not api_key:
-        raise RuntimeError("MIMO_API_KEY 未配置")
-
-    return ChatOpenAI(
-        base_url=base_url,
-        api_key=api_key,
-        model=model,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        streaming=streaming,
-    )
+# 配置解析统一走 app.infrastructure.llm.config，避免各处重复读环境变量：
+# 用户级配置优先，服务端 .env 兜底。
 
 
 # ==================== Prompt 模板 ====================
@@ -116,23 +100,6 @@ def _build_context_block(results: list[RetrievalResult]) -> str:
 
 class ChatService:
     """聊天服务：基于 LangChain 的 RAG 对话。"""
-
-    def __init__(self) -> None:
-        # LangChain LLM（流式）
-        self._llm_stream: ChatOpenAI | None = None
-        # LangChain LLM（非流式）
-        self._llm: ChatOpenAI | None = None
-
-    def _get_llm(self, streaming: bool = False) -> ChatOpenAI:
-        """延迟初始化 LangChain LLM。"""
-        if streaming:
-            if self._llm_stream is None:
-                self._llm_stream = _create_llm(streaming=True)
-            return self._llm_stream
-        else:
-            if self._llm is None:
-                self._llm = _create_llm(streaming=False)
-            return self._llm
 
     async def handle_chat(
         self,
@@ -206,7 +173,12 @@ class ChatService:
                 ])
 
                 # ── 6. LangChain Chain: prompt | llm | parser ──
-                llm = self._get_llm(streaming=True)
+                llm_config = await resolve_llm_config(user_id)
+                if not llm_config.configured:
+                    yield self._sse_error(NOT_CONFIGURED_HINT)
+                    return
+
+                llm = build_chat_model(llm_config, streaming=True)
                 chain = prompt | llm | StrOutputParser()
 
                 # ── 7. 流式生成并推送 SSE ──

@@ -2,11 +2,15 @@
 from __future__ import annotations
 
 import json
-import os
 from typing import List
 
-from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
+
+from app.infrastructure.llm.config import (
+    NOT_CONFIGURED_HINT,
+    build_async_client,
+    resolve_llm_config,
+)
 
 
 class ResumeAnalysis(BaseModel):
@@ -59,22 +63,16 @@ class ResumeAnalysis(BaseModel):
         )
 
 
-async def analyze_resume(content: str) -> ResumeAnalysis:
+async def analyze_resume(content: str, user_id: str | None = None) -> ResumeAnalysis:
     """Analyze resume text from an HR / hiring perspective."""
-    key = os.getenv("MIMO_API_KEY") or os.getenv("OPENAI_API_KEY")
-    if not key:
-        raise RuntimeError("请配置 MIMO_API_KEY 或 OPENAI_API_KEY 后进行简历分析")
-    mimo = bool(os.getenv("MIMO_API_KEY"))
-    base = (
-        os.getenv("MIMO_BASE_URL", "https://api.xiaomimimo.com/v1")
-        if mimo
-        else os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
-    )
-    model = os.getenv("MIMO_MODEL", "mimo-v2.5") if mimo else os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    config = await resolve_llm_config(user_id)
+    if not config.configured:
+        raise RuntimeError(NOT_CONFIGURED_HINT)
+
     text = content[:8000]
-    async with AsyncOpenAI(api_key=key, base_url=base, timeout=90, max_retries=1) as client:
+    async with build_async_client(config, timeout=90) as client:
         response = await client.chat.completions.create(
-            model=model,
+            model=config.model,
             temperature=0.2,
             response_format={"type": "json_object"},
             messages=[

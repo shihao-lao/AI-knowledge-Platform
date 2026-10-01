@@ -20,7 +20,9 @@ async def evaluate_answer(question_id: str, user_id: str, user_answer: str) -> P
                 raise ValueError('keywords must be a list of strings')
         except ValueError as exc:
             raise RuntimeError('题目关键词数据无效') from exc
-        evaluation = await _evaluate_answer_with_llm(question.question, question.answer, user_answer, keywords)
+        evaluation = await _evaluate_answer_with_llm(
+            question.question, question.answer, user_answer, keywords, user_id
+        )
         record = PracticeRecord(question_id=question_id, user_id=user_id, mode='question',
                                 user_answer=user_answer, score=evaluation.score, feedback=evaluation.feedback)
         session.add(record)

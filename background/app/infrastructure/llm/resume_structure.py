@@ -4,11 +4,9 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 
-from openai import AsyncOpenAI
-
+from app.infrastructure.llm.config import build_async_client, resolve_llm_config
 from app.models.resume_structure import (
     ResumeBasics,
     ResumeCertification,
@@ -408,25 +406,18 @@ def _coerce_structure(raw: dict) -> StructuredResume:
     return data
 
 
-async def parse_resume_structure(content: str) -> StructuredResume:
+async def parse_resume_structure(content: str, user_id: str | None = None) -> StructuredResume:
     """LLM 结构化；不可用时回退启发式。"""
-    key = os.getenv('MIMO_API_KEY') or os.getenv('OPENAI_API_KEY')
-    if not key:
+    config = await resolve_llm_config(user_id)
+    if not config.configured:
         return heuristic_or_empty(content)
 
-    mimo = bool(os.getenv('MIMO_API_KEY'))
-    base = (
-        os.getenv('MIMO_BASE_URL', 'https://api.xiaomimimo.com/v1')
-        if mimo
-        else os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1')
-    )
-    model = os.getenv('MIMO_MODEL', 'mimo-v2.5') if mimo else os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
     # 未知栏目由原文直接保留，避免模型把开源贡献等重新归入项目而重复导出。
     text = standard_source(content)[:24000]
 
-    async with AsyncOpenAI(api_key=key, base_url=base, timeout=90, max_retries=1) as client:
+    async with build_async_client(config, timeout=90) as client:
         response = await client.chat.completions.create(
-            model=model,
+            model=config.model,
             temperature=0.1,
             response_format={'type': 'json_object'},
             messages=[

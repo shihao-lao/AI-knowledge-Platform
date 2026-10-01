@@ -1,9 +1,13 @@
 """Structured answer evaluation through the configured OpenAI-compatible model."""
 import json
-import os
 
-from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
+
+from app.infrastructure.llm.config import (
+    NOT_CONFIGURED_HINT,
+    build_async_client,
+    resolve_llm_config,
+)
 
 
 class AnswerEvaluation(BaseModel):
@@ -13,18 +17,20 @@ class AnswerEvaluation(BaseModel):
     reference_summary: str = Field(min_length=1)
 
 
-async def evaluate(question: str, reference: str, answer: str, keywords: list[str]) -> AnswerEvaluation:
-    key = os.getenv('MIMO_API_KEY') or os.getenv('OPENAI_API_KEY')
-    if not key:
-        raise RuntimeError('请配置 MIMO_API_KEY 或 OPENAI_API_KEY 后进行答案评估')
-    mimo = bool(os.getenv('MIMO_API_KEY'))
-    base = os.getenv('MIMO_BASE_URL', 'https://api.xiaomimimo.com/v1') if mimo else os.getenv(
-        'OPENAI_API_BASE', 'https://api.openai.com/v1'
-    )
-    model = os.getenv('MIMO_MODEL', 'mimo-v2.5') if mimo else os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
-    async with AsyncOpenAI(api_key=key, base_url=base, timeout=60, max_retries=1) as client:
+async def evaluate(
+    question: str,
+    reference: str,
+    answer: str,
+    keywords: list[str],
+    user_id: str | None = None,
+) -> AnswerEvaluation:
+    config = await resolve_llm_config(user_id)
+    if not config.configured:
+        raise RuntimeError(NOT_CONFIGURED_HINT)
+
+    async with build_async_client(config) as client:
         response = await client.chat.completions.create(
-            model=model, temperature=0, response_format={'type': 'json_object'},
+            model=config.model, temperature=0, response_format={'type': 'json_object'},
             messages=[
                 {'role': 'system', 'content': (
                     '你是技术面试评分员。依据题目和参考答案评估语义正确性、完整性与表达。'
