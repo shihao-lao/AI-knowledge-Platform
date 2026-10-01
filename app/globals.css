@@ -1403,7 +1403,16 @@ textarea {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  /* 右侧操作按钮较多时需要换行，否则左侧标题被压成窄列、看起来和按钮重叠 */
+  flex-wrap: wrap;
+  gap: var(--space-4);
   margin-bottom: var(--space-6);
+}
+
+/* 标题块占据剩余宽度，且允许收缩（min-width: 0 防止长文本撑破容器） */
+.util-page-header > div:first-child {
+  flex: 1 1 260px;
+  min-width: 0;
 }
 
 .util-filter-bar {

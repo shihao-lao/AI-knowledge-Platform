@@ -40,6 +40,13 @@ export default function Providers({ children }: { children: React.ReactNode }) {
             Card: {
               paddingLG: 20,
             },
+            // 未指定 color 的 Tag 背景由 antd 从 colorBgContainer 派生，
+            // 而这里是 CSS 变量，antd 无法解析颜色导致派生出纯黑（文字几乎不可见）。
+            // 直接给定与主题一致的取值即可，同时保留深色模式。
+            Tag: {
+              defaultBg: 'var(--color-border)',
+              defaultColor: 'var(--color-text-secondary)',
+            },
           },
         }}
       >
