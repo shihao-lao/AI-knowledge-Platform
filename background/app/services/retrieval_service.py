@@ -12,11 +12,23 @@ from loguru import logger
 from sqlalchemy import select
 
 from app.config import get_settings
+from app.core.rag.reranker import reranker
 from app.core.rag.retriever import _BM25Index
 from app.infrastructure.database.models import Chunk, Document, Knowledge, Question
 from app.infrastructure.database.session import get_session_context
 from app.infrastructure.vectordb.milvus_client import MilvusManager
 from app.models.schemas import RetrievalResult
+
+# 精排前多召回的倍数：召回宁多勿漏，精排负责把真正相关的挑到前面
+RECALL_MULTIPLIER = 4
+
+# RRF 平滑常数（Cormack 等 2009 年提出 RRF 时的经验取值）
+RRF_K = 60
+
+
+def _rerank_enabled() -> bool:
+    """精排开关，默认开启；置 0/false/no/off 可关闭。"""
+    return os.getenv("RERANK_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"}
 
 
 class RetrievalService:
@@ -110,33 +122,82 @@ class RetrievalService:
                 return False
 
     async def retrieve(self, query, knowledge_id, user_id, top_k=5):
+        """混合检索：关键词 + 向量并发召回 → RRF 融合 → Cross-Encoder 精排。
+
+        每一环都只降级、不中断：某一路召回失败就只用另一路，
+        精排不可用就退回 RRF 排序，保证检索始终有结果返回。
+        """
         async with self._locks[knowledge_id]:
             records = await self._corpus(knowledge_id, user_id)
             if not records:
                 return []
+
+            # 召回宁多勿漏：先取回更大的候选池，由精排挑出真正相关的 top_k
+            candidates = max(top_k * RECALL_MULTIPLIER, top_k)
+
             index = _BM25Index()
             for key, row in records.items():
                 index.add_document(key, row.content)
-            keywords = [key for key, _ in index.search(query, top_k * 2)]
-            vector_ids = []
-            try:
-                await self._sync(knowledge_id, records)
-                vector = (await self._embed([query]))[0]
-                hits = await self._get_manager().search(self._collection(knowledge_id), vector,
-                                                       top_k=top_k * 2, ids=list(records))
-                vector_ids = [hit['id'] for hit in hits if hit['id'] in records]
-            except Exception as exc:
-                self._record_index_status(records, 'keyword_only')
-                logger.warning('语义检索暂不可用，本次使用知识库关键词检索: {}', type(exc).__name__)
-            scores = defaultdict(float)
-            for ranking in (keywords, vector_ids):
+
+            # 两路并发：BM25 是纯 CPU 计算放线程池，向量那一路主要是 IO 等待。
+            # 串行时延迟是两者之和，并发后接近两者最大值。
+            keyword_result, vector_result = await asyncio.gather(
+                asyncio.to_thread(lambda: [key for key, _ in index.search(query, candidates)]),
+                self._vector_recall(query, knowledge_id, records, candidates),
+                return_exceptions=True,
+            )
+
+            keyword_ids: list[str] = []
+            if isinstance(keyword_result, BaseException):
+                logger.warning('关键词检索失败: {}', type(keyword_result).__name__)
+            else:
+                keyword_ids = keyword_result
+
+            vector_ids: list[str] = []
+            if isinstance(vector_result, BaseException):
+                logger.warning('向量检索失败: {}', type(vector_result).__name__)
+            else:
+                vector_ids = vector_result
+
+            if not keyword_ids and not vector_ids:
+                return []
+
+            # 倒数排名融合：只用名次，规避 BM25 分值与 L2 距离量纲不可比的问题
+            scores: defaultdict[str, float] = defaultdict(float)
+            for ranking in (keyword_ids, vector_ids):
                 for rank, key in enumerate(dict.fromkeys(ranking), 1):
-                    scores[key] += 1 / (60 + rank)
-            ranked = sorted(scores, key=scores.get, reverse=True)[:top_k]
-            return [records[key].model_copy(update={
-                'score': min(1.0, scores[key] * 61 / (2 if vector_ids else 1)),
+                    scores[key] += 1.0 / (RRF_K + rank)
+
+            fused = sorted(scores, key=scores.get, reverse=True)[:candidates]
+            pool = [records[key].model_copy(update={
+                'score': min(1.0, scores[key] * (RRF_K + 1) / (2 if vector_ids else 1)),
                 'source': 'hybrid' if vector_ids else 'keyword',
-            }) for key in ranked]
+            }) for key in fused]
+
+            return await self._rerank(query, pool, top_k)
+
+    async def _vector_recall(self, query, knowledge_id, records, limit):
+        """向量召回；失败时记录降级状态并返回空列表，不向上抛异常。"""
+        try:
+            await self._sync(knowledge_id, records)
+            vector = (await self._embed([query]))[0]
+            hits = await self._get_manager().search(self._collection(knowledge_id), vector,
+                                                   top_k=limit, ids=list(records))
+            return [hit['id'] for hit in hits if hit['id'] in records]
+        except Exception as exc:
+            self._record_index_status(records, 'keyword_only')
+            logger.warning('语义检索暂不可用，本次使用知识库关键词检索: {}', type(exc).__name__)
+            return []
+
+    async def _rerank(self, query, pool, top_k):
+        """Cross-Encoder 精排；未启用或推理失败时退回 RRF 顺序。"""
+        if not _rerank_enabled() or len(pool) <= 1:
+            return pool[:top_k]
+        try:
+            return await reranker.rerank(query, pool, top_k=top_k)
+        except Exception as exc:
+            logger.warning('精排不可用，本次退回 RRF 排序: {}', type(exc).__name__)
+            return pool[:top_k]
 
 
 retrieval_service = RetrievalService()
