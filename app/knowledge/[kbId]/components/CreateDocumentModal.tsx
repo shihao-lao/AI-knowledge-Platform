@@ -6,7 +6,7 @@ import { useState } from 'react';
 interface CreateDocumentModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (title: string, content: string) => void;
+  onSubmit: (title: string, content: string) => Promise<void>;
 }
 
 export default function CreateDocumentModal({ open, onClose, onSubmit }: CreateDocumentModalProps) {
@@ -14,14 +14,20 @@ export default function CreateDocumentModal({ open, onClose, onSubmit }: CreateD
   const [submitting, setSubmitting] = useState(false);
 
   const handleOk = async () => {
+    let values: { title: string; content: string };
     try {
-      setSubmitting(true);
-      const values = await form.validateFields();
-      onSubmit(values.title, values.content);
+      values = await form.validateFields();
+    } catch {
+      return; // 校验失败，antd 已在表单项上展示错误
+    }
+
+    setSubmitting(true);
+    try {
+      await onSubmit(values.title.trim(), values.content);
       form.resetFields();
       onClose();
     } catch {
-      // validation failed
+      // 提交失败：调用方已提示错误，保持弹窗打开以便重试
     } finally {
       setSubmitting(false);
     }

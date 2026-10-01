@@ -11,7 +11,7 @@ export interface CreateKbValues {
 interface CreateKnowledgeBaseModalProps {
   open: boolean;
   onClose: () => void;
-  onCreate: (values: CreateKbValues) => void;
+  onCreate: (values: CreateKbValues) => Promise<void>;
 }
 
 export default function CreateKnowledgeBaseModal({ open, onClose, onCreate }: CreateKnowledgeBaseModalProps) {
@@ -19,17 +19,23 @@ export default function CreateKnowledgeBaseModal({ open, onClose, onCreate }: Cr
   const [submitting, setSubmitting] = useState(false);
 
   const handleOk = async () => {
+    let values: CreateKbValues;
     try {
-      setSubmitting(true);
-      const values = await form.validateFields();
-      onCreate({
-        name: values.name,
-        description: values.description || '',
+      values = await form.validateFields();
+    } catch {
+      return; // 校验失败，antd 已在表单项上展示错误
+    }
+
+    setSubmitting(true);
+    try {
+      await onCreate({
+        name: values.name.trim(),
+        description: (values.description || '').trim(),
       });
       form.resetFields();
       onClose();
     } catch {
-      // validation failed
+      // 提交失败：调用方已提示错误，保持弹窗打开以便重试
     } finally {
       setSubmitting(false);
     }
