@@ -47,8 +47,20 @@ export default function RegisterPage() {
           <Form.Item label="邮箱" name="email" rules={[{ required: true, type: 'email', message: '请输入有效邮箱' }]}>
             <Input prefix={<MailOutlined />} placeholder="name@example.com" size="large" />
           </Form.Item>
-          <Form.Item label="密码" name="password" rules={[{ required: true, min: 8, message: '密码至少 8 位' }]}>
-            <Input.Password prefix={<LockOutlined />} placeholder="至少 8 位" size="large" />
+          <Form.Item
+            label="密码"
+            name="password"
+            rules={[
+              { required: true, message: '请输入密码' },
+              { min: 8, message: '密码至少 8 位' },
+              { max: 128, message: '密码不超过 128 字符' },
+              {
+                pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+                message: '密码需同时包含大写字母、小写字母和数字',
+              },
+            ]}
+          >
+            <Input.Password prefix={<LockOutlined />} placeholder="至少 8 位，含大小写字母和数字" size="large" />
           </Form.Item>
           <Button type="primary" htmlType="submit" size="large" block loading={loading}>
             注册
