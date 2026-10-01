@@ -396,3 +396,22 @@ async def test_conversation_lifecycle_returns_knowledge_and_checks_owner(databas
         user.id = 'owner'
         assert (await client.get(path)).json()['data']['title'] == 'Renamed'
         assert (await client.delete(path)).status_code == 200
+
+
+def test_chat_request_drops_vestigial_llm_fields():
+    """messages/model/temperature/max_tokens 曾被静默忽略，前端还得塞假消息过校验。"""
+    from app.models.schemas import ChatRequest
+
+    # 只带真正用到的字段即可通过校验
+    request = ChatRequest(conversation_id='conv', question='question')
+    assert request.question == 'question'
+    assert request.mode == 'question'
+
+    # 采样参数改由用户的模型配置决定，不再出现在请求契约里
+    assert {'messages', 'model', 'temperature', 'max_tokens'} & set(ChatRequest.model_fields) == set()
+
+    # 老客户端仍带着 messages 时不能报错，多余字段直接忽略
+    legacy = ChatRequest(conversation_id='conv', question='question',
+                         messages=[{'role': 'user', 'content': 'question'}])
+    assert legacy.question == 'question'
+

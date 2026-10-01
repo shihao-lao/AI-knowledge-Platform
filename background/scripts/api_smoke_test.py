@@ -158,8 +158,7 @@ try:
     events = {"delta": 0, "citations": 0, "error": 0, "done": False}
     with httpx.stream("POST", BASE + "/chat", headers=hdr(), timeout=180,
                       json={"conversation_id": CONV, "question": "什么是 TCP 三次握手？",
-                            "enable_search": True, "mode": "question",
-                            "messages": [{"role": "user", "content": "什么是 TCP 三次握手？"}]}) as resp:
+                            "enable_search": True, "mode": "question"}) as resp:
         assert resp.status_code == 200, f"HTTP {resp.status_code}"
         for line in resp.iter_lines():
             if not line.startswith("data:"):

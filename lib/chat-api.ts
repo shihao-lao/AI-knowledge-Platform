@@ -56,7 +56,6 @@ export async function sendChatMessage(request: ChatRequest, callbacks: ChatCallb
         question: request.question,
         enable_search: request.enableSearch ?? true,
         mode: request.mode ?? 'question',
-        messages: [{ role: 'user', content: request.question }],
       }),
     });
 

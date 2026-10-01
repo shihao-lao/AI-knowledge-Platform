@@ -3,9 +3,7 @@
 
 from app.models.enums import AgentMode, MessageRole, RetrievalMode, TaskStatus
 from app.models.schemas import (
-    ChatMessage,
     ChatRequest,
-    ChatResponse,
     Citation,
     DocumentInfo,
     DocumentUploadRequest,
@@ -19,9 +17,7 @@ from app.models.schemas import (
 
 __all__ = [
     "AgentMode",
-    "ChatMessage",
     "ChatRequest",
-    "ChatResponse",
     "Citation",
     "DocumentInfo",
     "DocumentUploadRequest",
