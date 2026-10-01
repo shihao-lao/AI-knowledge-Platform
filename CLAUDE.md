@@ -12,19 +12,20 @@ AI 面试知识库智能问答平台。前端 Next.js 16（App Router）+ React 
 
 ## Commands
 
-前端命令在项目根目录执行：
+前端**统一使用 pnpm**（CI 同样是 pnpm），锁文件只有 `pnpm-lock.yaml`，勿用 npm/yarn：
 
 ```bash
-npm run dev              # 开发服务器（0.0.0.0:3001）
-npm run build            # 生产构建
-npm run start:standalone # 生产运行（output=standalone，不能用 next start）
-npm test                 # 前端回归脚本（checks/*.mjs，node --test）
-npm run lint             # ESLint
-npm run format           # Prettier 写入
-npm run format:check     # Prettier 检查（CI 执行）
+pnpm install             # 安装依赖（CI 用 --frozen-lockfile）
+pnpm run dev             # 开发服务器（0.0.0.0:3001）
+pnpm run build           # 生产构建
+pnpm run start:standalone # 生产运行（output=standalone，不能用 next start）
+pnpm test                # 前端回归脚本（checks/*.mjs，node --test）
+pnpm run lint            # ESLint
+pnpm run format          # Prettier 写入
+pnpm run format:check    # Prettier 检查（CI 执行）
 ```
 
-后端命令在 `background/` 目录执行：
+后端用 **`background/venv`** 里的解释器（根目录没有可用的 venv），命令在 `background/` 执行：
 
 ```bash
 python scripts/init_db.py                              # 建库 + 建表（幂等）
@@ -36,6 +37,9 @@ python -m uvicorn app.main:app --reload --port 8000    # 启动
 
 > 务必使用 `python -m uvicorn` 而非裸 `uvicorn`。后者按 PATH 解析，在多虚拟环境
 > 或 conda 共存时会静默选用错误解释器，表现为莫名的 `ModuleNotFoundError`。
+>
+> 同理务必用 `background/venv` 的解释器：系统 Python 会直接报
+> `ModuleNotFoundError: No module named 'aiomysql'`。
 
 ## Architecture
 

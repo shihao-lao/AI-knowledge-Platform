@@ -14,28 +14,45 @@ AI 面试知识库智能问答平台，采用 Next.js 前端与 Python FastAPI �
 
 ## Commands
 
-前端命令在项目根目录执行，完整脚本见 `package.json`：
+前端**统一使用 pnpm**（CI 同样是 pnpm），锁文件只有 `pnpm-lock.yaml`，请勿用 npm/yarn 安装：
 
 ```bash
-npm run dev               # 前端开发服务器
-npm run build             # 前端生产构建
-npm run start:standalone  # 运行 standalone 构建
-npm run lint              # ESLint
-npm run format            # Prettier（写入）
+pnpm install              # 安装依赖（CI 用 --frozen-lockfile）
+pnpm run dev              # 前端开发服务器（0.0.0.0:3001）
+pnpm run build            # 前端生产构建
+pnpm run start:standalone # 运行 standalone 构建
+pnpm test                 # 回归脚本（checks/*.mjs）
+pnpm run lint             # ESLint
+pnpm run format           # Prettier（写入）
+pnpm run format:check     # Prettier 检查（CI 执行）
 ```
 
-后端命令在 `background/` 目录执行：
+后端解释器用 **`background/venv`**（根目录没有可用的 venv），以下命令在 `background/` 目录执行：
 
 ```bash
-pip install -r requirements.txt
+./venv/Scripts/python.exe -m pip install -r requirements.txt   # Windows
+# source venv/bin/activate && pip install -r requirements.txt  # POSIX
+
 python scripts/init_db.py   # 建库 + 建表（幂等）
-alembic upgrade head        # 或使用迁移建表
+python -m alembic upgrade head   # 或使用迁移建表
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-python -m pytest tests      # 需安装 pyproject.toml 中的 dev 测试依赖；测试连 MySQL 测试库 ai_knowledge_platform_test
+python -m pytest tests      # 测试连 MySQL 测试库 ai_knowledge_platform_test
 ```
 
 > 务必使用 `python -m uvicorn`，不要用裸 `uvicorn`：后者按 PATH 解析，
 > 在多虚拟环境或 conda 共存时会静默选用错误解释器，报出难以定位的依赖错误。
+>
+> 同理务必确认用的是 `background/venv` 里的解释器：用系统 Python 或已删除的空壳
+> `.venv` 会直接报 `ModuleNotFoundError: No module named 'aiomysql'`。
+
+### 换行符
+
+仓库通过 `.gitattributes` 强制 `eol=lf`。Windows 上若本地 `core.autocrlf=true`，
+历史检出可能是 CRLF，会让 `pnpm format:check` 在未改动的文件上失败。修正方式：
+
+```bash
+git rm --cached -r -q . && git reset --hard -q
+```
 
 ## Architecture
 
