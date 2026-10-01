@@ -43,11 +43,8 @@ export default function AuthGuard({ children }: AuthGuardProps) {
 
   // 首次加载中显示 loading（后续导航不再显示）
   if (loading && !hasEverLoaded) {
-    return (
-      <div className="auth-loading">
-        <Spin size="large" tip="加载中..." />
-      </div>
-    );
+    // antd 的 tip 仅在 nest 或 fullscreen 模式下生效，此处使用 fullscreen
+    return <Spin size="large" fullscreen tip="加载中..." />;
   }
 
   // 如果需要认证但未登录，不渲染内容（等待 useEffect 跳转）
