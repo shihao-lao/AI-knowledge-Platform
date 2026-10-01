@@ -8,7 +8,14 @@ from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, JSON, Boolean
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.types import TypeDecorator
+
+
+# MySQL 的 TEXT 上限是 65535 字节，utf8mb4 下仅约 1.6 万汉字，
+# 对简历正文、文档分块这类字段不够用，统一改用 LONGTEXT；其他方言仍用标准 TEXT。
+LongText = Text().with_variant(LONGTEXT(), "mysql")
 
 
 def _uuid() -> str:
@@ -25,6 +32,32 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class UTCDateTime(TypeDecorator):
+    """UTC 时间列。
+
+    MySQL 的 DATETIME 不保存时区，直接写入带时区的值会丢掉偏移量。这里统一在
+    写入前换算成 UTC 并去掉时区，读取时再补回 UTC，保证进出都是带时区的 UTC
+    时间（SQLite / PostgreSQL 下同样成立）。
+    """
+
+    impl = DateTime
+    cache_ok = True
+
+    def process_bind_param(self, value: datetime | None, dialect) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+    def process_result_value(self, value: datetime | None, dialect) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+
 class Base(DeclarativeBase):
     """声明式基类。"""
 
@@ -37,9 +70,9 @@ class User(Base):
     id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_short_id)
     name: Mapped[str] = mapped_column(String(50))
     email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
-    password_hash: Mapped[str] = mapped_column(String)
+    password_hash: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime,
         default=_utcnow,
     )
 
@@ -69,15 +102,15 @@ class Knowledge(Base):
     id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_short_id)
     user_id: Mapped[str] = mapped_column(String(50), ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(200), index=True)  # 添加索引
-    description: Mapped[str] = mapped_column(Text, default="")
+    description: Mapped[str] = mapped_column(LongText, default="")
     status: Mapped[str] = mapped_column(String(20), default="active", index=True)  # 添加索引
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime,
         default=_utcnow,
         index=True,  # 添加索引
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime,
         default=_utcnow,
         onupdate=_utcnow,
     )
@@ -118,11 +151,11 @@ class Document(Base):
     char_count: Mapped[int] = mapped_column(Integer, default=0)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime,
         default=_utcnow,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime,
         default=_utcnow,
         onupdate=_utcnow,
     )
@@ -147,10 +180,10 @@ class Chunk(Base):
         index=True,
     )
     chunk_index: Mapped[int] = mapped_column(Integer, default=0)
-    content: Mapped[str] = mapped_column(Text)
+    content: Mapped[str] = mapped_column(LongText)
     token_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime,
         default=_utcnow,
     )
 
@@ -171,13 +204,13 @@ class Conversation(Base):
     )
     title: Mapped[str] = mapped_column(String(512), default="新对话")
     message_count: Mapped[int] = mapped_column(Integer, default=0)
-    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    summary: Mapped[str | None] = mapped_column(LongText, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime,
         default=_utcnow,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime,
         default=_utcnow,
         onupdate=_utcnow,
     )
@@ -202,10 +235,10 @@ class Message(Base):
         index=True,
     )
     role: Mapped[str] = mapped_column(String(32))  # 'user' | 'assistant' | 'system'
-    content: Mapped[str] = mapped_column(Text)
-    citations: Mapped[str] = mapped_column(Text, default="[]")  # JSON array of citations
+    content: Mapped[str] = mapped_column(LongText)
+    citations: Mapped[str] = mapped_column(LongText, default="[]")  # JSON array of citations
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime,
         default=_utcnow,
     )
 
@@ -230,16 +263,16 @@ class Question(Base):
     )
     category: Mapped[str] = mapped_column(String(100), default="未分类", index=True)  # 添加索引
     difficulty: Mapped[str] = mapped_column(String(20), default="medium", index=True)  # 添加索引
-    question: Mapped[str] = mapped_column(Text)
-    answer: Mapped[str] = mapped_column(Text)
-    keywords: Mapped[str] = mapped_column(Text, default="[]")  # JSON array string
+    question: Mapped[str] = mapped_column(LongText)
+    answer: Mapped[str] = mapped_column(LongText)
+    keywords: Mapped[str] = mapped_column(LongText, default="[]")  # JSON array string
     source: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime,
         default=_utcnow,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime,
         default=_utcnow,
         onupdate=_utcnow,
     )
@@ -269,11 +302,11 @@ class PracticeRecord(Base):
         index=True,
     )
     mode: Mapped[str] = mapped_column(String(20), default="question")  # question | mock
-    user_answer: Mapped[str] = mapped_column(Text)
+    user_answer: Mapped[str] = mapped_column(LongText)
     score: Mapped[int] = mapped_column(Integer, default=0)  # 0-100
-    feedback: Mapped[str] = mapped_column(Text, default="")
+    feedback: Mapped[str] = mapped_column(LongText, default="")
     evaluated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime,
         default=_utcnow,
     )
 
@@ -300,11 +333,12 @@ class Resume(Base):
     )
     filename: Mapped[str] = mapped_column(String(500))
     file_size: Mapped[int] = mapped_column(Integer, default=0)
-    content: Mapped[str] = mapped_column(Text)  # 原始解析文本（截取前 8000 字符送 LLM）
-    analysis: Mapped[str] = mapped_column(Text)  # AI 分析报告（Markdown）
+    content: Mapped[str] = mapped_column(LongText)  # 原始解析文本（截取前 8000 字符送 LLM）
+    analysis: Mapped[str] = mapped_column(LongText)  # AI 分析报告（Markdown）
     score: Mapped[int] = mapped_column(Integer, default=0)  # 0-100 整体评分
+    structured: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)  # 结构化简历模块
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        UTCDateTime,
         default=_utcnow,
     )
 
@@ -314,22 +348,4 @@ class Resume(Base):
     # 索引
     __table_args__ = (
         {"comment": "简历分析记录：上传简历 → 解析内容 → AI 分析报告"},
-    )
-
-
-class TraceLog(Base):
-    """追踪日志表：持久化关键 Span（可与内存 Tracer 配合）。"""
-
-    __tablename__ = "trace_logs"
-
-    id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_uuid)
-    trace_id: Mapped[str] = mapped_column(String(64), index=True)
-    span_id: Mapped[str] = mapped_column(String(64), index=True)
-    operation: Mapped[str] = mapped_column(String(256))
-    payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-    error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=_utcnow,
     )

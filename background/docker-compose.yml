@@ -7,50 +7,45 @@ services:
     ports:
       - '8000:8000'
     environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/agent_db
-      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: mysql+aiomysql://root:root@mysql:3306/ai_knowledge_platform
+      # 必须提供至少 32 字节的随机密钥，示例值会被应用启动时拒绝
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY 必须设置为至少 32 字节的随机密钥}
       MILVUS_HOST: milvus
       MILVUS_PORT: '19530'
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_API_BASE: ${OPENAI_API_BASE:-https://api.openai.com/v1}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      MIMO_API_KEY: ${MIMO_API_KEY:-}
+      MIMO_BASE_URL: ${MIMO_BASE_URL:-https://api.xiaomimimo.com/v1}
+      MIMO_MODEL: ${MIMO_MODEL:-mimo-v2.5}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-zh-v1.5}
       ALLOWED_ORIGINS: http://localhost:3000,http://localhost:3001
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
-      redis:
-        condition: service_started
       milvus:
         condition: service_started
     restart: unless-stopped
 
-  postgres:
-    image: postgres:16-alpine
-    container_name: enterprise-ai-agent-postgres
+  mysql:
+    image: mysql:8.0
+    container_name: enterprise-ai-agent-mysql
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: agent_db
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ai_knowledge_platform
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    # 宿主机映射到 3307，避免与本地已有的 3306 实例冲突；容器间仍走 3306
     ports:
-      - '5432:5432'
+      - '3307:3306'
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d agent_db']
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-proot']
       interval: 5s
       timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    container_name: enterprise-ai-agent-redis
-    ports:
-      - '6379:6379'
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
+      retries: 10
     restart: unless-stopped
 
   etcd:
@@ -100,8 +95,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
-  redis_data:
+  mysql_data:
   etcd_data:
   minio_data:
   milvus_data:

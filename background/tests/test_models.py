@@ -5,7 +5,7 @@ import pytest
 from datetime import datetime, timezone
 from app.infrastructure.database.models import (
     Base, User, Knowledge, Document, Chunk, Conversation, Message,
-    Question, PracticeRecord, Resume, TraceLog, _utcnow, _short_id, _uuid
+    Question, PracticeRecord, Resume, _utcnow, _short_id, _uuid
 )
 
 
@@ -64,15 +64,8 @@ class TestUserModel:
         assert user.id.startswith("u_")
 
     def test_user_created_at(self):
-        """测试用户创建时间。"""
-        user = User(
-            name="测试用户",
-            email="test@example.com",
-            password_hash="hashed_password"
-        )
-        # 创建时间应该在实例化时设置
-        assert user.created_at is not None
-        assert isinstance(user.created_at, datetime)
+        """测试用户创建时间列默认值（列默认值在 INSERT 时生效）。"""
+        assert User.__table__.c.created_at.default is not None
 
 
 class TestKnowledgeModel:
@@ -88,16 +81,12 @@ class TestKnowledgeModel:
         assert knowledge.user_id == "u_12345678"
         assert knowledge.name == "测试知识库"
         assert knowledge.description == "测试描述"
-        assert knowledge.status == "active"  # 默认值
+        assert Knowledge.__table__.c.status.default.arg == "active"  # 默认值（INSERT 时生效）
 
     def test_knowledge_default_values(self):
-        """测试知识库默认值。"""
-        knowledge = Knowledge(
-            user_id="u_12345678",
-            name="测试知识库"
-        )
-        assert knowledge.description == ""
-        assert knowledge.status == "active"
+        """测试知识库默认值（列默认值在 INSERT 时生效）。"""
+        assert Knowledge.__table__.c.description.default.arg == ""
+        assert Knowledge.__table__.c.status.default.arg == "active"
 
 
 class TestDocumentModel:
@@ -111,9 +100,9 @@ class TestDocumentModel:
         )
         assert document.knowledge_id == "u_12345678"
         assert document.filename == "test.txt"
-        assert document.mime_type == "application/octet-stream"  # 默认值
-        assert document.parse_status == "pending"  # 默认值
-        assert document.enabled is True  # 默认值
+        assert Document.__table__.c.mime_type.default.arg == "application/octet-stream"  # 默认值
+        assert Document.__table__.c.parse_status.default.arg == "pending"  # 默认值
+        assert Document.__table__.c.enabled.default.arg is True  # 默认值
 
 
 class TestConversationModel:
@@ -127,7 +116,7 @@ class TestConversationModel:
         )
         assert conversation.knowledge_id == "u_12345678"
         assert conversation.title == "测试对话"
-        assert conversation.message_count == 0  # 默认值
+        assert Conversation.__table__.c.message_count.default.arg == 0  # 默认值
 
 
 class TestQuestionModel:
@@ -143,9 +132,9 @@ class TestQuestionModel:
         assert question.knowledge_id == "u_12345678"
         assert question.question == "什么是 Python？"
         assert question.answer == "Python 是一种编程语言"
-        assert question.category == "未分类"  # 默认值
-        assert question.difficulty == "medium"  # 默认值
-        assert question.keywords == "[]"  # 默认值
+        assert Question.__table__.c.category.default.arg == "未分类"  # 默认值
+        assert Question.__table__.c.difficulty.default.arg == "medium"  # 默认值
+        assert Question.__table__.c.keywords.default.arg == "[]"  # 默认值
 
 
 class TestPracticeRecordModel:
@@ -161,8 +150,8 @@ class TestPracticeRecordModel:
         assert record.question_id == "u_12345678"
         assert record.user_id == "u_87654321"
         assert record.user_answer == "测试答案"
-        assert record.mode == "question"  # 默认值
-        assert record.score == 0  # 默认值
+        assert PracticeRecord.__table__.c.mode.default.arg == "question"  # 默认值
+        assert PracticeRecord.__table__.c.score.default.arg == 0  # 默认值
 
 
 class TestResumeModel:
@@ -180,7 +169,7 @@ class TestResumeModel:
         assert resume.filename == "resume.pdf"
         assert resume.content == "简历内容"
         assert resume.analysis == "分析报告"
-        assert resume.score == 0  # 默认值
+        assert Resume.__table__.c.score.default.arg == 0  # 默认值
 
 
 class TestRelationships:

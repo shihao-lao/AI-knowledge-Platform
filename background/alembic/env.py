@@ -18,13 +18,27 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from app.infrastructure.database.models import Base
+from app.config import get_settings
+from app.infrastructure.database.models import Base, UTCDateTime
+from app.infrastructure.database.session import to_sync_database_url
+
 target_metadata = Base.metadata
 
-# Override sqlalchemy.url with environment variable if available
-database_url = os.getenv("DATABASE_URL")
+
+def render_item(type_, obj, autogen_context):
+    """把自定义的 UTCDateTime 渲染成标准的 sa.DateTime()。
+
+    否则 Alembic 会写出 ``app.infrastructure.database.models.UTCDateTime()``，
+    而迁移脚本里并没有这个导入，导致 NameError。
+    """
+    if type_ == "type" and isinstance(obj, UTCDateTime):
+        return "sa.DateTime()"
+    return False
+
+# Alembic 走同步引擎：把应用的异步 URL（aiomysql）换成同步驱动（pymysql）
+database_url = os.getenv("DATABASE_URL") or get_settings().database_url
 if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+    config.set_main_option("sqlalchemy.url", to_sync_database_url(database_url))
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -49,6 +63,8 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        render_item=render_item,
+        compare_type=True,
     )
 
     with context.begin_transaction():
@@ -71,6 +87,8 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            render_item=render_item,
+            compare_type=True,
         )
 
         with context.begin_transaction():

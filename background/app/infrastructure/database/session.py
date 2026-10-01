@@ -15,22 +15,23 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-# 默认异步 PostgreSQL（需安装 asyncpg）
-_default_url = "postgresql+asyncpg://postgres:postgres@localhost:5432/agent_db"
+# 默认异步 MySQL（需安装 aiomysql；PyMySQL 是其底层同步驱动）
+_default_url = "mysql+aiomysql://root:root@localhost:3306/ai_knowledge_platform"
 
 
 def normalize_async_database_url(url: str) -> str:
-    """将同步驱动 URL 转为 SQLAlchemy 异步 URL。"""
-    if "+asyncpg" in url:
+    """将 MySQL URL 归一化为 SQLAlchemy 异步驱动（aiomysql）。"""
+    if "+aiomysql" in url:
         return url
-    u = url.replace("postgresql+psycopg2://", "postgresql+asyncpg://")
-    u = u.replace("postgres://", "postgresql+asyncpg://")
-    u = re.sub(
-        r"^postgresql://",
-        "postgresql+asyncpg://",
-        u,
-    )
+    u = url.replace("mysql+pymysql://", "mysql+aiomysql://")
+    u = u.replace("mysql+mysqldb://", "mysql+aiomysql://")
+    u = re.sub(r"^mysql://", "mysql+aiomysql://", u)
     return u
+
+
+def to_sync_database_url(url: str) -> str:
+    """转为同步驱动 URL（Alembic 迁移使用同步引擎）。"""
+    return url.replace("+aiomysql", "+pymysql").replace("+aiosqlite", "+pysqlite")
 
 
 def init_engine(database_url: str | None = None, **engine_kwargs: Any) -> AsyncEngine:

@@ -15,7 +15,7 @@ if exist venv\Scripts\activate.bat (
 
 echo.
 echo 2. 安装依赖...
-pip install -r requirements-minimal.txt
+pip install -r requirements.txt
 
 echo.
 echo 3. 检查 .env 文件...
@@ -31,8 +31,8 @@ if not exist .env (
 )
 
 echo.
-echo 4. 创建数据库表...
-python scripts/create_tables_sqlite.py
+echo 4. 创建数据库与表...
+python scripts/init_db.py
 
 echo.
 echo 5. 启动应用...

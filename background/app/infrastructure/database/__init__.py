@@ -12,7 +12,6 @@ from app.infrastructure.database.models import (
     Question,
     PracticeRecord,
     Resume,
-    TraceLog,
 )
 from app.infrastructure.database.session import (
     async_session_factory,
@@ -20,6 +19,7 @@ from app.infrastructure.database.session import (
     get_async_session,
     init_engine,
     normalize_async_database_url,
+    to_sync_database_url,
 )
 
 __all__ = [
@@ -33,10 +33,10 @@ __all__ = [
     "Question",
     "PracticeRecord",
     "Resume",
-    "TraceLog",
     "async_session_factory",
     "configure_session",
     "get_async_session",
     "init_engine",
     "normalize_async_database_url",
+    "to_sync_database_url",
 ]

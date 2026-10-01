@@ -4,7 +4,7 @@
 import pytest
 from app.infrastructure.database.models import (
     User, Knowledge, Document, Chunk, Conversation, Message,
-    Question, PracticeRecord, Resume, TraceLog
+    Question, PracticeRecord, Resume
 )
 
 
@@ -155,24 +155,6 @@ class TestResumeIndexes:
         user_id_col = columns.get('user_id')
         assert user_id_col is not None
         assert user_id_col.index is True
-
-
-class TestTraceLogIndexes:
-    """测试 TraceLog 表索引。"""
-
-    def test_trace_id_index(self):
-        """测试追踪 ID 索引。"""
-        columns = TraceLog.__table__.columns
-        trace_id_col = columns.get('trace_id')
-        assert trace_id_col is not None
-        assert trace_id_col.index is True
-
-    def test_span_id_index(self):
-        """测试 Span ID 索引。"""
-        columns = TraceLog.__table__.columns
-        span_id_col = columns.get('span_id')
-        assert span_id_col is not None
-        assert span_id_col.index is True
 
 
 class TestIndexCompleteness:

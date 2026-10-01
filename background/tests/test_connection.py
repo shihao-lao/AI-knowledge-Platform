@@ -10,31 +10,37 @@ from app.infrastructure.database.session import (
 
 
 class TestDatabaseURLNormalization:
-    """测试数据库 URL 规范化。"""
+    """测试数据库 URL 规范化（MySQL → aiomysql）。"""
 
-    def test_postgresql_asyncpg_url(self):
-        """测试 PostgreSQL asyncpg URL。"""
-        url = "postgresql+asyncpg://user:pass@localhost/db"
-        result = normalize_async_database_url(url)
-        assert result == url
+    def test_already_async_mysql_url(self):
+        """已经是 aiomysql 的 URL 保持不变。"""
+        url = "mysql+aiomysql://user:pass@localhost/db"
+        assert normalize_async_database_url(url) == url
 
-    def test_postgresql_psycopg2_to_asyncpg(self):
-        """测试 psycopg2 URL 转换为 asyncpg。"""
-        url = "postgresql+psycopg2://user:pass@localhost/db"
+    def test_pymysql_to_aiomysql(self):
+        """测试 pymysql URL 转换为 aiomysql。"""
+        url = "mysql+pymysql://user:pass@localhost/db"
         result = normalize_async_database_url(url)
-        assert result == "postgresql+asyncpg://user:pass@localhost/db"
+        assert result == "mysql+aiomysql://user:pass@localhost/db"
 
-    def test_postgres_url_to_asyncpg(self):
-        """测试 postgres URL 转换为 asyncpg。"""
-        url = "postgres://user:pass@localhost/db"
+    def test_mysqldb_to_aiomysql(self):
+        """测试 mysqldb URL 转换为 aiomysql。"""
+        url = "mysql+mysqldb://user:pass@localhost/db"
         result = normalize_async_database_url(url)
-        assert result == "postgresql+asyncpg://user:pass@localhost/db"
+        assert result == "mysql+aiomysql://user:pass@localhost/db"
 
-    def test_postgresql_url_to_asyncpg(self):
-        """测试 postgresql URL 转换为 asyncpg。"""
-        url = "postgresql://user:pass@localhost/db"
+    def test_plain_mysql_url_to_aiomysql(self):
+        """测试裸 mysql:// URL 转换为 aiomysql。"""
+        url = "mysql://user:pass@localhost/db"
         result = normalize_async_database_url(url)
-        assert result == "postgresql+asyncpg://user:pass@localhost/db"
+        assert result == "mysql+aiomysql://user:pass@localhost/db"
+
+    def test_sync_url_conversion(self):
+        """测试 Alembic 用的同步 URL 转换。"""
+        from app.infrastructure.database.session import to_sync_database_url
+
+        url = "mysql+aiomysql://user:pass@localhost/db"
+        assert to_sync_database_url(url) == "mysql+pymysql://user:pass@localhost/db"
 
 
 class TestEngineInitialization:
@@ -51,7 +57,7 @@ class TestEngineInitialization:
         mock_create_engine.assert_called_once()
         call_args = mock_create_engine.call_args
         url = call_args[0][0]
-        assert "postgresql+asyncpg" in url
+        assert "mysql+aiomysql" in url
 
     @patch('app.infrastructure.database.session.create_async_engine')
     def test_init_engine_custom_url(self, mock_create_engine):
@@ -59,7 +65,7 @@ class TestEngineInitialization:
         mock_engine = MagicMock()
         mock_create_engine.return_value = mock_engine
 
-        custom_url = "postgresql+asyncpg://custom:pass@localhost/custom_db"
+        custom_url = "mysql+aiomysql://custom:pass@localhost/custom_db"
         engine = init_engine(custom_url)
 
         mock_create_engine.assert_called_once()

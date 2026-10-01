@@ -7,25 +7,10 @@ import os
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# 设置测试环境变量
+# 设置测试环境变量（jose / bcrypt 均已安装，不需要模块替身；
+# 替身会污染 sys.modules 并让其他测试拿到假的 jose）
 os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test.db"
-
-# 模拟缺失的模块
-class MockModule:
-    def __getattr__(self, name):
-        return MockModule()
-    
-    def __call__(self, *args, **kwargs):
-        return MockModule()
-
-# 模拟缺失的模块
-sys.modules['jose'] = MockModule()
-sys.modules['jose.jwt'] = MockModule()
-sys.modules['jose.exceptions'] = MockModule()
-sys.modules['passlib'] = MockModule()
-sys.modules['passlib.context'] = MockModule()
-sys.modules['bcrypt'] = MockModule()
+os.environ["DATABASE_URL"] = "mysql+aiomysql://root:root@localhost:3306/ai_knowledge_platform_test"
 
 
 def test_user_schemas():

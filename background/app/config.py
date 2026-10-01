@@ -28,11 +28,9 @@ class Settings(BaseSettings):
     openai_model: str = Field(default="gpt-4o-mini", description="默认对话模型")
 
     database_url: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@localhost:5432/agent_db",
-        description="SQLAlchemy 异步数据库 URL（推荐 postgresql+asyncpg）",
+        default="mysql+aiomysql://root:root@localhost:3306/ai_knowledge_platform",
+        description="SQLAlchemy 异步数据库 URL（MySQL，驱动 aiomysql）",
     )
-    redis_url: str = Field(default="redis://localhost:6379/0", description="Redis URL")
-
     milvus_host: str = Field(default="localhost", description="Milvus 主机")
     milvus_port: int = Field(default=19530, description="Milvus 端口")
     milvus_user: str = Field(default="", description="Milvus 用户名")

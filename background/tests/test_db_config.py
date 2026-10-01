@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.infrastructure.database.models import (
     Base, User, Knowledge, Document, Chunk, Conversation, Message,
-    Question, PracticeRecord, Resume, TraceLog, _utcnow, _short_id, _uuid
+    Question, PracticeRecord, Resume, _utcnow, _short_id, _uuid
 )
 
 
@@ -174,7 +174,7 @@ def test_table_structure():
     expected_tables = [
         'users', 'knowledge_bases', 'documents', 'chunks',
         'conversations', 'messages', 'questions', 'practice_records',
-        'resumes', 'trace_logs'
+        'resumes'
     ]
 
     for table_name in expected_tables:
@@ -191,8 +191,7 @@ def test_table_structure():
         'messages': 6,
         'questions': 10,
         'practice_records': 8,
-        'resumes': 8,
-        'trace_logs': 8,
+        'resumes': 9,
     }
 
     for table_name, expected_cols in table_info.items():

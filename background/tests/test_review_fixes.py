@@ -1,5 +1,6 @@
-"""Regression checks using an isolated in-memory database; no live services."""
+"""Regression checks using the isolated MySQL test database; no live services."""
 import json
+import os
 import asyncio
 from collections import defaultdict
 from unittest.mock import AsyncMock
@@ -17,10 +18,11 @@ from app.services import practice_service
 
 @pytest_asyncio.fixture
 async def database(monkeypatch, vector_store):
-    engine = create_async_engine('sqlite+aiosqlite:///:memory:')
+    engine = create_async_engine(os.environ['DATABASE_URL'])
     factory = async_sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr(db, 'async_session_factory', factory)
     async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     async with factory() as session:
         session.add_all([User(id='owner', name='Owner', email='o@test.com', password_hash='x'),
