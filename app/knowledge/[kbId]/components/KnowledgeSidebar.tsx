@@ -33,8 +33,10 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
     if (!expandedDoc?.content) {
       setSummary('');
       setSummaryError('');
+      setSummaryLoading(false);
       setSkill('');
       setSkillError('');
+      setSkillLoading(false);
       return;
     }
 
@@ -63,7 +65,10 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
 
   // 切换到专家 Skill 时触发生成
   useEffect(() => {
-    if (activeTab !== 'skill' || !expandedDoc?.content || skill) return;
+    if (activeTab !== 'skill' || !expandedDoc?.content || skill) {
+      setSkillLoading(false);
+      return;
+    }
 
     let cancelled = false;
     setSkill('');
@@ -92,6 +97,7 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
   useEffect(() => {
     setSkill('');
     setSkillError('');
+    setSkillLoading(false);
     setActiveTab('summary');
     setCopied(false);
   }, [expandedDoc?.id]);
