@@ -99,7 +99,7 @@ export default function QuestionBankPage() {
     setImporting(true);
     try {
       const res = await api.importQuestions(kbId, parsed);
-      message.success(`成功导入 ${res.data.count} 道题`);
+      message.success(res.data.message || `成功导入 ${res.data.imported} 道题`);
       setImportOpen(false);
       setImportText('');
       fetchQuestions();
