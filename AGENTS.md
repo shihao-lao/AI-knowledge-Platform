@@ -44,7 +44,7 @@ python -m pytest tests      # 需安装 pyproject.toml 中的 dev 测试依赖�
 - `lib/api-client.ts` 封装普通 HTTP 请求，`lib/chat-api.ts` 处理聊天 SSE；默认地址均为 `http://localhost:8000/api/v1`。
 - 前端通过 `NEXT_PUBLIC_API_URL` 覆盖 API 地址；后端前缀由 `background/app/config.py` 中的 `api_prefix` 配置。修改前缀时需同步前端地址。
 - 前端公开配置参考根目录 `.env.example`；后端配置放在 `background/.env`。跨域来源由后端 `ALLOWED_ORIGINS` 配置。
-- Python 路由集中在 `background/app/api/routes/`，涵盖 auth、knowledge、document、conversation、chat、question、practice、resume、ai 和 health；注册列表以 `background/app/main.py` 为准。
+- Python 路由集中在 `background/app/api/routes/`，涵盖 auth、knowledge、document、conversation、chat、question、practice、resume、ai、citation、settings 和 health；注册列表以 `background/app/main.py` 为准。
 - 认证由 `background/app/services/auth_service.py` 实现，使用 bcrypt 密码哈希与 JWT；前端通过 `Authorization: Bearer` 发送令牌。
 - 受保护接口在 Python 后端验证身份和资源归属；前端 `components/auth-guard.tsx` 负责页面访问引导。
 

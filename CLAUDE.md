@@ -43,7 +43,7 @@ python -m uvicorn app.main:app --reload --port 8000    # 启动
 
 - 前端不做业务逻辑，所有请求经 `lib/api-client.ts`（普通 HTTP）与 `lib/chat-api.ts`（SSE 手写解析）打到 FastAPI。
 - 检索编排在 `background/app/services/retrieval_service.py`；BM25 与精排实现在 `background/app/core/rag/`。
-- 数据库模型以 `background/app/infrastructure/database/models.py` 为准（9 张表）。
+- 数据库模型以 `background/app/infrastructure/database/models.py` 为准（10 张表）。
 - 认证为 JWT（HS256）+ bcrypt；归属校验在服务层，所有资源经 `Knowledge.user_id` 验证。
 
 ## Code Style
