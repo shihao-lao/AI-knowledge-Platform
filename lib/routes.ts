@@ -32,7 +32,8 @@ export const PROTECTED_ROUTES = [
   '/knowledge/',
   '/chat/',
   '/questions/',
-  '/statistics/',
+  // 不带尾斜杠才能同时覆盖 /statistics 与 /statistics/[kbId]
+  '/statistics',
   ROUTES.RESUMES,
   ROUTES.SETTINGS_PROFILE,
 ] as const;
