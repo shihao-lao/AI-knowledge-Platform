@@ -7,17 +7,17 @@ on:
     branches: [main, dev]
 
 jobs:
+  # 保留原有 job 名，避免分支保护要求的状态检查失效
   format-and-typecheck:
     name: Format Check / Type Check
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
 
+      # 不写 version，由 package.json 的 packageManager 决定版本，避免两处不一致
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -32,3 +32,63 @@ jobs:
 
       - name: Type Check
         run: pnpm tsc --noEmit
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Regression checks
+        run: pnpm test
+
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: ai_knowledge_platform_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    env:
+      DATABASE_URL: mysql+aiomysql://root:root@127.0.0.1:3306/ai_knowledge_platform_test
+      TEST_DATABASE_URL: mysql+aiomysql://root:root@127.0.0.1:3306/ai_knowledge_platform_test
+      SECRET_KEY: test-secret-key-for-testing-only
+      # 测试不会加载真实模型（导入是懒加载、精排已被 mock），置为离线避免误联网下载
+      HF_HUB_OFFLINE: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: background/requirements.txt
+
+      # 先装 CPU 版 torch：sentence-transformers 依赖它，默认源会拉体积巨大的 CUDA 版
+      - name: Install CPU-only PyTorch
+        run: pip install --index-url https://download.pytorch.org/whl/cpu torch
+
+      - name: Install dependencies
+        working-directory: background
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Check dependency consistency
+        working-directory: background
+        run: python -m pip check
+
+      - name: Run tests
+        working-directory: background
+        run: python -m pytest tests -q
