@@ -120,22 +120,22 @@ export default function StatisticsPage() {
         <Spin spinning={loading}>
           {summary && (
             <Row gutter={[16, 16]} className="util-mb-6">
-              <Col xs={24} sm={12} lg={6}>
+              <Col xs={12} sm={12} lg={6}>
                 <Card>
                   <Statistic title="总引用次数" value={summary.totalCitations} prefix={<BarChartOutlined />} />
                 </Card>
               </Col>
-              <Col xs={24} sm={12} lg={6}>
+              <Col xs={12} sm={12} lg={6}>
                 <Card>
                   <Statistic title="被引文档数" value={summary.uniqueDocumentsCited} prefix={<FileOutlined />} />
                 </Card>
               </Col>
-              <Col xs={24} sm={12} lg={6}>
+              <Col xs={12} sm={12} lg={6}>
                 <Card>
                   <Statistic title="相关对话数" value={summary.totalConversations} prefix={<TeamOutlined />} />
                 </Card>
               </Col>
-              <Col xs={24} sm={12} lg={6}>
+              <Col xs={12} sm={12} lg={6}>
                 <Card>
                   <Statistic title="引用消息数" value={summary.totalAssistantMessages} prefix={<MessageOutlined />} />
                 </Card>
@@ -194,17 +194,17 @@ export default function StatisticsPage() {
                 练习掌握度
               </Typography.Title>
               <Row gutter={[16, 16]} className="util-mb-6">
-                <Col xs={24} sm={12} lg={6}>
+                <Col xs={12} sm={12} lg={6}>
                   <Card>
                     <Statistic title="练习次数" value={practiceStats.total} prefix={<EditOutlined />} />
                   </Card>
                 </Col>
-                <Col xs={24} sm={12} lg={6}>
+                <Col xs={12} sm={12} lg={6}>
                   <Card>
                     <Statistic title="平均分" value={practiceStats.averageScore} suffix="/ 100" />
                   </Card>
                 </Col>
-                <Col xs={24} sm={12} lg={6}>
+                <Col xs={12} sm={12} lg={6}>
                   <Card>
                     <Statistic
                       title="最高分"
@@ -213,7 +213,7 @@ export default function StatisticsPage() {
                     />
                   </Card>
                 </Col>
-                <Col xs={24} sm={12} lg={6}>
+                <Col xs={12} sm={12} lg={6}>
                   <Card>
                     <Statistic
                       title="最低分"
