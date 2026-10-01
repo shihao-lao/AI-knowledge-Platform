@@ -1,10 +1,9 @@
 'use client';
 
-import { BookOutlined, DeleteOutlined } from '@ant-design/icons';
-import { App, Typography } from 'antd';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import HubShell from '@/components/hub-shell';
 import { api, type ApiKnowledge } from '@/lib/api-client';
 import { ROUTES } from '@/lib/routes';
 import { knowledgePath, chatPath, statisticsPath, questionsPath, resumesPath } from '@/lib/paths';
@@ -17,7 +16,6 @@ interface AppShellProps {
 export default function AppShell({ children, activeNav }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { modal } = App.useApp();
   const [knowledgeBases, setKnowledgeBases] = useState<ApiKnowledge[]>([]);
 
   // 从 URL 中提取当前 kbId
@@ -40,13 +38,11 @@ export default function AppShell({ children, activeNav }: AppShellProps) {
   // 避免导航项变成点了没反应的死链
   const navKbId = currentKbId || knowledgeBases[0]?.id || '';
 
-  const kbConversations: never[] = []; // AppShell 不管理对话列表
-
   return (
-    <div className="hub-shell">
-      <aside className="hub-sidebar">
-        {/* 品牌 */}
-        <div className="hub-brand">
+    <HubShell>
+      <aside className="hub-sidebar" id="app-sidebar">
+        {/* 品牌（移动端顶栏已有，抽屉内隐藏） */}
+        <div className="hub-brand hub-sidebar__brand">
           <span className="hub-brand__mark">知</span>
           <span>知识中枢</span>
         </div>
@@ -127,6 +123,6 @@ export default function AppShell({ children, activeNav }: AppShellProps) {
       </aside>
 
       <div className="hub-main">{children}</div>
-    </div>
+    </HubShell>
   );
 }

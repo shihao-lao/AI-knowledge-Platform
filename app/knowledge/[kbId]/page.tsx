@@ -3,7 +3,8 @@
 import { App, Space, Typography, Spin } from 'antd';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { knowledgePath, chatPath, statisticsPath, questionsPath, resumesPath } from '@/lib/paths';
+import AppShell from '@/components/app-shell';
+import { knowledgePath, chatPath } from '@/lib/paths';
 import { api, type ApiKnowledge, type ApiDocument } from '@/lib/api-client';
 import { useExpandedDocIds, useKnowledgeStore } from '@/stores/knowledge-store';
 import CreateDocumentModal from './components/CreateDocumentModal';
@@ -267,89 +268,32 @@ export default function KnowledgeWorkspacePage() {
   const sidebarDoc = sidebarDocRaw ? toKnowledgeDocument(sidebarDocRaw) : null;
 
   return (
-    <div className="hub-shell">
-      <aside className="hub-sidebar">
-        <div className="hub-brand">
-          <span className="hub-brand__mark">知</span>
-          <span>知识中枢</span>
-        </div>
-
-        <nav className="hub-nav">
-          <button type="button" className="hub-nav__item is-active">
-            <span>📚</span>
-            <span>知识库</span>
-          </button>
-          <button type="button" className="hub-nav__item" onClick={goToChat}>
-            <span>💬</span>
-            <span>AI 对话</span>
-          </button>
-          <button type="button" className="hub-nav__item" onClick={() => router.push(questionsPath(activeKbId))}>
-            <span>❓</span>
-            <span>面试题库</span>
-          </button>
-          <button type="button" className="hub-nav__item" onClick={() => router.push(resumesPath())}>
-            <span>📄</span>
-            <span>简历分析</span>
-          </button>
-          <button type="button" className="hub-nav__item" onClick={() => router.push(statisticsPath(activeKbId))}>
-            <span>📊</span>
-            <span>引用统计</span>
-          </button>
-        </nav>
-
-        <div className="hub-side-section">
-          <div className="hub-section-title">
-            <span>我的知识库</span>
-            <span>{knowledgeBases.length}</span>
-          </div>
-          {knowledgeBases.map((kb) => (
-            <button
-              type="button"
-              key={kb.id}
-              className={`hub-kb ${activeKbId === kb.id ? 'is-active' : ''}`}
-              onClick={() => router.push(knowledgePath(kb.id))}
-            >
-              <span>{kb.name}</span>
-              <small>{kb.documentCount ?? 0} 份知识</small>
-            </button>
-          ))}
-        </div>
-
-        <div className="hub-sidebar__bottom">
-          <button type="button" className="hub-nav__item" onClick={() => router.push('/knowledge-bases')}>
-            <span>📦</span>
-            <span>知识库管理</span>
-          </button>
-        </div>
-      </aside>
-
-      <main className="hub-main">
-        <section className="knowledge-workspace">
-          <div className="knowledge-main">
-            <div className="knowledge-head">
-              <div>
-                <Typography.Title level={2}>{activeKb?.name || '我的知识合集'}</Typography.Title>
-                <Typography.Text type="secondary">{activeKb?.description || '暂无描述'}</Typography.Text>
-              </div>
-              <Space wrap>
-                <KnowledgeUploader onUpload={handleUpload} onCreateManual={() => setDocModalOpen(true)} />
-              </Space>
+    <AppShell activeNav="knowledge">
+      <section className="knowledge-workspace">
+        <div className="knowledge-main">
+          <div className="knowledge-head">
+            <div>
+              <Typography.Title level={2}>{activeKb?.name || '我的知识合集'}</Typography.Title>
+              <Typography.Text type="secondary">{activeKb?.description || '暂无描述'}</Typography.Text>
             </div>
-            <Spin spinning={loading}>
-              <KnowledgeDocumentList
-                documents={documents.map(toKnowledgeDocument)}
-                expandedDocIds={expandedDocIds}
-                onToggleExpand={handleToggleExpand}
-                onDelete={removeDocument}
-                onToggleEnabled={handleToggleEnabled}
-              />
-            </Spin>
+            <Space wrap>
+              <KnowledgeUploader onUpload={handleUpload} onCreateManual={() => setDocModalOpen(true)} />
+            </Space>
           </div>
-          <KnowledgeSidebar expandedDoc={sidebarDoc} onGoToChat={goToChat} />
-        </section>
-      </main>
+          <Spin spinning={loading}>
+            <KnowledgeDocumentList
+              documents={documents.map(toKnowledgeDocument)}
+              expandedDocIds={expandedDocIds}
+              onToggleExpand={handleToggleExpand}
+              onDelete={removeDocument}
+              onToggleEnabled={handleToggleEnabled}
+            />
+          </Spin>
+        </div>
+        <KnowledgeSidebar expandedDoc={sidebarDoc} onGoToChat={goToChat} />
+      </section>
 
       <CreateDocumentModal open={docModalOpen} onClose={() => setDocModalOpen(false)} onSubmit={handleCreateDoc} />
-    </div>
+    </AppShell>
   );
 }

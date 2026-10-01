@@ -1,11 +1,12 @@
 'use client';
 
-import { App, Select, Typography } from 'antd';
+import { App, Select, Space, Typography } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import type { Message } from '@/types';
 import { chatPath, knowledgePath, statisticsPath, questionsPath, resumesPath } from '@/lib/paths';
+import HubShell from '@/components/hub-shell';
 import { createWelcomeMessage } from '@/lib/chat';
 import { sendChatMessage } from '@/lib/chat-api';
 import { api, type ApiKnowledge, type ApiConversation, type ApiUser } from '@/lib/api-client';
@@ -252,8 +253,8 @@ export default function ChatConversationPage() {
   };
 
   return (
-    <div className="hub-shell">
-      <aside className="hub-sidebar">
+    <HubShell>
+      <aside className="hub-sidebar" id="app-sidebar">
         <div className="hub-brand">
           <span className="hub-brand__mark">知</span>
           <span>知识中枢</span>
@@ -341,22 +342,24 @@ export default function ChatConversationPage() {
                 <Typography.Title level={2}>{activeConversation?.title || 'AI 对话'}</Typography.Title>
                 <Typography.Text type="secondary">当前问答范围：{activeKb?.name}</Typography.Text>
               </div>
-              <Select
-                value={chatMode}
-                onChange={(m) => setChatMode(m)}
-                style={{ width: 130 }}
-                options={[
-                  { value: 'question', label: '💬 知识问答' },
-                  { value: 'interview', label: '🎤 模拟面试' },
-                ]}
-              />
-              <Select
-                value={activeKbId}
-                onChange={(kbId) => {
-                  router.push(chatPath(kbId));
-                }}
-                options={knowledgeBases.map((kb) => ({ value: kb.id, label: kb.name }))}
-              />
+              <Space wrap>
+                <Select
+                  value={chatMode}
+                  onChange={(m) => setChatMode(m)}
+                  style={{ width: 130 }}
+                  options={[
+                    { value: 'question', label: '💬 知识问答' },
+                    { value: 'interview', label: '🎤 模拟面试' },
+                  ]}
+                />
+                <Select
+                  value={activeKbId}
+                  onChange={(kbId) => {
+                    router.push(chatPath(kbId));
+                  }}
+                  options={knowledgeBases.map((kb) => ({ value: kb.id, label: kb.name }))}
+                />
+              </Space>
             </div>
             <ChatMessageList
               messages={messages}
@@ -369,6 +372,6 @@ export default function ChatConversationPage() {
           </div>
         </section>
       </main>
-    </div>
+    </HubShell>
   );
 }

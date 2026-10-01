@@ -250,6 +250,30 @@ textarea {
   background: var(--color-bg);
 }
 
+/* 移动端顶栏与抽屉遮罩：仅在窄屏出现，桌面端不参与布局 */
+.hub-mobile-bar,
+.hub-nav-backdrop {
+  display: none;
+}
+
+.hub-mobile-toggle {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.hub-mobile-toggle:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
 /* -- Sidebar ---------------------------------------------------- */
 .hub-sidebar {
   height: 100vh;
@@ -551,7 +575,8 @@ textarea {
 .chat-main {
   min-width: 0;
   min-height: 0;
-  padding: 24px 0px;
+  /* 左右留白：此前是 0，标题会直接贴在侧栏和右侧面板的边上（chat-main 后续覆盖为 0） */
+  padding: 24px clamp(16px, 2.4vw, 32px);
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -1338,6 +1363,7 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .page-toolbar h2,
@@ -1591,16 +1617,85 @@ textarea {
   }
 }
 
-@media (max-width: 760px) {
+/* 平板与手机：侧栏收进抽屉，主区独占整个宽度。
+   248/220px 的固定侧栏在 768px 上只给内容留 548px，过于局促。 */
+@media (max-width: 900px) {
   .hub-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100vh;
+    height: 100dvh;
   }
 
-  .hub-sidebar {
-    position: static;
+  /* 顶栏吸顶，主区占满剩余高度（保持内滚动，聊天输入框才能固定在底部） */
+  .hub-mobile-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    padding: 10px 14px;
+    background: var(--sidebar);
+  }
+
+  .hub-mobile-bar .hub-brand {
+    font-size: 15px;
+  }
+
+  .hub-main {
     height: auto;
+    min-height: 0;
   }
 
+  .hub-main > .simple-page {
+    height: auto;
+    min-height: 0;
+  }
+
+  /* 侧栏改为自左侧滑出的抽屉，不再占满首屏 */
+  .hub-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 40;
+    width: min(288px, 84vw);
+    height: 100%;
+    padding: 16px 14px;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform 0.22s var(--ease-out),
+      visibility 0.22s var(--ease-out);
+  }
+
+  .hub-shell.is-nav-open .hub-sidebar {
+    transform: none;
+    visibility: visible;
+  }
+
+  /* 顶栏已有品牌，抽屉里不再重复 */
+  .hub-sidebar__brand {
+    display: none;
+  }
+
+  .hub-shell.is-nav-open .hub-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    padding: 0;
+    border: 0;
+    background: rgba(12, 10, 9, 0.5);
+    backdrop-filter: blur(2px);
+    cursor: pointer;
+  }
+}
+
+@media (max-width: 760px) {
   .hub-topbar {
     height: auto;
     padding: 12px;
@@ -1675,10 +1770,16 @@ textarea {
 }
 
 /* -- Header -- */
-.home-header {
+/* 同时命中 .ant-layout-header：antd 的 Layout.Header 默认带
+   height:64px / padding:0 50px / line-height:64px，且其样式表在 globals 之后注入，
+   只用 .home-header 会被覆盖，窄屏下 50px 内边距会把顶部内容挤到换行。 */
+.home-header,
+.home-header.ant-layout-header {
   position: sticky;
   top: 0;
   z-index: 100;
+  height: auto;
+  line-height: normal;
   padding: 0 clamp(16px, 4vw, 48px);
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
@@ -2565,4 +2666,42 @@ textarea {
 .kb-card__desc {
   margin-bottom: 8px;
   min-height: 44px;
+}
+
+/* ================================================================
+   窄屏收尾：放在文件末尾，确保覆盖前面按桌面写的取值
+   ================================================================ */
+@media (max-width: 760px) {
+  /* 页头与工具栏纵向排列，操作按钮换行而不是被裁掉 */
+  .page-toolbar,
+  .util-page-header,
+  .knowledge-head,
+  .chat-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-toolbar > .ant-space,
+  .util-page-header > .ant-space {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+
+  /* 搜索框此前被压到 30vw（390px 屏只剩 117px），窄屏改为占满一行 */
+  .page-toolbar .ant-input-affix-wrapper {
+    width: 100%;
+  }
+
+  /* 固定宽度的下拉/搜索框在窄屏会溢出容器，统一改为自适应 */
+  .page-toolbar .ant-select,
+  .knowledge-head .ant-select,
+  .chat-head .ant-select,
+  .util-filter-bar .ant-select,
+  .util-filter-bar .ant-input-group-wrapper {
+    width: 100% !important;
+  }
+
+  .simple-page {
+    padding-bottom: 32px;
+  }
 }
