@@ -19,6 +19,7 @@ export const ROUTES = {
   STATISTICS: (kbId: string) => `/statistics/${kbId}` as const,
   RESUMES: '/resumes',
   SETTINGS_PROFILE: '/settings/profile',
+  SETTINGS_MODEL: '/settings/model',
 } as const;
 
 // ========== 公开路由（不需要认证） ==========
@@ -36,6 +37,7 @@ export const PROTECTED_ROUTES = [
   '/statistics',
   ROUTES.RESUMES,
   ROUTES.SETTINGS_PROFILE,
+  ROUTES.SETTINGS_MODEL,
 ] as const;
 
 // ========== 路由检查工具函数 ==========

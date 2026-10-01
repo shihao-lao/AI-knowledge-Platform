@@ -115,6 +115,10 @@ export default function AppShell({ children, activeNav }: AppShellProps) {
             <span>📦</span>
             <span>知识库管理</span>
           </Link>
+          <Link href={ROUTES.SETTINGS_MODEL} className="hub-nav__item">
+            <span>🤖</span>
+            <span>模型配置</span>
+          </Link>
           <Link href={ROUTES.SETTINGS_PROFILE} className="hub-nav__item">
             <span>⚙️</span>
             <span>设置</span>

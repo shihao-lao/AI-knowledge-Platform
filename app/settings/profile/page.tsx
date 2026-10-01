@@ -1,11 +1,14 @@
 'use client';
 
-import { LogoutOutlined } from '@ant-design/icons';
+import { ApiOutlined, LogoutOutlined } from '@ant-design/icons';
 import { App, Avatar, Button, Card, Descriptions, Skeleton, Tag, Typography } from 'antd';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/use-auth';
+import { ROUTES } from '@/lib/routes';
 import AppShell from '@/components/app-shell';
 
 export default function SettingsPage() {
+  const router = useRouter();
   const { message } = App.useApp();
   const { user, loading, logout } = useAuth();
 
@@ -41,6 +44,19 @@ export default function SettingsPage() {
           )}
           <Button danger icon={<LogoutOutlined />} className="sidebar-action" onClick={handleLogout}>
             退出登录
+          </Button>
+        </Card>
+
+        <Card style={{ marginTop: 16 }}>
+          <Typography.Title level={4} style={{ marginTop: 0 }}>
+            AI 模型
+          </Typography.Title>
+          <Typography.Paragraph type="secondary">
+            接入你自己的 OpenAI 兼容模型（OpenAI、DeepSeek、通义千问、本地 Ollama 等），
+            配置只属于当前账号，不影响其他用户。
+          </Typography.Paragraph>
+          <Button type="primary" icon={<ApiOutlined />} onClick={() => router.push(ROUTES.SETTINGS_MODEL)}>
+            配置模型
           </Button>
         </Card>
       </main>

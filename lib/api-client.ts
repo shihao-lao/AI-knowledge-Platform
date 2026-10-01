@@ -78,6 +78,51 @@ export interface CitationStatsData {
   documents: CitationDocStat[];
 }
 
+// ==================== 用户大模型配置 ====================
+
+/** 后端返回的模型配置，密钥只以脱敏形式给出。 */
+export interface LLMSettings {
+  provider: string;
+  baseUrl: string;
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  timeout: number;
+  apiKeySet: boolean;
+  apiKeyMasked: string;
+  /** user = 用自己配置的；server = 服务端默认；none = 都没有 */
+  source: 'user' | 'server' | 'none';
+  configured: boolean;
+  isCustom: boolean;
+}
+
+export interface LLMSettingsInput {
+  provider: string;
+  baseUrl: string;
+  /** 省略或留空表示沿用已保存的密钥 */
+  apiKey?: string;
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  timeout: number;
+  clearApiKey?: boolean;
+}
+
+export interface LLMTestResult {
+  ok: boolean;
+  message: string;
+  latencyMs: number;
+  model: string;
+  reply: string;
+  modelsAvailable: number;
+}
+
+export interface LLMModelsResult {
+  ok: boolean;
+  message: string;
+  data: string[];
+}
+
 export interface ApiConversation {
   id: string;
   knowledgeId: string;
@@ -710,5 +755,58 @@ export const api = {
       body: JSON.stringify({ action, title, content }),
     });
     return result;
+  },
+
+  // ==================== 用户大模型配置 ====================
+  // 请求体需要 snake_case（后端 Pydantic 模型），响应由 request 自动转 camelCase。
+
+  getLLMSettings(): Promise<LLMSettings> {
+    return request(`${BASE}/settings/llm`);
+  },
+
+  saveLLMSettings(input: LLMSettingsInput): Promise<LLMSettings> {
+    return request(`${BASE}/settings/llm`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: input.provider,
+        base_url: input.baseUrl,
+        api_key: input.apiKey,
+        model: input.model,
+        temperature: input.temperature,
+        max_tokens: input.maxTokens,
+        timeout: input.timeout,
+        clear_api_key: input.clearApiKey ?? false,
+      }),
+    });
+  },
+
+  resetLLMSettings(): Promise<LLMSettings> {
+    return request(`${BASE}/settings/llm`, { method: 'DELETE' });
+  },
+
+  /** 测试连通性；未保存时可先带上待测参数，apiKey 留空则沿用已保存的密钥。 */
+  testLLMSettings(input?: Partial<LLMSettingsInput>): Promise<LLMTestResult> {
+    return request(`${BASE}/settings/llm/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        base_url: input?.baseUrl,
+        api_key: input?.apiKey,
+        model: input?.model,
+        temperature: input?.temperature,
+        max_tokens: input?.maxTokens,
+        timeout: input?.timeout,
+      }),
+    });
+  },
+
+  /** 拉取服务商支持的模型列表，供下拉选择。 */
+  listLLMModels(input?: Partial<LLMSettingsInput>): Promise<LLMModelsResult> {
+    return request(`${BASE}/settings/llm/models`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base_url: input?.baseUrl, api_key: input?.apiKey }),
+    });
   },
 };
