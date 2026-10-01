@@ -34,6 +34,7 @@ export default function ChatConversationPage() {
     conversationIdParam && conversations.some((chat) => chat.id === conversationIdParam)
       ? conversationIdParam
       : (kbConversations[0]?.id ?? '');
+  const activeConversation = kbConversations.find((chat) => chat.id === activeConversationId);
 
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -337,7 +338,7 @@ export default function ChatConversationPage() {
           <div className="chat-main">
             <div className="chat-head">
               <div>
-                <Typography.Title level={2}>AI 对话</Typography.Title>
+                <Typography.Title level={2}>{activeConversation?.title || 'AI 对话'}</Typography.Title>
                 <Typography.Text type="secondary">当前问答范围：{activeKb?.name}</Typography.Text>
               </div>
               <Select
