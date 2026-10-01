@@ -291,9 +291,11 @@ async def test_upload_keyword_fallback_and_index_recovery(database, vector_store
 
 @pytest.mark.asyncio
 async def test_chat_uses_owned_rag_context_and_correct_document_citations(database, monkeypatch):
+    from app.services import chat_service as chat_service_module
     from app.services.chat_service import ChatService
     from app.services.retrieval_service import retrieval_service
     from app.infrastructure.database.models import Conversation, Message
+    from app.infrastructure.llm.config import LLMConfig
     from app.models.schemas import RetrievalResult
     from langchain_core.runnables import RunnableLambda
     async with database() as session:
@@ -306,7 +308,10 @@ async def test_chat_uses_owned_rag_context_and_correct_document_citations(databa
         assert 'Verified knowledge' in prompt.to_string()
         return 'Grounded answer [1]'
     service = ChatService()
-    monkeypatch.setattr(service, '_get_llm', lambda streaming=False: RunnableLambda(answer))
+    # 本用例只关心检索与引用，这里固定住模型配置与模型本身
+    monkeypatch.setattr(chat_service_module, 'resolve_llm_config', AsyncMock(return_value=LLMConfig(
+        base_url='http://test.invalid/v1', api_key='test-key', model='test-model', source='user')))
+    monkeypatch.setattr(chat_service_module, 'build_chat_model', lambda *a, **k: RunnableLambda(answer))
     response = await service.handle_chat('conv', 'question', 'owner')
     output = b''.join([chunk async for chunk in response.body_iterator]).decode()
     assert '[DONE]' in output

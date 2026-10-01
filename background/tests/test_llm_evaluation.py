@@ -33,8 +33,16 @@ async def test_provider_response_validation(monkeypatch, content, valid):
             'model': 'test-model', 'choices': [{'index': 0, 'finish_reason': 'stop',
                 'message': {'role': 'assistant', 'content': content}}]})
 
-    monkeypatch.setattr(evaluation, 'AsyncOpenAI', lambda **kwargs: AsyncOpenAI(
-        **kwargs, http_client=httpx.AsyncClient(transport=httpx.MockTransport(handle))))
+    # 配置解析统一走 build_async_client，这里替换它并注入 MockTransport，
+    # 仍然使用真实的 AsyncOpenAI 客户端与应答校验逻辑
+    def build_client(config, timeout=None):
+        return AsyncOpenAI(
+            api_key=config.api_key,
+            base_url=config.base_url,
+            http_client=httpx.AsyncClient(transport=httpx.MockTransport(handle)),
+        )
+
+    monkeypatch.setattr(evaluation, 'build_async_client', build_client)
     if valid:
         result = await evaluation.evaluate('What is Python?', 'A language', 'My answer', ['Python', 'language'])
         assert result.score == 85 and result.key_points == ['types']
@@ -48,5 +56,5 @@ async def test_provider_response_validation(monkeypatch, content, valid):
 async def test_unconfigured_provider_fails_explicitly(monkeypatch):
     monkeypatch.delenv('MIMO_API_KEY', raising=False)
     monkeypatch.delenv('OPENAI_API_KEY', raising=False)
-    with pytest.raises(RuntimeError, match='API_KEY'):
+    with pytest.raises(RuntimeError, match='尚未配置大模型'):
         await evaluation.evaluate('Question', 'Reference', 'Answer', [])

@@ -26,7 +26,7 @@ async def test_upload_edit_reload_export_and_ownership(monkeypatch, tmp_path):
         async with sessions() as session:
             yield session
 
-    async def unavailable_analysis(_content):
+    async def unavailable_analysis(_content, _user_id=None):
         raise RuntimeError('测试使用本地解析，无外部模型调用')
 
     monkeypatch.chdir(tmp_path)
