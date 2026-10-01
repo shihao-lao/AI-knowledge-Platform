@@ -81,8 +81,9 @@ export default function KnowledgeBasesPage() {
       message.success(`知识库「${values.name}」已创建`);
       await fetchKnowledgeBases();
       router.push(knowledgePath(result.data.id));
-    } catch {
-      message.error('创建知识库失败');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '创建知识库失败');
+      throw err;
     } finally {
       hide();
     }
@@ -93,8 +94,8 @@ export default function KnowledgeBasesPage() {
       await api.deleteKnowledge(kbId);
       message.success(`知识库「${kbName}」已删除`);
       await fetchKnowledgeBases();
-    } catch {
-      message.error('删除知识库失败');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : '删除知识库失败');
     }
   };
 
@@ -129,7 +130,7 @@ export default function KnowledgeBasesPage() {
             <Row gutter={[16, 16]}>
               {filteredKbs.map((kb) => {
                 const isExpanded = expandedIds.has(kb.id);
-                const docCount = kb._count?.documents ?? 0;
+                const docCount = kb.documentCount ?? 0;
                 return (
                   <Col xs={24} md={12} xl={8} key={kb.id}>
                     <Card

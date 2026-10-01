@@ -5,12 +5,24 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.database.models import Knowledge, User
+from app.infrastructure.database.models import Knowledge, User, Document
 from app.infrastructure.database.session import get_async_session, get_session_context
 from app.models.schemas import KnowledgeCreate, KnowledgeUpdate, KnowledgeResponse
+
+
+async def _document_counts(session: AsyncSession, kb_ids: list[str]) -> dict[str, int]:
+    """按知识库统计文档数量，避免逐个知识库单独查询。"""
+    if not kb_ids:
+        return {}
+    rows = await session.execute(
+        select(Document.knowledge_id, func.count(Document.id))
+        .where(Document.knowledge_id.in_(kb_ids))
+        .group_by(Document.knowledge_id)
+    )
+    return {kb_id: count for kb_id, count in rows.all()}
 
 
 async def get_user_knowledge_bases(user_id: str) -> List[KnowledgeResponse]:
@@ -22,12 +34,14 @@ async def get_user_knowledge_bases(user_id: str) -> List[KnowledgeResponse]:
             .order_by(Knowledge.created_at.desc())
         )
         knowledge_bases = result.scalars().all()
+        counts = await _document_counts(session, [kb.id for kb in knowledge_bases])
         return [
             KnowledgeResponse(
                 id=kb.id,
                 name=kb.name,
                 description=kb.description,
                 status=kb.status,
+                document_count=counts.get(kb.id, 0),
                 created_at=kb.created_at.isoformat(),
                 updated_at=kb.updated_at.isoformat(),
             )
@@ -76,11 +90,13 @@ async def get_knowledge_base(kb_id: str, user_id: str) -> Optional[KnowledgeResp
         if not knowledge:
             return None
 
+        counts = await _document_counts(session, [knowledge.id])
         return KnowledgeResponse(
             id=knowledge.id,
             name=knowledge.name,
             description=knowledge.description,
             status=knowledge.status,
+            document_count=counts.get(knowledge.id, 0),
             created_at=knowledge.created_at.isoformat(),
             updated_at=knowledge.updated_at.isoformat(),
         )
@@ -109,11 +125,13 @@ async def update_knowledge_base(
         await session.commit()
         await session.refresh(knowledge)
 
+        counts = await _document_counts(session, [knowledge.id])
         return KnowledgeResponse(
             id=knowledge.id,
             name=knowledge.name,
             description=knowledge.description,
             status=knowledge.status,
+            document_count=counts.get(knowledge.id, 0),
             created_at=knowledge.created_at.isoformat(),
             updated_at=knowledge.updated_at.isoformat(),
         )
@@ -148,12 +166,14 @@ async def search_knowledge_bases(user_id: str, query: str) -> List[KnowledgeResp
             ).order_by(Knowledge.created_at.desc())
         )
         knowledge_bases = result.scalars().all()
+        counts = await _document_counts(session, [kb.id for kb in knowledge_bases])
         return [
             KnowledgeResponse(
                 id=kb.id,
                 name=kb.name,
                 description=kb.description,
                 status=kb.status,
+                document_count=counts.get(kb.id, 0),
                 created_at=kb.created_at.isoformat(),
                 updated_at=kb.updated_at.isoformat(),
             )

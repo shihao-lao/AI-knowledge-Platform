@@ -178,7 +178,7 @@ export default function KnowledgeWorkspacePage() {
     }
   }, [documents]);
 
-  const handleUpload = async (file: File) => {
+  const handleUpload = async (file: File): Promise<boolean> => {
     const key = `upload-${file.name}`;
     message.loading({ content: `正在上传《${file.name}》... 0%`, key, duration: 0 });
     try {
@@ -193,9 +193,13 @@ export default function KnowledgeWorkspacePage() {
         void pollDocumentStatus(result.data.id);
       }
       await fetchDocuments();
+      // 文档数变化后同步侧栏的“N 份知识”统计
+      await fetchKnowledgeBases();
+      return true;
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : '上传失败';
       message.error({ content: `《${file.name}》${errMsg}`, key });
+      return false;
     }
   };
 
@@ -205,6 +209,7 @@ export default function KnowledgeWorkspacePage() {
       await api.deleteDocument(documentId);
       removeDocumentFromStore(documentId);
       await fetchDocuments();
+      await fetchKnowledgeBases();
       message.success('文档已删除');
     } catch (err) {
       message.error(err instanceof Error ? err.message : '删除文档失败');
@@ -229,7 +234,10 @@ export default function KnowledgeWorkspacePage() {
 
   const handleCreateDoc = async (title: string, content: string) => {
     const file = new File([content], `${title}.txt`, { type: 'text/plain' });
-    await handleUpload(file);
+    // 失败时抛错，让弹窗保持打开以便重试（错误提示已由 handleUpload 展示）
+    if (!(await handleUpload(file))) {
+      throw new Error('文档创建失败');
+    }
   };
 
   const toKnowledgeDocument = useCallback(
@@ -302,7 +310,7 @@ export default function KnowledgeWorkspacePage() {
               onClick={() => router.push(knowledgePath(kb.id))}
             >
               <span>{kb.name}</span>
-              <small>{kb._count?.documents ?? 0} 份知识</small>
+              <small>{kb.documentCount ?? 0} 份知识</small>
             </button>
           ))}
         </div>
@@ -320,7 +328,7 @@ export default function KnowledgeWorkspacePage() {
           <div className="knowledge-main">
             <div className="knowledge-head">
               <div>
-                <Typography.Title level={2}>我的知识合集</Typography.Title>
+                <Typography.Title level={2}>{activeKb?.name || '我的知识合集'}</Typography.Title>
                 <Typography.Text type="secondary">{activeKb?.description || '暂无描述'}</Typography.Text>
               </div>
               <Space wrap>

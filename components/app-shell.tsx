@@ -106,7 +106,7 @@ export default function AppShell({ children, activeNav }: AppShellProps) {
               onClick={() => router.push(knowledgePath(kb.id))}
             >
               <span>{kb.name}</span>
-              <small>{kb._count?.documents ?? 0} 份知识</small>
+              <small>{kb.documentCount ?? 0} 份知识</small>
             </button>
           ))}
         </div>
