@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+import json
+from typing import Any, List, Optional
 
 from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,29 @@ from app.models.schemas import (
     ConversationUpdate,
     MessageResponse,
 )
+
+
+def _load_citations(raw: Any) -> List[dict]:
+    """把存储层里的引用解析为列表。
+
+    数据库中 citations 是一段 JSON 文本（历史数据可能为空、非法或非数组），
+    这里统一归一化为列表，避免把字符串直接透传给前端。
+    """
+    if isinstance(raw, list):
+        return [item for item in raw if isinstance(item, dict)]
+    if not raw:
+        return []
+    if isinstance(raw, (bytes, bytearray)):
+        raw = raw.decode("utf-8", errors="ignore")
+    if not isinstance(raw, str):
+        return []
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return [item for item in parsed if isinstance(item, dict)]
 
 
 async def get_conversations_by_knowledge(
@@ -189,7 +213,7 @@ async def get_messages_by_conversation(
                 id=msg.id,
                 role=msg.role,
                 content=msg.content,
-                citations=msg.citations,
+                citations=_load_citations(msg.citations),
                 created_at=msg.created_at.isoformat(),
             )
             for msg in messages
@@ -230,7 +254,7 @@ async def add_message_to_conversation(
             id=message.id,
             role=message.role,
             content=message.content,
-            citations=message.citations,
+            citations=_load_citations(message.citations),
             created_at=message.created_at.isoformat(),
         )
 
