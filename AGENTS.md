@@ -96,6 +96,30 @@ query → BM25 召回 ┐
 配置项：`EMBEDDING_MODEL`、`RERANK_ENABLED`、`RERANK_MODEL`、`RERANK_DEVICE`、`HF_ENDPOINT`。
 切换 `EMBEDDING_MODEL` 会改变向量维度，集合名含模型名因而天然隔离，但需要对新集合重新索引。
 
+### 大模型配置（用户级）
+
+每个用户可以在「设置 → 模型配置」（`/settings/model`）页接入任意 OpenAI 兼容服务，
+配置存在 `user_llm_configs` 表，按 `user_id` 一份。
+
+```
+resolve_llm_config(user_id) → LLMConfig
+    ├─ 用户配置齐全 → 用它（source=user）
+    └─ 否则        → 服务端 .env（source=server），两者都没有则 source=none
+```
+
+- **所有 LLM 调用点都必须走 `app/infrastructure/llm/config.py`**，不要直接读
+  `os.getenv("MIMO_*")`，否则用户自己配置的模型不会生效。涉及聊天
+  (`chat_service`)、练习评分 (`llm/evaluation`)、简历分析
+  (`llm/resume_analysis`)、简历结构化 (`llm/resume_structure`)、AI 摘要与
+  Skill (`api/routes/ai.py`)。
+- API Key 只保存在服务端，接口一律返回脱敏形式（`api_key_masked`）；前端提交时
+  留空即表示沿用已保存的密钥。
+- `api/routes/settings.py` 提供读取、保存、清除、连通性测试与模型列表拉取。
+- 回环地址会自动追加进 `NO_PROXY`：系统代理（clash 等）通常无法访问
+  `127.0.0.1` 并返回 502，不绕过会导致本地 Ollama 之类的模型完全不可用。
+
+配置项：`OPENAI_*`、`MIMO_*`（服务端兜底）、`LLM_TEMPERATURE`、`LLM_MAX_TOKENS`、`LLM_TIMEOUT`。
+
 ## 工作规范（长期约定）
 
 - **小步提交**：每完成一个小的功能/修复就 `git commit` 一次，禁止攒一大批改动后一次性提交。

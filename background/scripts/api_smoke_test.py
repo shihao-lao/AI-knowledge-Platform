@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""后端全接口冒烟测试：覆盖 OpenAPI 中全部 40 个操作。
+"""后端全接口冒烟测试：覆盖 OpenAPI 中全部 45 个操作。
 
 按业务分组顺序执行（先建知识库，再依赖它的接口），最后清理数据。
 标记 [LLM] 的接口会真实调用大模型。
@@ -214,8 +214,25 @@ call("resume", "PUT", f"/resumes/{RES}/structure", headers=hdr(),
                                      "email": "zhangsan@test.com"}}})
 call("resume", "DELETE", f"/resumes/{RES}", headers=hdr())
 
-# ---------- 10. 清理 ----------
-print("\n[10] 清理测试数据")
+# ---------- 10. 用户模型配置 ----------
+print("\n[10] 模型配置（测试连接与模型列表会真实请求模型服务）")
+call("settings", "GET", "/settings/llm", headers=hdr())
+call("settings", "PUT", "/settings/llm", headers=hdr(), json={
+    "provider": "custom", "base_url": "https://api.openai.com/v1",
+    "api_key": "sk-apitest-placeholder", "model": "gpt-4o-mini",
+    "temperature": 0.3, "max_tokens": 256, "timeout": 20,
+})
+call("settings", "POST", "/settings/llm/test", note="[LLM]", headers=hdr(), json={}, timeout=60)
+call("settings", "POST", "/settings/llm/models", note="[LLM]", headers=hdr(), json={}, timeout=60)
+# 非法 Base URL 必须在写库前被拒绝
+call("settings", "PUT", "/settings/llm", note="(非法地址应 400)", expect=400, headers=hdr(), json={
+    "provider": "custom", "base_url": "ftp://nope", "model": "m",
+    "temperature": 0.3, "max_tokens": 10, "timeout": 10,
+})
+call("settings", "DELETE", "/settings/llm", headers=hdr())
+
+# ---------- 11. 清理 ----------
+print("\n[11] 清理测试数据")
 if QID:
     call("question", "DELETE", f"/questions/{QID}", headers=hdr())
 call("conversation", "DELETE", f"/conversations/{CONV}", headers=hdr())
