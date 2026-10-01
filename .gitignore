@@ -101,6 +101,7 @@ pip-install-*/
 pip-ephem-wheel-cache-*/
 pytest-of-*/
 data-gym-cache/
+torchinductor_*/
 
 # 一次性脚本输出（冒烟/集成测试日志，非源码）
 background/integration-resume-*.txt

@@ -4,3 +4,8 @@ node_modules
 coverage
 package-lock.json
 *.min.js
+
+# Next.js 自动生成，且文件内已注明 "should not be edited"。
+# 每次 next dev / next build 都会用双引号重写它，与 Prettier 的 singleQuote 冲突，
+# 因此不参与格式检查（该文件仍需提交，CI 的 tsc 依赖它提供 Next 环境类型）。
+next-env.d.ts
