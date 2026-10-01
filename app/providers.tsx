@@ -13,17 +13,18 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         locale={zhCN}
         theme={{
           token: {
-            colorPrimary: '#4f46e5',
+            colorPrimary: 'var(--color-primary)',
             borderRadius: 10,
-            colorBgLayout: '#f8fafc',
-            colorBgContainer: '#ffffff',
-            colorBgElevated: '#ffffff',
-            colorBorder: '#e2e8f0',
-            colorText: '#0f172a',
-            colorTextSecondary: '#64748b',
-            colorSuccess: '#10b981',
-            colorWarning: '#f59e0b',
-            colorError: '#ef4444',
+            colorBgLayout: 'var(--color-bg)',
+            colorBgContainer: 'var(--color-surface)',
+            colorBgElevated: 'var(--color-surface)',
+            colorBorder: 'var(--color-border)',
+            colorText: 'var(--color-text)',
+            colorTextSecondary: 'var(--color-text-secondary)',
+            colorSuccess: 'var(--color-success)',
+            colorWarning: 'var(--color-warning)',
+            colorError: 'var(--color-error)',
+            colorInfo: 'var(--color-info)',
             fontFamily:
               '"Plus Jakarta Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif',
           },

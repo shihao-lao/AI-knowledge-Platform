@@ -43,7 +43,7 @@ export default function KnowledgeDocumentDetail({ document: doc }: KnowledgeDocu
       <div className="uploaded-content">
         <div className="uploaded-content__head">
           <strong>导入内容</strong>
-          <Tag color={statusMeta[doc.status].color}>{statusMeta[doc.status].label}</Tag>
+          <Tag color={statusMeta[doc.status]?.color ?? 'default'}>{statusMeta[doc.status]?.label ?? doc.status}</Tag>
         </div>
         {doc.status !== 'completed' && <Progress percent={doc.processingProgress} size="small" />}
         <ContentRenderer content={doc.content || ''} />
@@ -52,7 +52,7 @@ export default function KnowledgeDocumentDetail({ document: doc }: KnowledgeDocu
         <button
           type="button"
           onClick={() => {
-            const text = `标题：${doc.title}\n状态：${statusMeta[doc.status].label}\n切片数：${doc.chunkCount || 0}\n用途：用于当前知识库问答与引用溯源`;
+            const text = `标题：${doc.title}\n状态：${statusMeta[doc.status]?.label ?? doc.status}\n切片数：${doc.chunkCount || 0}\n用途：用于当前知识库问答与引用溯源`;
             navigator.clipboard
               .writeText(text)
               .then(() => message.success('已复制'))
@@ -61,7 +61,7 @@ export default function KnowledgeDocumentDetail({ document: doc }: KnowledgeDocu
         >
           复制
         </button>
-        <code>{`标题：${doc.title}\n状态：${statusMeta[doc.status].label}\n切片数：${doc.chunkCount || 0}\n用途：用于当前知识库问答与引用溯源`}</code>
+        <code>{`标题：${doc.title}\n状态：${statusMeta[doc.status]?.label ?? doc.status}\n切片数：${doc.chunkCount || 0}\n用途：用于当前知识库问答与引用溯源`}</code>
       </pre>
     </div>
   );

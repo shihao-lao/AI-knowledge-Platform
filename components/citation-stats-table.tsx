@@ -10,26 +10,26 @@ interface Props {
 function confidenceStyle(score: number): React.CSSProperties {
   if (score >= 0.85)
     return {
-      color: '#389e0d',
-      background: '#f6ffed',
-      border: '1px solid #b7eb8f',
+      color: 'var(--color-score-high)',
+      background: 'var(--color-score-high-bg)',
+      border: '1px solid var(--color-score-high-border)',
       borderRadius: 4,
       padding: '0 6px',
       fontSize: 12,
     };
   if (score >= 0.65)
     return {
-      color: '#d48806',
-      background: '#fffbe6',
-      border: '1px solid #ffe58f',
+      color: 'var(--color-score-medium)',
+      background: 'var(--color-score-medium-bg)',
+      border: '1px solid var(--color-score-medium-border)',
       borderRadius: 4,
       padding: '0 6px',
       fontSize: 12,
     };
   return {
-    color: '#d46b08',
-    background: '#fff7e6',
-    border: '1px solid #ffd591',
+    color: 'var(--color-score-low)',
+    background: 'var(--color-score-low-bg)',
+    border: '1px solid var(--color-score-low-border)',
     borderRadius: 4,
     padding: '0 6px',
     fontSize: 12,

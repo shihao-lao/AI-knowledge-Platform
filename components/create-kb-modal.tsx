@@ -52,7 +52,7 @@ export default function CreateKnowledgeBaseModal({ open, onClose, onCreate }: Cr
         </Button>,
       ]}
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+      <Form form={form} layout="vertical" style={{ marginTop: 'var(--space-4)' }}>
         <Form.Item label="知识库名称" name="name" rules={[{ required: true, message: '请输入知识库名称' }]}>
           <Input placeholder="例如：前端开发手册" />
         </Form.Item>

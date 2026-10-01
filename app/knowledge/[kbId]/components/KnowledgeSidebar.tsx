@@ -5,6 +5,7 @@ import { CopyOutlined, CheckOutlined, RobotOutlined, ThunderboltOutlined } from 
 import { useEffect, useState } from 'react';
 import type { KnowledgeDocument } from '@/types';
 import { formatSize, fileTypeText } from '@/lib/document';
+import { api } from '@/lib/api-client';
 
 type TabKey = 'summary' | 'skill';
 
@@ -42,16 +43,11 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
     setSummaryError('');
     setSummaryLoading(true);
 
-    fetch('/api/mimo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'summary', title: expandedDoc.title, content: expandedDoc.content }),
-    })
-      .then((res) => res.json())
-      .then((json) => {
+    api
+      .aiGenerate('summary', expandedDoc.title, expandedDoc.content)
+      .then((result) => {
         if (cancelled) return;
-        if (json.error) throw new Error(json.error);
-        setSummary(json.data);
+        setSummary(result.data);
       })
       .catch((err) => {
         if (!cancelled) setSummaryError(err.message || '生成摘要失败');
@@ -74,16 +70,11 @@ export default function KnowledgeSidebar({ expandedDoc, onGoToChat }: KnowledgeS
     setSkillError('');
     setSkillLoading(true);
 
-    fetch('/api/mimo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'skill', title: expandedDoc.title, content: expandedDoc.content }),
-    })
-      .then((res) => res.json())
-      .then((json) => {
+    api
+      .aiGenerate('skill', expandedDoc.title, expandedDoc.content)
+      .then((result) => {
         if (cancelled) return;
-        if (json.error) throw new Error(json.error);
-        setSkill(json.data);
+        setSkill(result.data);
       })
       .catch((err) => {
         if (!cancelled) setSkillError(err.message || '生成专家 Skill 失败');

@@ -21,9 +21,9 @@ function formatTime(iso: string): string {
 }
 
 function confidenceColor(score: number) {
-  if (score >= 0.8) return '#10b981';
-  if (score >= 0.6) return '#f59e0b';
-  return '#ef4444';
+  if (score >= 0.8) return 'var(--color-score-high)';
+  if (score >= 0.6) return 'var(--color-score-medium)';
+  return 'var(--color-score-low)';
 }
 
 function confidenceLabel(score: number) {

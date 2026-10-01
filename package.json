@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --hostname 0.0.0.0",
+    "dev": "next dev --hostname 0.0.0.0 --port 3001",
     "build": "next build",
-    "start": "next start --hostname 0.0.0.0",
+    "start": "next start --hostname 0.0.0.0 --port 3001",
     "start:standalone": "node .next/standalone/server.js",
     "test": "node checks/auth-regression.mjs && node checks/upload-regression.mjs && node --test checks/chat-stream-regression.mjs",
     "lint": "eslint .",

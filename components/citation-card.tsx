@@ -11,9 +11,9 @@ interface CitationCardProps {
 }
 
 function getRelevanceTier(score: number): { label: string; color: string } {
-  if (score >= 0.6) return { label: '高度相关', color: '#52c41a' };
-  if (score >= 0.4) return { label: '较为相关', color: '#faad14' };
-  return { label: '一般相关', color: '#ff7a45' };
+  if (score >= 0.6) return { label: '高度相关', color: 'var(--color-score-high)' };
+  if (score >= 0.4) return { label: '较为相关', color: 'var(--color-score-medium)' };
+  return { label: '一般相关', color: 'var(--color-score-low)' };
 }
 
 function clampScore(score: number): number {
@@ -27,7 +27,8 @@ function CitationCard({ citation, active, onOpen }: CitationCardProps) {
   const score = clampScore(citation.confidenceScore);
   const percent = Math.round(score * 100);
   const tier = getRelevanceTier(score);
-  const barColor = score >= 0.6 ? '#52c41a' : score >= 0.4 ? '#faad14' : '#ff7a45';
+  const barColor =
+    score >= 0.6 ? 'var(--color-score-high)' : score >= 0.4 ? 'var(--color-score-medium)' : 'var(--color-score-low)';
 
   return (
     <button

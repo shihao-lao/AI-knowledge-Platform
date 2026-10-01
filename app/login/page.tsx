@@ -23,7 +23,8 @@ function LoginForm() {
       // 登录成功后跳转
       const from = searchParams.get('from');
       const redirectUrl = getLoginRedirect(from ?? undefined);
-      router.push(redirectUrl);
+      // 使用 replace 避免返回按钮回到登录页
+      router.replace(redirectUrl);
     } catch (err) {
       message.error(err instanceof Error ? err.message : '登录失败');
     } finally {

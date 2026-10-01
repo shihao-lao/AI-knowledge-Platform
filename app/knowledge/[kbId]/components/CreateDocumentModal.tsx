@@ -43,7 +43,7 @@ export default function CreateDocumentModal({ open, onClose, onSubmit }: CreateD
         </Button>,
       ]}
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+      <Form form={form} layout="vertical" style={{ marginTop: 'var(--space-4)' }}>
         <Form.Item label="文档标题" name="title" rules={[{ required: true, message: '请输入文档标题' }]}>
           <Input placeholder="例如：React Hooks 使用指南" />
         </Form.Item>
