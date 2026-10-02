@@ -1,266 +1,164 @@
 # AI 面试知识库智能问答平台
 
-基于 RAG（检索增强生成）的知识管理与面试备考系统。上传文档、导入面试题目，通过 AI 对话检索相关资料并生成**带引用标注**的回答；支持**模拟面试**（AI 面试官逐题问答）、**答题评估**（LLM 结构化评分）与**掌握度统计**。
+面向 AI 面试备考场景的检索增强生成（RAG）平台：把自己的知识库文档灌进去，
+基于文档内容进行**可溯源的流式问答**，并配套模拟面试与结构化评分。
+上传文档、导入面试题目，通过 AI 对话检索资料并生成**带引用标注**的回答。
 
-前端 Next.js 只负责页面与交互，业务逻辑与 AI 链路全部在 Python FastAPI 后端。
+前端只负责页面与交互，**全部业务与 AI 链路在 Python 后端**。
 
----
+```
+Next.js 16 (App Router) ──HTTP/SSE──> FastAPI ──┬── MySQL 8     用户 / 知识库 / 文档 / 对话 / 题库 / 简历
+   React 19 · TS · antd 5                      ├── Milvus      向量检索
+                                               ├── BM25        关键词检索（进程内）
+                                               └── OpenAI 兼容 LLM（用户可自配）
+```
 
-## 核心能力
+## 核心特性
 
-- **混合检索** — 向量检索（Milvus）+ Okapi BM25 关键词检索双路召回，RRF 融合，再做 Cross-Encoder 精排
-- **可溯源引用** — 系统 Prompt 强制模型标注 `[n]`，服务端反解编号映射回原文，前端渲染为可展开的引用卡片，回答可核对
-- **增量索引** — 以内容 SHA-256 差分，只重新向量化变更分片，写入 upsert 幂等
-- **多租户隔离** — 每个知识库派生独立 Milvus 集合，检索期再用 ID 白名单二次收敛
-- **容错降级** — 向量链路不可用时自动退化为纯关键词检索，精排失败退回 RRF 顺序，服务不中断
-- **用户隔离** — JWT 鉴权，所有资源按 `Knowledge.user_id` 校验归属，跨用户访问一律 404
-- **模拟面试与评估** — 双模式对话；作答由 LLM 以 JSON Mode + 低温度输出，经 Pydantic 严格校验后才落库
-
----
+- **混合检索 + 精排**：向量与 BM25 双路并发召回 → RRF 融合 → Cross-Encoder 精排 → Top-5 注入 Prompt
+- **可溯源引用**：系统 Prompt 强制模型输出 `[n]`，服务端反解为文档 ID / 切片序号 / 内容预览，前端渲染为可展开卡片
+- **全链路降级**：Milvus、精排、模型任一环节不可用都只降级不中断（详见下文）
+- **用户级模型配置**：每位用户可接入任意 OpenAI 兼容服务，密钥服务端存储、接口只回脱敏值
+- **增量索引**：按内容 SHA-256 差分，仅重新向量化变更分片，upsert 幂等写入
+- **多租户隔离**：集合名由 `SHA-256(知识库 ID + 模型名)` 派生，检索期再按有效 ID 二次收敛
+- **流式对话**：SSE 增量渲染，滑动窗口保留最近 10 轮上下文
+- **模拟面试与评分**：LLM 以 JSON Mode + `temperature=0` 输出，经 Pydantic 严格校验后才落库
 
 ## 技术栈
 
-| 层级       | 技术                                                                     |
-| ---------- | ------------------------------------------------------------------------ |
-| 前端       | Next.js 16 (App Router) · React 19 · TypeScript · Ant Design 5           |
-| Web 框架   | FastAPI · Uvicorn                                                        |
-| ORM / 迁移 | SQLAlchemy 2.0（async）· Alembic                                         |
-| 数据层     | MySQL 8（`aiomysql` 运行时 / `pymysql` 迁移）· Milvus（向量库）          |
-| 检索       | 自研 BM25（中文 bigram）· RRF 融合 · sentence-transformers Cross-Encoder |
-| 向量模型   | `BAAI/bge-small-zh-v1.5`（可切换，本地推理）                             |
-| LLM 编排   | LangChain（`ChatPromptTemplate \| ChatOpenAI \| StrOutputParser`）· SSE  |
-| 模型       | 小米 MiMo（OpenAI 兼容协议）                                             |
-| 认证       | JWT（HS256）+ bcrypt                                                     |
-| 部署       | Docker Compose（app + mysql + etcd + minio + milvus）                    |
+| 层         | 选型                                                                                               |
+| ---------- | -------------------------------------------------------------------------------------------------- |
+| 前端       | Next.js 16（App Router，Turbopack）· React 19 · TypeScript 5 · Ant Design 5 · zustand              |
+| 后端       | Python 3.12 · FastAPI · Uvicorn · Pydantic v2                                                      |
+| 数据       | MySQL 8（utf8mb4，运行时 `aiomysql` 异步 / 迁移走 `PyMySQL` 同步）· SQLAlchemy 2.0 async · Alembic |
+| 向量       | Milvus · pymilvus                                                                                  |
+| 检索与模型 | BM25（自实现）· RRF · Cross-Encoder 精排 · `BAAI/bge-small-zh-v1.5` 向量化 · tiktoken 分块         |
+| 大模型     | 任意 OpenAI 兼容服务（用户自配）· LangChain（仅 Chain 编排）· SSE 流式                             |
+| 工程       | pnpm · Docker Compose · GitHub Actions · ESLint · Prettier                                         |
 
----
+## 检索链路
 
-## 架构
+这是本项目的核心。查询进来后走三段式链路：
 
 ```
-┌───────────────────────────────────────────────────────────────┐
-│  浏览器  Next.js 16 / React 19 / Ant Design 5                  │
-│  ├─ /knowledge/:kbId            知识库工作区（上传 / 切片预览） │
-│  ├─ /chat/:kbId/:conversationId 对话（知识问答 / 模拟面试）     │
-│  ├─ /questions/:kbId            题库（筛选 / JSON 导入）        │
-│  └─ /statistics/:kbId           引用统计 + 掌握度               │
-│  lib/chat-api.ts  手写 SSE 解析（分帧 / 半包 UTF-8 / 断流检测） │
-└──────────────────────────┬────────────────────────────────────┘
-                           │ HTTP + Bearer JWT
-┌──────────────────────────▼────────────────────────────────────┐
-│  Python FastAPI  :8000   /api/v1   40 个端点 / 11 个路由模块    │
-│                                                                │
-│  中间件    RateLimit(60/min,1000/h) → ErrorHandler → CORS      │
-│  路由层    auth knowledge document conversation chat question   │
-│            practice resume ai citation health                   │
-│  服务层    业务编排 + 归属校验                                   │
-│  检索层    retrieval_service：双路召回 → RRF → 精排             │
-│  ETL 层    parser（txt/md/docx/pdf）→ chunker（tiktoken 递归）  │
-│  基础设施  异步会话 / MilvusManager / LLM 客户端                 │
-└──────┬────────────────────────┬─────────────────┬─────────────┘
-       │                        │                 │
-┌──────▼───────┐   ┌────────────▼──────┐   ┌──────▼──────────┐
-│  MySQL 8     │   │  Milvus           │   │  小米 MiMo      │
-│  权威数据源   │   │  每知识库一集合    │   │  OpenAI 兼容    │
-│  9 表 15 索引 │   │  IVF_FLAT / L2    │   │  SSE 流式       │
-└──────────────┘   └───────────────────┘   └─────────────────┘
+       ┌─ BM25 关键词召回（进程内索引，中文 bigram）─┐
+query ─┤                                            ├─ RRF 融合(k=60) ─→ 候选池 top_k×4 ─→ Cross-Encoder 精排 ─→ Top-5
+       └─ Milvus 向量召回（IVF_FLAT / L2）──────────┘
 ```
 
-### 检索链路
+- 两路用 `asyncio.gather` **并发**执行（BM25 走线程池，避免阻塞事件循环）
+- **为什么用 RRF 而不是加权求和**：BM25 分值与 L2 距离量纲和方向都不可比，归一化要调参且不稳定；
+  RRF 只依赖名次，天然免疫量纲问题
+- **为什么还要精排**：BM25 是词频模型、双塔向量是粗排模型，都无法建模 query 与文档的细粒度交互；
+  Cross-Encoder 把两者拼接后过一遍模型，精度更高但更慢，因此只对 top_k×4 的小候选池执行
 
-```
-query
-  │
-  ├──► BM25 关键词召回 ─┐   两路 asyncio.gather 并发
-  │    (中文 bigram,     │   BM25 走线程池，向量那一路是 IO 等待
-  │     k1=1.5 b=0.75)   │
-  │                      ├──► RRF 融合 (k=60) ──► 候选池 = top_k × 4
-  └──► Milvus 向量召回 ──┘                              │
-       (IVF_FLAT/L2,                                   ▼
-        nprobe=10)                          Cross-Encoder 精排
-                                                        │
-                                                        ▼
-                                                   Top-5 注入 Prompt
-```
+关键参数（均可在 `.env` 调整）：RRF `k=60`、召回倍数 `4`、最终 `Top-5`、
+分块 `512 token / 64 overlap`、BM25 `k1=1.5 b=0.75`、Milvus `nlist=128 / nprobe=10`。
 
-设计取舍：
+### 全链路降级
 
-- **为什么混合检索**：纯向量对专有术语（"TCP 三次握手"）会把泛化内容排在前面，纯 BM25 存在词汇鸿沟（"页面渲染更快" vs "首屏性能优化"）。两者互补，BM25 保精确率、向量保召回率。
-- **为什么用 RRF 而非加权求和**：BM25 分值无上界，L2 距离越小越好，量纲与方向都不可比；RRF 只用名次，免去归一化与调参。
-- **为什么多召回再精排**：双塔与词频模型都是粗排，query 与文档各自独立编码；Cross-Encoder 把两者拼接后一起过模型，能建模细粒度交互，但每个候选都要一次推理，所以「多召回、少精排」。
+设计原则：**检索与数据链路只降级、不中断**。
 
-### 降级策略
-
-| 故障                           | 行为                                                                         |
-| ------------------------------ | ---------------------------------------------------------------------------- |
-| Milvus 不可达 / embedding 失败 | 退化为纯关键词检索，标记 `index_status=keyword_only`，下一请求自动重试建索引 |
-| 精排模型加载或推理失败         | 退回 RRF 排序，不影响检索结果返回                                            |
-| 某一路召回失败                 | 仅使用另一路结果                                                             |
-| LLM 评分返回非法结构           | 抛错并**不落库**，避免脏数据污染掌握度统计                                   |
-| 简历分析 LLM 失败              | 回退本地启发式规则，功能仍可用                                               |
-
----
+| 故障                          | 行为                                                            |
+| ----------------------------- | --------------------------------------------------------------- |
+| Milvus 不可达 / 向量化失败    | 退化为纯关键词检索，响应标记 `keyword_only`，下一请求重试建索引 |
+| 精排模型不可用 / 推理异常     | 静默退回 RRF 顺序（`RERANK_ENABLED=0` 可整体关闭）              |
+| 单路召回失败                  | 仅使用另一路结果                                                |
+| 未配置任何大模型              | AI 接口返回可读提示，其余功能不受影响                           |
+| LLM 返回非法 JSON（评分场景） | 拒绝落库并提示重试，不写入脏数据                                |
 
 ## 快速开始
 
-### 环境要求
+### 前置依赖
 
-- Python ≥ 3.11、Node.js ≥ 18
-- MySQL 8（必需）与 Milvus（可选；缺失时自动降级为关键词检索）
-
-### 1. 后端
+MySQL 8 必需；Milvus 可选 —— 不启动也能用，检索会自动降级为关键词模式。
 
 ```bash
 cd background
-
-# 依赖（推荐使用项目自带的虚拟环境）
-./venv/Scripts/python.exe -m pip install -r requirements.txt   # Windows
-# source venv/bin/activate && pip install -r requirements.txt  # macOS / Linux
-
-# 配置
-cp .env.example .env
-# 必填：SECRET_KEY（≥32 字节）、MIMO_API_KEY、DATABASE_URL
-# 国内网络务必设置 HF_ENDPOINT=https://hf-mirror.com，否则模型无法下载
-
-# 建表（二选一）
-./venv/Scripts/python.exe scripts/init_db.py    # 建库 + 建表，幂等
-./venv/Scripts/python.exe -m alembic upgrade head
-
-# 启动
-./venv/Scripts/python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+docker compose up -d          # 拉起 mysql / etcd / minio / milvus（可选）
 ```
 
-> **务必用 `python -m uvicorn` 而不是裸 `uvicorn`**：后者按 PATH 解析，
-> 在多虚拟环境 / conda 共存时会静默使用错误的解释器，报出难以定位的依赖错误。
-
-### 2. 前端
-
-```bash
-npm install
-# 根目录 .env.local
-echo "NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1" > .env.local
-npm run dev        # http://localhost:3001
-```
-
-### 3. 可选：Docker Compose 一键起依赖
+### 后端
 
 ```bash
 cd background
-docker compose up -d          # app + mysql + etcd + minio + milvus
+python -m venv .venv
+.venv\Scripts\activate                       # Windows（Mac/Linux: source .venv/bin/activate）
+python -m pip install -r requirements.txt
+copy .env.example .env                       # Mac/Linux: cp
+#   至少填 SECRET_KEY：python -c "import secrets; print(secrets.token_hex(32))"
+python scripts/init_db.py                    # 建库 + 建表（幂等）
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 无 MySQL 时的开发回退
+Windows 也可直接双击 `background/start.bat`。接口文档：http://localhost:8000/docs
 
-`.env` 中把数据库切为 SQLite 即可脱离 MySQL 运行（建表同上，`scripts/init_db.py` 会自动跳过建库步骤）：
+### 前端
 
-```env
-DATABASE_URL=sqlite+aiosqlite:///./dev.db
+```bash
+pnpm install
+pnpm run dev                  # http://localhost:3001
 ```
 
-向量能力仍需要 Milvus；没有 Milvus 时检索自动走关键词模式。
+首次进入后在 **设置 → 模型配置**（`/settings/model`）填入自己的 API Key 与模型即可开始对话。
 
-### 中文模型下载
+### 测试
 
-本机若无法直连 `huggingface.co`，必须在 `.env` 配置镜像，否则首次检索会因模型下载失败而退化：
-
-```env
-HF_ENDPOINT=https://hf-mirror.com
+```bash
+pnpm test                                      # 前端 5 个回归脚本
+cd background && python -m pytest tests -q      # 后端 142 个用例（需 MySQL 测试库）
 ```
-
-首次检索会自动下载向量模型（约 95MB）与精排模型（约 470MB）。
-
----
 
 ## 项目结构
 
+```text
+app/                              Next.js 页面（App Router）
+components/                       前端共享组件
+lib/                              API 客户端（api-client 走 REST / chat-api 走 SSE）
+stores/  types/                   zustand 状态与领域类型
+checks/                           前端回归脚本（node 直接跑，不依赖测试框架）
+background/
+  app/
+    main.py                       FastAPI 入口与路由注册
+    config.py                     配置（pydantic-settings）
+    api/routes/                   HTTP 接口（12 个模块）
+    services/                     业务：认证 / 知识库 / 文档 / 对话 / 聊天 / 题库 / 练习 / 简历
+    core/rag/                     BM25 索引（retriever）与 Cross-Encoder 精排（reranker）
+    etl/                          文档解析（TXT/MD/DOCX/PDF）· 递归分块 · 处理流水线
+    infrastructure/               SQLAlchemy · Milvus · LLM 配置与调用
+    models/                       Pydantic schema 与枚举
+    middleware/                   限流与统一错误处理
+  alembic/                        数据库迁移
+  tests/                          pytest（142 用例）
+  scripts/                        init_db / 冒烟 / 迁移工具
 ```
-├── app/                      Next.js 页面（App Router）
-├── components/               前端共享组件
-├── lib/                      API 客户端与 SSE 解析
-├── checks/                   前端回归脚本（node --test）
-└── background/               Python 后端
-    ├── app/
-    │   ├── main.py           FastAPI 入口与路由注册
-    │   ├── config.py         pydantic-settings 配置
-    │   ├── api/routes/       HTTP 路由（11 个模块）
-    │   ├── services/         业务服务（12 个）
-    │   ├── core/rag/         BM25 索引、Cross-Encoder 精排
-    │   ├── etl/              文档解析与分块流水线
-    │   ├── infrastructure/   SQLAlchemy 会话、Milvus、LLM 客户端
-    │   ├── middleware/       限流与错误处理
-    │   └── models/           Pydantic Schema 与枚举
-    ├── alembic/              数据库迁移
-    ├── scripts/              初始化与迁移脚本
-    └── tests/                pytest 测试
-```
 
----
+## 项目规模
 
-## 常用命令
+| 指标   | 数值                                        |
+| ------ | ------------------------------------------- |
+| 后端   | 9,264 行 Python · 12 个路由模块 · 45 个接口 |
+| 前端   | 6,503 行 TS/TSX                             |
+| 数据表 | 10 张表 · 15 个索引                         |
+| 测试   | 后端 142 个用例 · 前端 5 个回归脚本         |
+| 提交   | 154 次                                      |
 
-| 命令                                                  | 说明                                            |
-| ----------------------------------------------------- | ----------------------------------------------- |
-| `python -m uvicorn app.main:app --reload`             | 启动后端（在 `background/` 下）                 |
-| `python scripts/init_db.py`                           | 建库 + 建表（幂等）                             |
-| `python -m alembic upgrade head`                      | 执行迁移                                        |
-| `python -m alembic revision --autogenerate -m "描述"` | 生成迁移                                        |
-| `python -m pytest tests`                              | 后端测试（需 MySQL 测试库）                     |
-| `python scripts/migrate_to_mysql.py`                  | 从 SQLite 迁移到 MySQL（先验证连通再改写 .env） |
-| `npm run dev`                                         | 前端开发服务器                                  |
-| `npm run lint` / `npm run format`                     | ESLint / Prettier                               |
-| `npm test`                                            | 前端回归脚本                                    |
+## 文档
 
----
+| 文档                                           | 内容                                       |
+| ---------------------------------------------- | ------------------------------------------ |
+| [AGENTS.md](./AGENTS.md)                       | **架构与约定的唯一权威来源**，改代码前先读 |
+| [CLAUDE.md](./CLAUDE.md)                       | Claude Code 使用约定                       |
+| [background/README.md](./background/README.md) | 后端部署、配置项、常见问题排查             |
+| [docs/README.md](./docs/README.md)             | 文档目录索引                               |
 
-## 测试
+## 已知限制
 
-- **后端**：pytest，覆盖鉴权与密钥校验、数据库配置与模型、文档解析各格式与异常路径、索引、检索精排链路（生效 / 关闭 / 失败降级）、LLM 评分、简历往返。
-- **前端**：`checks/*.mjs` 回归脚本，覆盖认证会话、上传流程、SSE 流解析、简历流程。
-- **CI**：GitHub Actions 执行 `format:check` 与 `tsc --noEmit`。
+诚实列出，避免误判项目边界：
 
-> CI 目前**不执行测试**（pytest 依赖 MySQL 与 Milvus，需要 service container），这是已知缺口，见下节。
-
----
-
-## 已知限制与后续计划
-
-主动记录当前方案的边界，也是后续优化的优先级排序：
-
-| 优先级 | 问题                           | 现状与改进方向                                                                                                                            |
-| ------ | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| **P0** | **缺少检索评测集**             | 所有检索参数（分块大小、Top-K、RRF 常数）都是经验取值，没有 Recall@K / MRR / NDCG 数据支撑。应先标注 query→相关分片，建立可回归的评测基线 |
-| **P0** | **BM25 索引每次检索全量重建**  | 当前从 MySQL 拉取全部切片重建内存索引，复杂度 O(N)，是最大性能瓶颈。应改为常驻索引 + 增量更新，或引入 Elasticsearch                       |
-| **P1** | **无重排前的召回上限约束**     | 候选池固定为 `top_k × 4`，大知识库下召回质量仍受粗排限制                                                                                  |
-| **P1** | **父子分块缺失**               | 分块按长度递归切分，未按 Markdown 标题层级保留结构；小块检索命中后应向 LLM 返回其父块以保证上下文完整                                     |
-| **P2** | **限流为单机内存**             | 多实例部署时阈值失效，应迁移到 Redis 滑动窗口/令牌桶                                                                                      |
-| **P2** | **上下文仅滑动窗口**           | 超出窗口的历史被硬截断；`Conversation.summary` 字段已预留但未启用，应实现滚动摘要 + 结构化长期记忆                                        |
-| **P2** | **检索结果无缓存**             | 相同查询重复执行 embedding 与检索；查询向量适合加 LRU 缓存                                                                                |
-| **P3** | **embedding 与进程同生命周期** | CPU 推理受 GIL 限制且无法水平扩展，应拆为独立推理服务                                                                                     |
-| **P3** | **CI 未跑测试**                | 需配置 MySQL/Milvus service container                                                                                                     |
-| **P3** | **无 OCR**                     | 扫描件 PDF 会被拒绝，需接入 Tesseract 或 PaddleOCR                                                                                        |
-
----
-
-## API 端点
-
-完整定义见运行后的 `/docs`（Swagger UI）或 `/redoc`。主要分组：
-
-| 分组     | 数量 | 说明                                          |
-| -------- | ---- | --------------------------------------------- |
-| 认证     | 4    | 注册 / 登录 / 登出 / 当前用户                 |
-| 知识库   | 6    | 增删改查与搜索                                |
-| 文档     | 5    | 上传（ETL + 索引）/ 列表 / 详情 / 启停 / 删除 |
-| 对话     | 7    | 会话与消息管理                                |
-| 聊天     | 1    | RAG 对话（SSE 流式）                          |
-| 题库     | 4    | 列表 / 详情 / JSON 导入 / 删除                |
-| 练习     | 2    | 答题评估 / 掌握度统计                         |
-| 简历     | 7    | 上传解析 / 结构化 / 导出                      |
-| AI       | 1    | 通用生成                                      |
-| 引用统计 | 1    | 文档引用次数与置信度聚合                      |
-| 健康检查 | 2    | 存活与就绪                                    |
-
----
-
-## 许可
-
-MIT
+- **没有检索评测集**：未跑过 Recall@K / MRR，"检索效果提升多少"无法量化回答
+- **没有压测**：BM25 索引在进程内按知识库缓存，文档量级很大时首次构建会变慢，且未做后台索引队列
+- **单机分层单体**：不是微服务；没有 Redis 等外部缓存
+- **未接入 Agent**：LangChain 只用了 Prompt + LLM + Parser 的 Chain 编排，没有 Agent / 多智能体
+- **Milvus 客户端待迁移**：`milvus_client.py` 仍用 ORM 风格的 `connections.connect`，
+  该 API 在 pymilvus 3.1 被移除，因此依赖锁在 3.0.x

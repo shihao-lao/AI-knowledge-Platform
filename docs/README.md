@@ -1,57 +1,39 @@
-# 项目文档目录
+# 文档目录
 
-本目录包含项目的所有文档和报告。
+架构、目录职责与长期约定以仓库根目录的 [AGENTS.md](../AGENTS.md) 为准 —— 那是唯一权威来源。
+本目录只放**具体功能的实现说明与踩坑记录**，避免多处描述同一件事造成文档漂移。
 
-## 📚 核心文档
+## 项目主文档
 
-- [README.md](../README.md) - 项目主文档
-- [CLAUDE.md](../CLAUDE.md) - Claude Code 开发指南
-- [prd.md](../prd.md) - 产品需求文档
+| 文档                                               | 内容                               |
+| -------------------------------------------------- | ---------------------------------- |
+| [../README.md](../README.md)                       | 项目介绍、技术栈、快速开始         |
+| [../AGENTS.md](../AGENTS.md)                       | 架构、模块职责、检索链路、开发约定 |
+| [../CLAUDE.md](../CLAUDE.md)                       | Claude Code 使用约定               |
+| [../background/README.md](../background/README.md) | 后端部署、配置项、故障排查         |
 
-## 📊 项目报告
+## 功能说明
 
-### 重构报告
+| 文档                                   | 内容                                                               |
+| -------------------------------------- | ------------------------------------------------------------------ |
+| [auth-session.md](./auth-session.md)   | 登录态如何持久化与恢复；令牌有效期、跨端口不共享等容易踩的点       |
+| [resume-editor.md](./resume-editor.md) | 简历解析与可视化编辑：支持格式、栏目保留策略、导出与格式保真的边界 |
 
-- [PYTHON_BACKEND_REFACTOR_COMPLETE.md](PYTHON_BACKEND_REFACTOR_COMPLETE.md) - Python 后端重构完成报告
-- [REFACTOR_COMPLETE_SUMMARY.md](REFACTOR_COMPLETE_SUMMARY.md) - 重构完成总结
+## 工程记录
 
-### 测试报告
+| 文档                                 | 内容                                                   |
+| ------------------------------------ | ------------------------------------------------------ |
+| [REVIEW_FIXES.md](./REVIEW_FIXES.md) | 安全与可靠性加固记录：每条都写明了问题、修法与验证方式 |
 
-- [TESTING_COMPLETE_SUMMARY.md](TESTING_COMPLETE_SUMMARY.md) - 测试完成总结
-- [DATABASE_TEST_SUMMARY.md](DATABASE_TEST_SUMMARY.md) - 数据库测试总结
+## 面试材料（未纳入版本控制）
 
-### 分析报告
+`interview/` 与 `项目事实清单.md` 属于个人求职材料，已在 `.gitignore` 中排除：
 
-- [PROJECT_STATUS_FINAL.md](PROJECT_STATUS_FINAL.md) - 项目最终状态
-- [DATABASE_ANALYSIS_SUMMARY.md](DATABASE_ANALYSIS_SUMMARY.md) - 数据库配置分析
+| 文档                                  | 内容                                   |
+| ------------------------------------- | -------------------------------------- |
+| `interview/01-简历项目描述-优化稿.md` | 简历里这个项目怎么写，以及为什么这么写 |
+| `interview/02-面试讲解手册.md`        | 自我介绍稿、核心 Q&A、陷阱题、反问环节 |
+| `项目事实清单.md`                     | 带「文件:行号」取证的项目事实清单      |
 
-## 🚀 快速开始
-
-- [background/QUICK_START.md](../background/QUICK_START.md) - 快速启动指南
-- [background/DOCKER_QUICK_START.md](../background/DOCKER_QUICK_START.md) - Docker 快速启动指南
-- [background/USAGE_GUIDE.md](../background/USAGE_GUIDE.md) - 使用指南
-
-## 📁 文件结构
-
-```
-docs/
-├── README.md                           # 本文件
-├── PYTHON_BACKEND_REFACTOR_COMPLETE.md # Python 后端重构完成报告
-├── REFACTOR_COMPLETE_SUMMARY.md        # 重构完成总结
-├── TESTING_COMPLETE_SUMMARY.md         # 测试完成总结
-├── DATABASE_TEST_SUMMARY.md            # 数据库测试总结
-├── PROJECT_STATUS_FINAL.md             # 项目最终状态
-└── DATABASE_ANALYSIS_SUMMARY.md        # 数据库配置分析
-```
-
-## 🔍 如何使用
-
-1. **新开发者**: 先阅读 [README.md](../README.md) 和 [CLAUDE.md](../CLAUDE.md)
-2. **快速启动**: 查看 [background/QUICK_START.md](../background/QUICK_START.md)
-3. **Docker 部署**: 查看 [background/DOCKER_QUICK_START.md](../background/DOCKER_QUICK_START.md)
-4. **了解项目状态**: 查看 [PROJECT_STATUS_FINAL.md](PROJECT_STATUS_FINAL.md)
-
----
-
-**文档目录创建时间**: 2024年  
-**维护者**: 项目团队
+> 这三份都基于当时的 HEAD 取证。**代码改动后需同步更新其中的数字**，
+> 尤其是接口数、表数、测试数 —— 面试时被追问却对不上代码，杀伤力很大。
