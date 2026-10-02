@@ -11,6 +11,7 @@ import { sendChatMessage } from '@/lib/chat-api';
 import { api, type ApiKnowledge, type ApiConversation, type ApiUser } from '@/lib/api-client';
 import ChatMessageList from './components/ChatMessageList';
 import ChatInputArea from './components/ChatInputArea';
+import InterviewPanel from './components/InterviewPanel';
 
 export default function ChatConversationPage() {
   const router = useRouter();
@@ -39,6 +40,24 @@ export default function ChatConversationPage() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [chatMode, setChatMode] = useState<'question' | 'interview'>('question');
+
+  useEffect(() => {
+    let cancelled = false;
+    setChatMode('question');
+    if (activeConversationId) {
+      api
+        .getInterview(activeConversationId)
+        .then(({ data }) => {
+          if (!cancelled && data) setChatMode('interview');
+        })
+        .catch(() => {
+          /* 面试面板会展示请求错误，知识问答仍可使用 */
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [activeConversationId]);
 
   // 获取知识库列表
   const fetchKnowledgeBases = async () => {
@@ -141,7 +160,7 @@ export default function ChatConversationPage() {
 
     // 服务端完成：RAG 检索、历史管理、引用校验、消息落库、标题生成
     await sendChatMessage(
-      { conversationId: activeConversationId, question, enableSearch: true, mode: chatMode },
+      { conversationId: activeConversationId, question, enableSearch: true, mode: 'question' },
       {
         onDelta: (content) => {
           setMessages((prev) =>
@@ -331,6 +350,7 @@ export default function ChatConversationPage() {
               <Space wrap>
                 <Select
                   value={chatMode}
+                  disabled={sending || !activeConversationId}
                   onChange={(m) => setChatMode(m)}
                   style={{ width: 130 }}
                   options={[
@@ -347,14 +367,20 @@ export default function ChatConversationPage() {
                 />
               </Space>
             </div>
-            <ChatMessageList
-              messages={messages}
-              userAvatar={me?.avatar}
-              onCitationOpen={goToKnowledge}
-              onRetry={retryMessage}
-              retryDisabled={loading || sending}
-            />
-            <ChatInputArea value={input} onChange={setInput} onSend={sendMessage} sending={sending} />
+            {chatMode === 'interview' && activeConversationId ? (
+              <InterviewPanel key={activeConversationId} conversationId={activeConversationId} />
+            ) : (
+              <>
+                <ChatMessageList
+                  messages={messages}
+                  userAvatar={me?.avatar}
+                  onCitationOpen={goToKnowledge}
+                  onRetry={retryMessage}
+                  retryDisabled={loading || sending}
+                />
+                <ChatInputArea value={input} onChange={setInput} onSend={sendMessage} sending={sending} />
+              </>
+            )}
           </div>
         </section>
       </main>

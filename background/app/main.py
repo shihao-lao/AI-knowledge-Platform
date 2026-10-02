@@ -21,6 +21,7 @@ from app.api.routes import (
     conversation,
     document,
     health,
+    interview,
     knowledge,
     practice,
     question,
@@ -88,6 +89,7 @@ def create_app() -> FastAPI:
     application.include_router(chat.router, prefix=settings.api_prefix)
     application.include_router(question.router, prefix=settings.api_prefix)
     application.include_router(practice.router, prefix=settings.api_prefix)
+    application.include_router(interview.router, prefix=settings.api_prefix)
     application.include_router(resume.router, prefix=settings.api_prefix)
     application.include_router(ai.router, prefix=settings.api_prefix)
     application.include_router(citation.router, prefix=settings.api_prefix)

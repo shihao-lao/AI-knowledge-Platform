@@ -42,6 +42,8 @@ async def chat_endpoint(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="mode 不合法",
             )
+        if request.mode == "interview":
+            raise HTTPException(status_code=409, detail="请使用模拟面试面板开始或继续面试")
 
         # 处理聊天请求
         return await chat_service.handle_chat(

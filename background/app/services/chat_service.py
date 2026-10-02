@@ -49,19 +49,6 @@ QA_SYSTEM_PROMPT = """你是一位严谨的 AI 知识助手。请根据以下检
 参考资料：
 {context}"""
 
-# 模拟面试 Prompt
-INTERVIEW_SYSTEM_PROMPT = """你是一位资深的技术面试官。请根据以下参考资料和题库内容，对候选人的回答进行专业评估。
-
-要求：
-1. 逐题提问，等候选人回答后再给出评价
-2. 评价包含：总分（0-100）、分项点评、遗漏要点、参考答案要点
-3. 语气专业但友善，帮助候选人提升
-4. 引用参考资料时使用 [1]、[2] 等标注
-
-参考资料：
-{context}"""
-
-
 # ==================== 对话历史管理 ====================
 
 
@@ -109,6 +96,8 @@ class ChatService:
         mode: str = "question",
     ) -> StreamingResponse:
         """处理聊天请求，返回 SSE 流式响应。"""
+        if mode != "question":
+            raise ValueError("模拟面试由 interview_service 管理，请使用面试接口")
 
         async def event_generator():
             try:
@@ -161,12 +150,8 @@ class ChatService:
                 context_block = _build_context_block(contexts)
                 chat_history = _get_chat_history(db_messages)
 
-                system_prompt = (
-                    INTERVIEW_SYSTEM_PROMPT if mode == "interview" else QA_SYSTEM_PROMPT
-                )
-
                 prompt = ChatPromptTemplate.from_messages([
-                    ("system", system_prompt),
+                    ("system", QA_SYSTEM_PROMPT),
                     MessagesPlaceholder(variable_name="chat_history"),
                     ("human", "{question}"),
                 ])

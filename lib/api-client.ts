@@ -310,7 +310,65 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   return toCamelCase(await res.json()) as T;
 }
 
+export interface ApiInterview {
+  id: string;
+  conversationId: string;
+  status: 'answering' | 'reviewing' | 'completed';
+  currentPosition: number;
+  turns: Array<{
+    id: string;
+    position: number;
+    question: string;
+    category: string;
+    difficulty: string;
+    userAnswer: string | null;
+    evaluation: {
+      score: number;
+      feedback: string;
+      keyPoints: string[];
+      referenceSummary: string;
+      recordId: string;
+    } | null;
+  }>;
+  summary: { questionCount: number; averageScore: number; keyPoints: string[] } | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
 export const api = {
+  getInterview(conversationId: string): Promise<{ data: ApiInterview | null }> {
+    return request(`${BASE}/conversations/${conversationId}/interview`);
+  },
+
+  startInterview(
+    conversationId: string,
+    count: number,
+    difficulty?: string,
+    category?: string,
+  ): Promise<{ data: ApiInterview }> {
+    return request(`${BASE}/conversations/${conversationId}/interview`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question_count: count, difficulty, category }),
+    });
+  },
+
+  answerInterview(conversationId: string, turnId: string, answer: string): Promise<{ data: ApiInterview }> {
+    return request(`${BASE}/conversations/${conversationId}/interview/answers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ turn_id: turnId, answer }),
+    });
+  },
+
+  nextInterviewQuestion(conversationId: string, turnId: string): Promise<{ data: ApiInterview }> {
+    return request(`${BASE}/conversations/${conversationId}/interview/next`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ turn_id: turnId }),
+    });
+  },
+
   // Auth
   async login(email: string, password: string): Promise<{ data: ApiUser; accessToken: string }> {
     const result = await request<{ data: ApiUser; accessToken: string }>(`${BASE}/auth/login`, {

@@ -7,6 +7,11 @@ from app.infrastructure.llm.evaluation import evaluate as _evaluate_answer_with_
 from app.models.schemas import PracticeEvaluateResponse, PracticeStatsResponse, PracticeRecordResponse
 
 
+async def evaluate_response(question: str, reference: str, answer: str, keywords: list[str], user_id: str):
+    """单题练习与模拟面试共享同一评分规则和用户模型配置。"""
+    return await _evaluate_answer_with_llm(question, reference, answer, keywords, user_id)
+
+
 async def evaluate_answer(question_id: str, user_id: str, user_answer: str) -> PracticeEvaluateResponse:
     async with get_session_context() as session:
         question = await session.scalar(
@@ -20,7 +25,7 @@ async def evaluate_answer(question_id: str, user_id: str, user_answer: str) -> P
                 raise ValueError('keywords must be a list of strings')
         except ValueError as exc:
             raise RuntimeError('题目关键词数据无效') from exc
-        evaluation = await _evaluate_answer_with_llm(
+        evaluation = await evaluate_response(
             question.question, question.answer, user_answer, keywords, user_id
         )
         record = PracticeRecord(question_id=question_id, user_id=user_id, mode='question',

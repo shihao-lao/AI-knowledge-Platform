@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, JSON, Boolean
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, JSON, Boolean, UniqueConstraint
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator
@@ -318,6 +318,45 @@ class PracticeRecord(Base):
     __table_args__ = (
         {"comment": "答题记录：模拟面试 / 刷题模式的评估结果，用于掌握度统计"},
     )
+
+
+class InterviewSession(Base):
+    """一段对话对应一场可恢复的面试。"""
+
+    __tablename__ = "interview_sessions"
+
+    id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_uuid)
+    conversation_id: Mapped[str] = mapped_column(
+        String(50), ForeignKey("conversations.id", ondelete="CASCADE"), unique=True,
+    )
+    status: Mapped[str] = mapped_column(String(20), default="answering")
+    current_position: Mapped[int] = mapped_column(Integer, default=0)
+    summary: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+
+
+class InterviewTurn(Base):
+    """固定选题顺序与参考答案快照；评分和进度一起提交。"""
+
+    __tablename__ = "interview_turns"
+    __table_args__ = (UniqueConstraint("interview_id", "position", name="uq_interview_position"),)
+
+    id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_uuid)
+    interview_id: Mapped[str] = mapped_column(
+        String(50), ForeignKey("interview_sessions.id", ondelete="CASCADE"), index=True,
+    )
+    question_id: Mapped[str | None] = mapped_column(
+        String(50), ForeignKey("questions.id", ondelete="SET NULL"), nullable=True,
+    )
+    position: Mapped[int] = mapped_column(Integer)
+    question: Mapped[str] = mapped_column(LongText)
+    reference_answer: Mapped[str] = mapped_column(LongText)
+    keywords: Mapped[list[str]] = mapped_column(JSON)
+    category: Mapped[str] = mapped_column(String(100))
+    difficulty: Mapped[str] = mapped_column(String(20))
+    user_answer: Mapped[str | None] = mapped_column(LongText, nullable=True)
+    evaluation: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
 
 class Resume(Base):
