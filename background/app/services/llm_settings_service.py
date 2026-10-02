@@ -98,6 +98,10 @@ async def save_llm_settings(user_id: str, payload: LLMConfigUpdate) -> LLMConfig
             row = UserLLMConfig(user_id=user_id)
             session.add(row)
 
+        if (row.api_key and normalize_base_url(row.base_url) != base_url
+                and not payload.clear_api_key and not (payload.api_key or '').strip()):
+            raise ValueError("更换服务地址后必须填写该地址的 API Key")
+
         if payload.clear_api_key:
             row.api_key = ""
         elif payload.api_key is not None and payload.api_key.strip():
@@ -150,9 +154,15 @@ async def resolve_candidate_config(user_id: str, payload: LLMTestRequest | None)
         return saved
 
     if payload.base_url:
-        saved.base_url = normalize_base_url(payload.base_url)
+        candidate_url = normalize_base_url(payload.base_url)
+        if candidate_url != normalize_base_url(saved.base_url):
+            # 密钥绑定完整 Base URL，包括协议、端口和路径；不得跨地址继承。
+            saved.api_key = ""
+            saved.source = "user"
+        saved.base_url = candidate_url
     if payload.api_key is not None and payload.api_key.strip():
         saved.api_key = payload.api_key.strip()
+        saved.source = "user"
     if payload.model:
         saved.model = payload.model.strip()
     if payload.provider:
@@ -170,6 +180,8 @@ async def resolve_candidate_config(user_id: str, payload: LLMTestRequest | None)
 async def test_connection(config: LLMConfig) -> LLMTestResponse:
     """发一个最小请求验证配置真的可用。"""
     validate_config(config)
+    if not config.api_key:
+        raise ValueError("请填写当前服务地址的 API Key；更换地址不能沿用旧密钥")
 
     # 测试用短超时，避免前端一直转圈
     timeout = min(config.timeout, 30)

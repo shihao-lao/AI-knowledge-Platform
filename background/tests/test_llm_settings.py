@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.infrastructure.database import session as db
 from app.infrastructure.database.models import Base, User
 from app.infrastructure.llm import config as llm_config
-from app.models.schemas import LLMConfigUpdate
+from app.models.schemas import LLMConfigUpdate, LLMTestRequest, UserResponse
 from app.services import llm_settings_service as service
 
 USER = "owner"
@@ -287,3 +287,60 @@ async def test_connection_rejects_invalid_config_before_network():
         await service.test_connection(
             llm_config.LLMConfig(base_url="ftp://nope", api_key="k", model="m")
         )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('saved_user', [False, True])
+@pytest.mark.parametrize('endpoint', ['test', 'models'])
+async def test_changed_address_never_receives_inherited_key(database, monkeypatch, saved_user, endpoint):
+    from fastapi import FastAPI
+    from app.api.routes import settings
+    from app.api.routes.auth import get_current_user_dependency
+    monkeypatch.setenv('MIMO_API_KEY', 'server-secret')
+    monkeypatch.setenv('MIMO_BASE_URL', 'https://server.example/v1')
+    if saved_user:
+        await service.save_llm_settings(USER, _payload())
+    def no_network(*args, **kwargs):
+        pytest.fail('Must reject the changed address before constructing a client')
+    monkeypatch.setattr(service, 'build_async_client', no_network)
+    monkeypatch.setattr(service, 'AsyncOpenAI', no_network)
+    app = FastAPI()
+    app.include_router(settings.router)
+    app.dependency_overrides[get_current_user_dependency] = lambda: UserResponse(
+        id=USER, name='Owner', email='o@test.com', created_at='2026-01-01')
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://test') as client:
+        response = await client.post(f'/settings/llm/{endpoint}', json={
+            'base_url': 'https://different.example/v1', 'model': 'm',
+        })
+    assert response.status_code == 400
+    assert 'API Key' in response.json()['detail']
+
+
+@pytest.mark.asyncio
+async def test_candidate_key_is_bound_to_full_address(database, monkeypatch):
+    monkeypatch.setenv('MIMO_API_KEY', 'server-secret')
+    monkeypatch.setenv('MIMO_BASE_URL', 'https://server.example/v1')
+    same = await service.resolve_candidate_config(USER, LLMTestRequest(
+        base_url='https://server.example/v1/'))
+    assert same.api_key == 'server-secret'
+    changed = await service.resolve_candidate_config(USER, LLMTestRequest(
+        base_url='https://server.example/other'))
+    assert changed.api_key == ''
+    own = await service.resolve_candidate_config(USER, LLMTestRequest(
+        base_url='https://different.example/v1', api_key='own-key'))
+    assert own.api_key == 'own-key' and own.source == 'user'
+
+
+@pytest.mark.asyncio
+async def test_saving_changed_address_requires_new_key(database):
+    await service.save_llm_settings(USER, _payload())
+    with pytest.raises(ValueError, match='API Key'):
+        await service.save_llm_settings(USER, _payload(
+            base_url='https://different.example/v1', api_key=None))
+    original = await llm_config.resolve_llm_config(USER)
+    assert original.base_url == _payload().base_url
+    assert original.api_key == SECRET_KEY_VALUE
+    await service.save_llm_settings(USER, _payload(
+        base_url='https://different.example/v1', api_key='new-key'))
+    updated = await llm_config.resolve_llm_config(USER)
+    assert updated.api_key == 'new-key'

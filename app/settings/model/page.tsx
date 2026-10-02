@@ -350,7 +350,7 @@ export default function ModelSettingsPage() {
                 >
                   <Input.Password
                     autoComplete="new-password"
-                    placeholder={settings?.apiKeySet ? `已保存 ${settings.apiKeyMasked}，留空表示不修改` : 'sk-...'}
+                    placeholder={settings?.apiKeySet ? `已保存 ${settings.apiKeyMasked}，地址不变时可留空` : 'sk-...'}
                   />
                 </Form.Item>
 
