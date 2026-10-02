@@ -25,7 +25,7 @@ pnpm run format          # Prettier 写入
 pnpm run format:check    # Prettier 检查（CI 执行）
 ```
 
-后端用 **`background/venv`** 里的解释器（根目录没有可用的 venv），命令在 `background/` 执行：
+后端用 **`background/.venv`** 里的解释器（唯一虚拟环境），命令在 `background/` 执行：
 
 ```bash
 python scripts/init_db.py                              # 建库 + 建表（幂等）
@@ -38,7 +38,7 @@ python -m uvicorn app.main:app --reload --port 8000    # 启动
 > 务必使用 `python -m uvicorn` 而非裸 `uvicorn`。后者按 PATH 解析，在多虚拟环境
 > 或 conda 共存时会静默选用错误解释器，表现为莫名的 `ModuleNotFoundError`。
 >
-> 同理务必用 `background/venv` 的解释器：系统 Python 会直接报
+> 同理务必用 `background/.venv` 的解释器：系统 Python 会直接报
 > `ModuleNotFoundError: No module named 'aiomysql'`。
 
 ## Architecture

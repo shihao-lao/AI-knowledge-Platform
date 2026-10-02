@@ -172,7 +172,7 @@ def main() -> int:
 
     print()
     print("完成。启动后端：")
-    print("    .\\venv\\Scripts\\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001")
+    print("    .\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001")
     return 0
 
 

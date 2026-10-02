@@ -27,11 +27,12 @@ pnpm run format           # Prettier（写入）
 pnpm run format:check     # Prettier 检查（CI 执行）
 ```
 
-后端解释器用 **`background/venv`**（根目录没有可用的 venv），以下命令在 `background/` 目录执行：
+后端解释器用 **`background/.venv`**（唯一的虚拟环境，不要再在根目录另建），以下命令在 `background/` 目录执行：
 
 ```bash
-./venv/Scripts/python.exe -m pip install -r requirements.txt   # Windows
-# source venv/bin/activate && pip install -r requirements.txt  # POSIX
+python -m venv .venv                                          # 首次创建
+.venv/Scripts/python.exe -m pip install -r requirements.txt   # Windows
+# source .venv/bin/activate && pip install -r requirements.txt  # POSIX
 
 python scripts/init_db.py   # 建库 + 建表（幂等）
 python -m alembic upgrade head   # 或使用迁移建表
@@ -42,8 +43,8 @@ python -m pytest tests      # 测试连 MySQL 测试库 ai_knowledge_platform_te
 > 务必使用 `python -m uvicorn`，不要用裸 `uvicorn`：后者按 PATH 解析，
 > 在多虚拟环境或 conda 共存时会静默选用错误解释器，报出难以定位的依赖错误。
 >
-> 同理务必确认用的是 `background/venv` 里的解释器：用系统 Python 或已删除的空壳
-> `.venv` 会直接报 `ModuleNotFoundError: No module named 'aiomysql'`。
+> 同理务必确认用的是 `background/.venv` 里的解释器：系统 Python 会直接报
+> `ModuleNotFoundError: No module named 'aiomysql'`。
 
 ### 换行符
 

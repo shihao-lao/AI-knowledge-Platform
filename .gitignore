@@ -50,11 +50,11 @@ wheels/
 *.egg
 
 # Virtual Environment
+# 无前导斜杠，匹配任意层级，因此 background/.venv 也被覆盖
 .venv/
 venv/
 ENV/
 env/
-background/venv/
 
 # Database
 *.db
