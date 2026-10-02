@@ -1,4 +1,4 @@
-import type { Citation, StructuredResume } from '@/types';
+import type { StructuredResume } from '@/types';
 import type { DocumentIndexStatus } from '@/lib/document-status';
 
 export interface ApiDocumentUpload {
@@ -526,15 +526,13 @@ export const api = {
   createMessage(
     conversationId: string,
     data: {
-      role: 'user' | 'assistant' | 'system';
+      role: 'user';
       content: string;
-      citations?: Citation[];
     },
   ): Promise<{ data: ApiMessage }> {
     const params = new URLSearchParams({
       role: data.role,
       content: data.content,
-      citations: JSON.stringify(data.citations || []),
     });
     return request(`${BASE}/conversations/${conversationId}/messages?${params.toString()}`, {
       method: 'POST',

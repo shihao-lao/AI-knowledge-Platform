@@ -7,7 +7,6 @@ import { useParams, useRouter } from 'next/navigation';
 import type { Message } from '@/types';
 import { chatPath, knowledgePath, statisticsPath, questionsPath, resumesPath } from '@/lib/paths';
 import HubShell from '@/components/hub-shell';
-import { createWelcomeMessage } from '@/lib/chat';
 import { sendChatMessage } from '@/lib/chat-api';
 import { api, type ApiKnowledge, type ApiConversation, type ApiUser } from '@/lib/api-client';
 import ChatMessageList from './components/ChatMessageList';
@@ -191,22 +190,9 @@ export default function ChatConversationPage() {
       const result = await api.createConversation(activeKbId, '新对话');
       const newConversation = result.data;
 
-      // 添加欢迎消息
-      const kbName = activeKb?.name ?? '当前知识库';
-      const welcomeMsg = createWelcomeMessage(kbName);
-      await api.createMessage(newConversation.id, {
-        role: welcomeMsg.role,
-        content: welcomeMsg.content,
-      });
-
       // 刷新对话列表
       await fetchConversations(activeKbId);
-      setMessages([
-        {
-          ...welcomeMsg,
-          id: welcomeMsg.id,
-        },
-      ]);
+      setMessages([]);
 
       router.push(chatPath(activeKbId, newConversation.id));
       message.success('已开始新对话');

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
 
 from app.api.routes.auth import get_current_user_dependency
+from app.models.enums import MessageRole
 from app.models.schemas import (
     ConversationCreate,
     ConversationResponse,
@@ -174,32 +175,31 @@ async def get_messages_endpoint(
 @router.post("/conversations/{conversation_id}/messages", response_model=dict)
 async def add_message_endpoint(
     conversation_id: str,
-    role: str,
+    role: MessageRole,
     content: str,
-    citations: str = "[]",
     current_user: UserResponse = Depends(get_current_user_dependency),
 ) -> dict:
-    """向对话添加消息。"""
+    """向当前用户的对话添加用户消息；assistant/system 由后端生成。"""
     try:
-        # 验证角色
-        if role not in ["user", "assistant", "system"]:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="无效的消息角色",
-            )
-
         message = await add_message_to_conversation(
             conversation_id=conversation_id,
+            user_id=current_user.id,
             role=role,
             content=content,
-            citations=citations,
         )
         return {"data": message}
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e),
+        ) from e
     except ValueError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception("添加消息失败: {}", e)
         raise HTTPException(

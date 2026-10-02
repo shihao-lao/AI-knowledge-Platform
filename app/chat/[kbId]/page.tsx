@@ -4,7 +4,6 @@ import { Button, Empty, Spin } from 'antd';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { chatPath } from '@/lib/paths';
-import { createWelcomeMessage } from '@/lib/chat';
 import { api, type ApiKnowledge } from '@/lib/api-client';
 import { ROUTES } from '@/lib/routes';
 
@@ -57,16 +56,8 @@ export default function ChatWorkspacePage() {
         }
 
         // No conversations exist — create one via the API
-        const kb = knowledgeBases.find((item) => item.id === activeKbId);
         const convResult = await api.createConversation(activeKbId, '新对话');
         if (cancelled) return;
-
-        // Add welcome message
-        const welcomeMsg = createWelcomeMessage(kb?.name ?? '当前知识库');
-        await api.createMessage(convResult.data.id, {
-          role: welcomeMsg.role,
-          content: welcomeMsg.content,
-        });
 
         if (!cancelled) router.replace(chatPath(activeKbId, convResult.data.id));
       } catch (err) {

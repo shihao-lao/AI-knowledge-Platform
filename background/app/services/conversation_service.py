@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infrastructure.database.models import Conversation, Message, Knowledge
 from app.infrastructure.database.session import get_async_session, get_session_context
+from app.models.enums import MessageRole
 from app.models.schemas import (
     ConversationCreate,
     ConversationResponse,
@@ -99,6 +100,18 @@ async def create_conversation(
             title=conv_data.title or "新对话",
         )
         session.add(conversation)
+        await session.flush()
+        # 欢迎语由服务端生成，与对话在同一事务中保存。
+        session.add(Message(
+            conversation_id=conversation.id,
+            role=MessageRole.ASSISTANT,
+            content=(
+                f"你好，我已准备好基于「{knowledge.name}」中的资料回答问题。"
+                "开始输入你的问题吧，我会尽量附上可验证的引用来源。"
+            ),
+            citations="[]",
+        ))
+        conversation.message_count = 1
         await session.commit()
         await session.refresh(conversation)
 
@@ -222,15 +235,21 @@ async def get_messages_by_conversation(
 
 async def add_message_to_conversation(
     conversation_id: str,
-    role: str,
+    user_id: str,
+    role: MessageRole,
     content: str,
-    citations: str = "[]",
 ) -> MessageResponse:
-    """向对话添加消息。"""
+    """向当前用户的对话添加用户消息；其他角色只能由后端生成。"""
+    if role != MessageRole.USER:
+        raise PermissionError("客户端只能提交用户消息")
+
     async with get_session_context() as session:
-        # 检查对话是否存在
+        # 服务层校验对话 → 知识库 → 用户，避免其他调用者绕过路由检查。
         conv_result = await session.execute(
-            select(Conversation).where(Conversation.id == conversation_id)
+            select(Conversation)
+            .join(Knowledge, Conversation.knowledge_id == Knowledge.id)
+            .where(Conversation.id == conversation_id, Knowledge.user_id == user_id)
+            .with_for_update()
         )
         conversation = conv_result.scalar_one_or_none()
         if not conversation:
@@ -239,9 +258,9 @@ async def add_message_to_conversation(
         # 创建消息
         message = Message(
             conversation_id=conversation_id,
-            role=role,
+            role=MessageRole.USER,
             content=content,
-            citations=citations,
+            citations="[]",
         )
         session.add(message)
 

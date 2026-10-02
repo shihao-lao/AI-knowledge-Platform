@@ -230,7 +230,7 @@ class MessageResponse(BaseModel):
     """消息响应。"""
 
     id: str
-    role: str
+    role: MessageRole
     content: str
     citations: list[dict[str, Any]] = Field(default_factory=list)
     created_at: str

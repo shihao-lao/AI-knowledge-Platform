@@ -13,7 +13,7 @@ import uuid
 from typing import Any
 
 from fastapi.responses import StreamingResponse
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from loguru import logger
@@ -70,16 +70,15 @@ def _get_chat_history(
 ) -> list:
     """从数据库消息构建 LangChain 消息列表（滑动窗口）。"""
     history = []
-    # 取最近 N 轮对话
-    recent = session_messages[-max_turns * 2 :] if len(session_messages) > max_turns * 2 else session_messages
+    # 系统指令只由服务端 Prompt 提供，旧客户端写入的 system 消息不能进入历史。
+    dialogue = [msg for msg in session_messages if msg.role in {"user", "assistant"}]
+    recent = dialogue[-max_turns * 2 :]
 
     for msg in recent:
         if msg.role == "user":
             history.append(HumanMessage(content=msg.content))
         elif msg.role == "assistant":
             history.append(AIMessage(content=msg.content))
-        elif msg.role == "system":
-            history.append(SystemMessage(content=msg.content))
 
     return history
 
