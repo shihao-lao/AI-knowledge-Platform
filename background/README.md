@@ -1,388 +1,106 @@
-# AI 面试知识库 - Python 后端 🐍
-
-## 📋 项目概述
-
-这是 AI 面试知识库的 Python 后端服务，使用 FastAPI 框架构建。
-
-## 🚀 快速开始
-
-### 1. 进入后端目录
-
-```bash
-cd background
-```
-
-### 2. 创建虚拟环境
-
-```bash
-python -m venv venv
-```
-
-### 3. 激活虚拟环境
-
-```bash
-# Windows:
-venv\Scripts\activate
-
-# Mac/Linux:
-source venv/bin/activate
-```
-
-### 4. 安装依赖
-
-```bash
-pip install -r requirements.txt
-```
-
-### 5. 配置环境变量
-
-```bash
-cp .env.example .env
-```
-
-编辑 `.env` 文件：
-
-```env
-SECRET_KEY=<至少 32 字节的随机密钥，示例值会被拒绝启动>
-DATABASE_URL=mysql+aiomysql://root:root@localhost:3306/ai_knowledge_platform
-```
-
-### 6. 创建数据库与表
-
-```bash
-# 建库（若不存在）+ 建表
-python scripts/init_db.py
-
-# 或者使用迁移建表
-alembic upgrade head
-```
-
-### 7. 启动应用
-
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### 8. 访问应用
-
-- **API 文档**: http://localhost:8000/docs
-- **健康检查**: http://localhost:8000/api/health
-
-## 📁 项目结构
-
-```
-background/
-├── app/                      # 应用代码
-│   ├── api/routes/           # API 路由
-│   ├── services/             # 业务服务
-│   ├── models/               # 数据模型
-│   ├── infrastructure/       # 基础设施
-│   ├── core/                 # 核心业务逻辑
-│   ├── etl/                  # ETL 流水线
-│   ├── middleware/           # 中间件
-│   └── main.py               # FastAPI 入口
-│
-├── alembic/                  # 数据库迁移
-├── scripts/                  # 脚本工具
-├── tests/                    # 测试文件
-│
-├── requirements.txt          # 依赖
-├── pyproject.toml            # 项目配置
-├── alembic.ini               # Alembic 配置
-├── Dockerfile                # Docker 配置
-├── docker-compose.yml        # Docker Compose 配置
-└── .env.example              # 环境变量示例
-```
-
-## 🔧 常用命令
-
-### 启动应用
-
-```bash
-# 开发模式（自动重载）
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-# 生产模式
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-### 数据库操作
-
-```bash
-# 建库 + 建表（幂等）
-python scripts/init_db.py
-
-# 迁移管理
-alembic revision --autogenerate -m "描述"
-alembic upgrade head
-
-# 测试数据库连接
-python scripts/test_connection.py
-```
-
-### 测试
-
-```bash
-# 运行所有测试
-python -m pytest tests/
-
-# 运行特定测试
-python tests/test_api_routes_working.py
-```
-
-## 📚 API 端点
-
-### 健康检查
-
-- `GET /api/health` - 健康检查
-- `GET /api/health/ready` - 就绪检查
-
-### 认证
-
-- `POST /api/auth/register` - 用户注册
-- `POST /api/auth/login` - 用户登录
-- `POST /api/auth/logout` - 用户登出
-- `GET /api/auth/me` - 获取当前用户
-
-### 知识库
-
-- `GET /api/knowledge` - 获取知识库列表
-- `POST /api/knowledge` - 创建知识库
-- `GET /api/knowledge/{id}` - 获取知识库详情
-- `PUT /api/knowledge/{id}` - 更新知识库
-- `DELETE /api/knowledge/{id}` - 删除知识库
-- `POST /api/knowledge/search` - 搜索知识库
-
-### 文档
-
-- `GET /api/document` - 获取文档列表
-- `POST /api/document/upload` - 上传文档
-- `GET /api/document/{id}` - 获取文档详情
-- `DELETE /api/document/{id}` - 删除文档
-
-### 对话
-
-- `GET /api/conversations` - 获取对话列表
-- `POST /api/conversations` - 创建对话
-- `GET /api/conversations/{id}` - 获取对话详情
-- `DELETE /api/conversations/{id}` - 删除对话
-- `GET /api/conversations/{id}/messages` - 获取对话消息
-- `POST /api/conversations/{id}/messages` - 添加消息
-
-### 聊天
-
-- `POST /api/chat` - RAG 聊天（SSE 流式）
-
-### 题库
-
-- `GET /api/questions` - 获取题目列表
-- `POST /api/questions/import` - 导入题目
-- `GET /api/questions/{id}` - 获取题目详情
-- `DELETE /api/questions/{id}` - 删除题目
-
-### 练习
-
-- `POST /api/practice/evaluate` - 评估答案
-- `GET /api/practice/stats` - 获取练习统计
-
-### 简历
-
-- `POST /api/resumes/upload` - 上传简历
-- `GET /api/resumes` - 获取简历列表
-- `GET /api/resumes/{id}` - 获取简历详情
-
-## 🔍 故障排除
-
-### 问题 1: 模块导入错误
-
-```bash
-# 确保虚拟环境已激活
-venv\Scripts\activate  # Windows
-source venv/bin/activate  # Mac/Linux
-
-# 重新安装依赖
-pip install -r requirements-minimal.txt
-```
-
-### 问题 2: 端口被占用
-
-```bash
-# 使用其他端口
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
-```
-
-### 问题 3: 数据库错误
-
-```bash
-# 回滚并重建所有表（会清空数据）
-alembic downgrade base
-alembic upgrade head
-```
-
-### 问题 4: SECRET_KEY 未设置
-
-```bash
-# 生成随机密钥
-python -c "import secrets; print(secrets.token_hex(32))"
-
-# 添加到 .env 文件
-echo SECRET_KEY=your-generated-key >> .env
-```
-
-## 📊 测试 API
-
-### 使用 curl
-
-```bash
-# 健康检查
-curl http://localhost:8000/api/health
-
-# 用户注册
-curl -X POST http://localhost:8000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"name":"test","email":"test@example.com","password":"Test1234"}'
-
-# 用户登录
-curl -X POST http://localhost:8000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"Test1234"}'
-```
-
-### 使用 Python
-
-```python
-import requests
-
-BASE_URL = "http://localhost:8000/api"
-
-# 健康检查
-response = requests.get(f"{BASE_URL}/health")
-print(response.json())
-
-# 用户注册
-response = requests.post(f"{BASE_URL}/auth/register", json={
-    "name": "test",
-    "email": "test@example.com",
-    "password": "Test1234"
-})
-print(response.json())
-```
-
-## 📚 更多文档
-
-- **快速启动**: `START_WITHOUT_DOCKER.md`
-- **使用指南**: `USAGE_GUIDE.md`
-- **Docker 部署**: `DOCKER_QUICK_START.md`
-- **故障排除**: `DOCKER_TROUBLESHOOTING.md`
-- **API 文档**: http://localhost:8000/docs
-
-## 🎯 技术栈
-
-- **框架**: FastAPI
-- **ORM**: SQLAlchemy
-- **数据库**: MySQL 8（utf8mb4 / utf8mb4_unicode_ci，异步驱动 aiomysql）
-- **认证**: JWT + bcrypt
-- **文档**: Swagger UI / ReDoc
-
-## 📝 开发规范
-
-- 使用 Python 3.11+
-- 遵循 PEP 8 代码规范
-- 使用类型注解
-- 编写单元测试
-- 提交前运行测试
-
-## 🚀 部署
-
-### 开发环境
-
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### 生产环境
-
-```bash
-# 使用 Gunicorn
-gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
-
-# 或者使用 Uvicorn
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-### Docker 部署
-
-```bash
-docker-compose up -d --build
-```
-
----
-
-**Python 后端启动完成！🎉**
+# AI 面试知识库 · 后端服务
+
+FastAPI 业务与 AI 服务。前端（Next.js）只负责页面，所有业务逻辑、RAG 检索与
+大模型调用都在这里。
+
+> 架构、模块职责与长期约定以仓库根目录的 [AGENTS.md](../AGENTS.md) 为准，
+> 本文只讲「怎么把它跑起来」。
+
+## 技术栈
+
+| 层     | 选型                                                                         |
+| ------ | ---------------------------------------------------------------------------- |
+| Web    | FastAPI + Uvicorn                                                            |
+| 数据   | MySQL 8（运行时 aiomysql 异步，迁移走 PyMySQL 同步）+ SQLAlchemy 2 + Alembic |
+| 向量   | Milvus（pymilvus）                                                           |
+| 检索   | BM25 + 向量双路召回 → RRF 融合 → Cross-Encoder 精排                          |
+| 大模型 | 任意 OpenAI 兼容服务（用户在页面上自行配置，服务端 `.env` 仅兜底）           |
+| 认证   | JWT（HS256）+ bcrypt                                                         |
 
 ## 快速开始
 
-### 本地开发
-
-1. Python 3.11+，创建虚拟环境并安装依赖：
-
 ```bash
-cd project-python
+cd background
+
+# 1. 虚拟环境（必须是 .venv，不要用系统 Python）
 python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-pip install -e .
-```
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate     # Mac/Linux
 
-2. 复制环境变量并编辑（至少填写 `OPENAI_API_KEY` 等）：
+# 2. 安装依赖
+python -m pip install -r requirements.txt
 
-```bash
-cp .env.example .env
-```
+# 3. 配置环境变量
+copy .env.example .env          # Windows（Mac/Linux 用 cp）
+#   SECRET_KEY 必填，未配置或过短会拒绝启动：
+#   python -c "import secrets; print(secrets.token_hex(32))"
 
-3. 启动 API（需本机 MySQL 8 已启动；Milvus 可用 Compose 起，未启动时检索自动降级为关键词模式）：
+# 4. 建库 + 建表（幂等）
+python scripts/init_db.py
 
-```bash
+# 5. 启动
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-> 用 `python -m uvicorn` 而不是裸 `uvicorn`，避免在多虚拟环境下用到错误解释器。
-> 国内网络需在 `.env` 配置 `HF_ENDPOINT=https://hf-mirror.com`，否则模型无法下载。
+Windows 上也可以直接双击 `start.bat`，它会依次完成上面 5 步。
 
-4. 访问健康检查：<http://127.0.0.1:8000/api/v1/health>
+- 接口文档：http://localhost:8000/docs
+- 健康检查：http://localhost:8000/api/v1/health
 
-### Docker Compose
-
-在项目根目录准备 `.env`（可由 `.env.example` 复制），然后：
+## 常用命令
 
 ```bash
-docker compose up -d --build
+python -m uvicorn app.main:app --reload --port 8000   # 开发（热重载）
+python -m uvicorn app.main:app --port 8000            # 生产
+python scripts/init_db.py                             # 建库 + 建表（幂等）
+python -m alembic upgrade head                        # 执行迁移
+python -m alembic revision --autogenerate -m "描述"    # 生成迁移
+python -m pytest tests                                # 跑测试（需 MySQL 测试库）
+python scripts/api_smoke_test.py                      # 全接口冒烟（需服务已启动）
 ```
 
-Compose 包含 **app、mysql、milvus**，以及 Milvus 官方 Standalone 模式所需的 **etcd、minio**（向量与元数据存储依赖，非业务微服务）。应用默认映射 `8000` 端口，MySQL 映射到宿主机 `3307` 以避开本地已有的 3306 实例。
+外部依赖没起来时不会中断服务，只会降级：
 
-首次启动 Milvus 可能需要数十秒就绪；若应用启动过快导致连不上 Milvus，可在生产环境中为 app 增加重试或 `depends_on` 健康检查策略。
+| 缺什么         | 表现                                    |
+| -------------- | --------------------------------------- |
+| Milvus 未启动  | 退化为纯关键词检索，标记 `keyword_only` |
+| 精排模型不可用 | 退回 RRF 顺序                           |
+| 未配置任何模型 | AI 相关接口返回可读提示，其余功能正常   |
 
-## 目录结构说明
+## 关键配置
 
+配置放在 `.env`（从 `.env.example` 复制）：
+
+| 变量                              | 说明                                                                    |
+| --------------------------------- | ----------------------------------------------------------------------- |
+| `SECRET_KEY`                      | 必填，JWT 签名密钥；未配置、过短或仍是示例值会拒绝启动                  |
+| `DATABASE_URL`                    | MySQL 连接串（`mysql+aiomysql://...`）                                  |
+| `ALLOWED_ORIGINS`                 | CORS 白名单，前端默认 `http://localhost:3001`                           |
+| `HF_ENDPOINT`                     | 模型下载源。国内建议 `https://hf-mirror.com`，否则向量/精排模型加载失败 |
+| `EMBEDDING_MODEL`                 | 向量模型，决定向量维度；更换后需对新集合重新索引                        |
+| `RERANK_ENABLED` / `RERANK_MODEL` | 是否启用精排及其模型                                                    |
+| `OPENAI_*` / `MIMO_*`             | **服务端兜底**模型配置，用户也可在「设置 → 模型配置」页填自己的         |
+
+## 常见问题
+
+**`ModuleNotFoundError: No module named 'aiomysql'`**
+用错解释器了。确认已激活 `.venv`，并统一用 `python -m ...` 而不是裸命令。
+裸 `uvicorn`/`alembic` 按 PATH 解析，多虚拟环境共存时会静默选错。
+
+**`format`/`git diff` 显示整文件改动**
+换行符问题。仓库用 `.gitattributes` 强制 LF，若本地历史检出是 CRLF：
+
+```bash
+git rm --cached -r -q . && git reset --hard -q
 ```
-project-python/
-├── app/
-│   ├── main.py                 # FastAPI 入口
-│   ├── config.py               # 配置（pydantic-settings）
-│   ├── api/routes/             # 路由：chat、document、health
-│   ├── core/                   # Agent、RAG、记忆、工具、意图
-│   ├── infrastructure/         # LLM、向量库、缓存、DB、追踪
-│   ├── etl/                    # 解析、分块、流水线
-│   └── models/                 # schemas、enums
-├── requirements.txt
-├── pyproject.toml
-├── Dockerfile
-├── docker-compose.yml
-├── .env.example
-└── README.md
-```
 
-## 许可证
+**检索结果明显变差、日志里有 "向量索引不可用"**
+Milvus 未启动或 embedding 模型没下载成功。检查 `MILVUS_HOST` 与 `HF_ENDPOINT`。
 
-MIT（可按团队需要修改）。
+**连本地模型（Ollama 等）报 502**
+系统代理（clash 等）会把 `127.0.0.1` 也转发出去。本项目已自动把回环地址加入
+`NO_PROXY`，若仍失败请检查代理软件自身的绕过规则。
+
+**数据库连不上**
+确认 MySQL 8 已启动、`.env` 的 `DATABASE_URL` 正确，并已执行
+`python scripts/init_db.py`。测试另需 `ai_knowledge_platform_test` 库。
