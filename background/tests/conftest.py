@@ -39,3 +39,48 @@ def setup_test_environment():
     """确保每个测试都指向测试库。"""
     os.environ["DATABASE_URL"] = TEST_DATABASE_URL
     yield
+
+
+@pytest.fixture(scope="session", autouse=True)
+def reset_test_schema():
+    """会话开始时清空测试库中实际存在的所有表。
+
+    多个测试模块用 ``Base.metadata.drop_all`` + ``create_all`` 建表，但
+    ``drop_all`` 只能删**当前模型认识**的表。一旦库里残留了已被移除功能的表
+    （例如提交 ebbaeb3 引入、后来整体删掉的 ``interview_sessions`` /
+    ``interview_turns``），它指向 ``questions`` 的外键就会让 ``drop_all`` 报
+    "Cannot drop table ... referenced by a foreign key constraint"，
+    使整批用例在 setup 阶段集体失败。
+
+    这里按库里实际存在的表来删，让测试对 schema 漂移有自愈能力。
+    只作用于测试库（DATABASE_URL 已被强制覆盖）。
+    """
+    from sqlalchemy.engine import make_url
+
+    url = make_url(TEST_DATABASE_URL)
+    if not url.drivername.startswith("mysql"):
+        # 非 MySQL（例如临时切到 SQLite）时不需要这层清理
+        yield
+        return
+
+    import pymysql
+
+    conn = pymysql.connect(
+        host=url.host or "localhost",
+        port=url.port or 3306,
+        user=url.username,
+        password=url.password,
+        database=url.database,
+    )
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SET FOREIGN_KEY_CHECKS = 0")
+            cur.execute("SHOW TABLES")
+            for (table,) in cur.fetchall():
+                cur.execute("DROP TABLE IF EXISTS `%s`" % table)
+            cur.execute("SET FOREIGN_KEY_CHECKS = 1")
+        conn.commit()
+    finally:
+        conn.close()
+
+    yield
