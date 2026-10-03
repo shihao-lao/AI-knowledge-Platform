@@ -15,7 +15,10 @@ async def evaluate_response(question: str, reference: str, answer: str, keywords
 async def evaluate_answer(question_id: str, user_id: str, user_answer: str) -> PracticeEvaluateResponse:
     async with get_session_context() as session:
         question = await session.scalar(
-            select(Question).join(Knowledge).where(Question.id == question_id, Knowledge.user_id == user_id)
+            select(Question).join(Knowledge).where(
+                Question.id == question_id, Knowledge.user_id == user_id,
+                Question.deleted_at.is_(None),
+            )
         )
         if question is None:
             raise ValueError('题目不存在')

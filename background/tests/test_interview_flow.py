@@ -8,12 +8,12 @@ import pytest_asyncio
 from fastapi import FastAPI
 from sqlalchemy import func, select
 
-from app.api.routes import chat, interview
+from app.api.routes import chat, interview, question
 from app.api.routes.auth import get_current_user_dependency
-from app.infrastructure.database.models import InterviewSession, PracticeRecord, Question
+from app.infrastructure.database.models import Conversation, InterviewSession, PracticeRecord, Question
 from app.infrastructure.llm.evaluation import AnswerEvaluation
 from app.models.schemas import UserResponse
-from app.services import practice_service
+from app.services import practice_service, question_service
 from tests.test_conversation_message_security import database  # noqa: F401
 
 PATH = '/conversations/conv/interview'
@@ -38,6 +38,7 @@ async def client(database, monkeypatch):
     app = FastAPI()
     app.include_router(interview.router)
     app.include_router(chat.router)
+    app.include_router(question.router)
     user = UserResponse(id='owner', name='Owner', email='o@test.com', created_at='2026-01-01')
     app.dependency_overrides[get_current_user_dependency] = lambda: user
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url='http://test') as http:
@@ -174,3 +175,39 @@ async def test_legacy_chat_mode_cannot_bypass_interview_records(client):
     })
     assert response.status_code == 409
     evaluator.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_deleted_questions_preserve_interview_and_stats(client, database, monkeypatch):
+    http, _, evaluator = client
+    monkeypatch.setattr(question_service.retrieval_service, 'sync_knowledge',
+                        AsyncMock(return_value=True))
+    state = await start(http)
+    assert (await http.delete('/questions/q1')).status_code == 200
+    assert (await http.get('/questions/q1')).status_code == 404
+    assert set(await question_service.get_question_categories('kb', 'owner')) == {'Python', 'React'}
+    assert 'q1' not in {
+        q.id for q in await question_service.get_questions_by_knowledge('kb', 'owner')
+    }
+    assert 'q1' not in await question_service.retrieval_service._corpus('kb', 'owner')
+    with pytest.raises(ValueError, match='题目不存在'):
+        await practice_service.evaluate_answer('q1', 'owner', '新练习')
+    for turn in state['turns']:
+        response = await http.post(PATH + '/answers', json={
+            'turn_id': turn['id'], 'answer': '原场次继续作答',
+        })
+        assert response.status_code == 200, response.text
+        response = await http.post(PATH + '/next', json={'turn_id': turn['id']})
+        assert response.status_code == 200, response.text
+    assert response.json()['data']['status'] == 'completed'
+    assert evaluator.await_count == 2
+    assert (await http.delete('/questions/q2')).status_code == 200
+    stats = await practice_service.get_practice_stats('owner', 'kb')
+    assert stats.total == 2 and stats.average_score == 85
+    assert (await http.get(PATH)).json()['data']['summary']['average_score'] == 85
+    async with database() as session:
+        session.add(Conversation(id='new', knowledge_id='kb'))
+        await session.commit()
+    response = await http.post('/conversations/new/interview', json={'question_count': 20})
+    assert response.status_code == 200, response.text
+    assert [t['question'] for t in response.json()['data']['turns']] == ['Python 是什么？']

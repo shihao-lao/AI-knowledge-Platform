@@ -267,6 +267,8 @@ class Question(Base):
     answer: Mapped[str] = mapped_column(LongText)
     keywords: Mapped[str] = mapped_column(LongText, default="[]")  # JSON array string
     source: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # 从题库移除后保留历史面试和练习引用；整库删除仍按外键级联清理。
+    deleted_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         UTCDateTime,
         default=_utcnow,

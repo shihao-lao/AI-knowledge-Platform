@@ -81,7 +81,9 @@ class RetrievalService:
             rows = (await session.execute(select(Chunk, Document).join(Document).where(
                 Document.knowledge_id == knowledge_id, Document.enabled.is_(True),
                 Document.parse_status.in_(['ready', 'completed'])))).all()
-            questions = (await session.scalars(select(Question).where(Question.knowledge_id == knowledge_id))).all()
+            questions = (await session.scalars(select(Question).where(
+                Question.knowledge_id == knowledge_id, Question.deleted_at.is_(None),
+            ))).all()
         records = {c.id: RetrievalResult(id=c.id, content=c.content, metadata={
             'document_id': d.id, 'filename': d.filename, 'chunk_index': c.chunk_index, 'type': 'doc',
         }) for c, d in rows}

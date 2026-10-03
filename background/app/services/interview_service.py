@@ -68,7 +68,9 @@ async def start_interview(conversation_id: str, user_id: str, request: Interview
         ))
         if existing:
             return _result(existing, await _turns(session, existing.id))
-        query = select(Question).where(Question.knowledge_id == conversation.knowledge_id)
+        query = select(Question).where(
+            Question.knowledge_id == conversation.knowledge_id, Question.deleted_at.is_(None),
+        )
         if request.category:
             query = query.where(Question.category == request.category)
         if request.difficulty:

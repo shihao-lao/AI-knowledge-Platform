@@ -9,7 +9,7 @@ from typing import List, Optional
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.database.models import Question, Knowledge
+from app.infrastructure.database.models import Question, Knowledge, _utcnow
 from app.infrastructure.database.session import get_async_session, get_session_context
 from app.services.retrieval_service import retrieval_service
 from app.models.schemas import (
@@ -40,7 +40,9 @@ async def get_questions_by_knowledge(
             raise ValueError("知识库不存在")
 
         # 构建查询
-        query = select(Question).where(Question.knowledge_id == knowledge_id)
+        query = select(Question).where(
+            Question.knowledge_id == knowledge_id, Question.deleted_at.is_(None),
+        )
 
         if category:
             query = query.where(Question.category == category)
@@ -86,7 +88,7 @@ async def get_question_categories(knowledge_id: str, user_id: str) -> List[str]:
         # 获取分类
         result = await session.execute(
             select(Question.category)
-            .where(Question.knowledge_id == knowledge_id)
+            .where(Question.knowledge_id == knowledge_id, Question.deleted_at.is_(None))
             .distinct()
         )
         categories = result.scalars().all()
@@ -122,6 +124,7 @@ async def import_questions(
                         and_(
                             Question.knowledge_id == knowledge_id,
                             Question.question == question_data.question,
+                            Question.deleted_at.is_(None),
                         )
                     )
                 )
@@ -162,7 +165,7 @@ async def get_question(question_id: str, user_id: str) -> Optional[QuestionRespo
     """获取题目详情。"""
     async with get_session_context() as session:
         result = await session.execute(
-            select(Question).where(Question.id == question_id)
+            select(Question).where(Question.id == question_id, Question.deleted_at.is_(None))
         )
         question = result.scalar_one_or_none()
         if not question:
@@ -198,7 +201,7 @@ async def delete_question(question_id: str, user_id: str) -> bool:
     """删除题目。"""
     async with get_session_context() as session:
         result = await session.execute(
-            select(Question).where(Question.id == question_id)
+            select(Question).where(Question.id == question_id, Question.deleted_at.is_(None))
         )
         question = result.scalar_one_or_none()
         if not question:
@@ -217,8 +220,8 @@ async def delete_question(question_id: str, user_id: str) -> bool:
         if not knowledge:
             return False
 
-        # 删除题目（级联删除练习记录）
-        await session.delete(question)
+        # 保留正在进行的面试及历史成绩，检索和新选题排除此记录。
+        question.deleted_at = _utcnow()
         await session.commit()
         await retrieval_service.sync_knowledge(question.knowledge_id, user_id)
         return True
