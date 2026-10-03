@@ -1,56 +1,89 @@
+# 后端全栈 Docker 编排：应用 + MySQL + Milvus（依赖 etcd / MinIO）
+#
+# 用法（在 background/ 目录下）：
+#   docker compose up -d --build      启动全部服务
+#   docker compose logs -f app        看后端日志
+#   docker compose down               停止（保留数据卷）
+#   docker compose down -v            停止并删除数据卷（会清空数据库！）
+#
+# 前端仍在宿主机跑（pnpm run dev，端口 3001），通过 localhost:8000 访问本编排的 app。
+
+name: ai-knowledge-platform
+
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: enterprise-ai-agent-app
+      args:
+        # 国内网络按需覆盖；默认值见 Dockerfile 头部说明
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+        PYTORCH_FIND_LINKS: ${PYTORCH_FIND_LINKS:-https://mirrors.aliyun.com/pytorch-wheels/cpu/}
+        TORCH_VERSION: ${TORCH_VERSION:-2.14.0}
     ports:
       - '8000:8000'
+    # env_file 先注入 .env 的全部配置，下面的 environment 再覆盖容器内需要改的项
+    env_file:
+      - .env
     environment:
+      # 容器内数据库主机名是服务名 mysql，不能再用 localhost
       DATABASE_URL: mysql+aiomysql://root:root@mysql:3306/ai_knowledge_platform
-      # 必须提供至少 32 字节的随机密钥，示例值会被应用启动时拒绝
-      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY 必须设置为至少 32 字节的随机密钥}
       MILVUS_HOST: milvus
       MILVUS_PORT: '19530'
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_API_BASE: ${OPENAI_API_BASE:-https://api.openai.com/v1}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
-      MIMO_API_KEY: ${MIMO_API_KEY:-}
-      MIMO_BASE_URL: ${MIMO_BASE_URL:-https://api.xiaomimimo.com/v1}
-      MIMO_MODEL: ${MIMO_MODEL:-mimo-v2.5}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-zh-v1.5}
-      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:3001
+      MILVUS_COLLECTION_NAME: agent_knowledge6
+      # 模型缓存放卷里，重建容器不必重新下载
+      HF_HOME: /models
+      # 关键：hf-mirror 等镜像不代理 HuggingFace 的 Xet 传输协议，
+      # 不关掉 Xet 会在下载向量模型时卡在 1MB 不动（表现为检索一直转圈）。
+      HF_HUB_DISABLE_XET: '1'
+      # 前端在宿主机跑，浏览器请求带的是 localhost:3001
+      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001
+      # 容器内的回环不是宿主机；如需访问宿主机上的本地模型（如 Ollama），
+      # 把 Base URL 写成 http://host.docker.internal:11434/v1
+      NO_PROXY: localhost,127.0.0.1,::1,mysql,milvus,etcd,minio,host.docker.internal
+      no_proxy: localhost,127.0.0.1,::1,mysql,milvus,etcd,minio,host.docker.internal
+    volumes:
+      # 上传的文件落宿主机的 background/uploads，方便查看与备份
+      - ./uploads:/app/uploads
+      - hf_cache:/models
     depends_on:
       mysql:
         condition: service_healthy
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
       milvus:
         condition: service_started
+    extra_hosts:
+      # Linux 上让 host.docker.internal 可用（Docker Desktop 已内置）
+      - 'host.docker.internal:host-gateway'
     restart: unless-stopped
 
   mysql:
     image: mysql:8.0
-    container_name: enterprise-ai-agent-mysql
+    # 3306 是宿主机已有的 MySQL80；3307 被其它项目占用，因此用 3308
+    ports:
+      - '3308:3306'
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: ai_knowledge_platform
+      TZ: Asia/Shanghai
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
-    # 宿主机映射到 3307，避免与本地已有的 3306 实例冲突；容器间仍走 3306
-    ports:
-      - '3307:3306'
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
       test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-proot']
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
+      start_period: 30s
     restart: unless-stopped
 
   etcd:
     image: bitnami/etcd:3.5.5
-    container_name: enterprise-ai-agent-etcd
     environment:
       ALLOW_NONE_AUTHENTICATION: 'yes'
       ETCD_AUTO_COMPACTION_MODE: revision
@@ -59,25 +92,35 @@ services:
       ETCD_SNAPSHOT_COUNT: '50000'
     volumes:
       - etcd_data:/bitnami/etcd
+    healthcheck:
+      test: ['CMD', 'etcdctl', 'endpoint', 'health']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     restart: unless-stopped
 
   minio:
     image: minio/minio:latest
-    container_name: enterprise-ai-agent-minio
     environment:
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
     command: minio server /minio_data --console-address ":9001"
     ports:
       - '9000:9000'
       - '9001:9001'
     volumes:
       - minio_data:/minio_data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     restart: unless-stopped
 
   milvus:
     image: milvusdb/milvus:v2.4.15
-    container_name: enterprise-ai-agent-milvus
     command: ['milvus', 'run', 'standalone']
     environment:
       ETCD_ENDPOINTS: etcd:2379
@@ -87,11 +130,17 @@ services:
       - '9091:9091'
     volumes:
       - milvus_data:/var/lib/milvus
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:9091/healthz']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     depends_on:
       etcd:
-        condition: service_started
+        condition: service_healthy
       minio:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
@@ -99,3 +148,5 @@ volumes:
   etcd_data:
   minio_data:
   milvus_data:
+  # 向量/精排模型缓存（首次检索会从 HF_ENDPOINT 下载，之后复用）
+  hf_cache:
