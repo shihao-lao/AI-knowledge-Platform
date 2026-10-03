@@ -51,6 +51,21 @@ docker compose exec app python -m pytest tests -q    # 在容器里跑测试
 
 **首次检索会下载向量与精排模型**（约 300 MB），缓存在 `hf_cache` 卷里，之后重建容器不必再下。
 
+### 怎么确认真的跑起来了
+
+`docker compose ps` 只能说明进程活着、健康检查通过，**看不出应用能不能真用上这些依赖**。
+要验证到这一层，跑内置的检查脚本：
+
+```bash
+docker compose exec app python scripts/verify_stack.py
+```
+
+它会从应用进程内部实际连一遍 MySQL / Milvus / MinIO / etcd，读一次业务数据行数，
+列出 Milvus 集合与实体数，并检查模型缓存与模型配置，最后给出汇总结论。
+
+> 该脚本已随镜像构建进去。如果容器是加脚本之前构建的，先
+> `docker compose cp scripts/verify_stack.py app:/app/scripts/`，或直接重建镜像。
+
 ### 两个容易踩的坑
 
 1. **`HF_HUB_DISABLE_XET=1` 不能去掉。** hf-mirror 不代理 HuggingFace 的 Xet 传输协议，
