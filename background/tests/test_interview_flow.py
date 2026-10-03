@@ -1,19 +1,22 @@
 """真实 MySQL + HTTP 面试流程；仅替换外部模型评分。"""
 import asyncio
+from datetime import timedelta
 from unittest.mock import AsyncMock
 
 import httpx
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.api.routes import chat, interview, question
 from app.api.routes.auth import get_current_user_dependency
-from app.infrastructure.database.models import Conversation, InterviewSession, PracticeRecord, Question
+from app.infrastructure.database.models import (
+    Conversation, InterviewSession, InterviewTurn, Knowledge, PracticeRecord, Question, _utcnow,
+)
 from app.infrastructure.llm.evaluation import AnswerEvaluation
 from app.models.schemas import UserResponse
-from app.services import practice_service, question_service
+from app.services import interview_service, practice_service, question_service
 from tests.test_conversation_message_security import database  # noqa: F401
 
 PATH = '/conversations/conv/interview'
@@ -93,9 +96,13 @@ async def test_duplicate_answers_and_next_are_idempotent(client, database):
         http.post(PATH + '/answers', json={'turn_id': first, 'answer': '同一回答'})
         for _ in range(2)
     ])
-    assert all(r.status_code == 200 for r in responses)
+    assert all(r.status_code in {200, 409} for r in responses)
+    assert any(r.status_code == 200 for r in responses)
     assert evaluator.await_count == 1
-    assert responses[0].json() == responses[1].json()
+    repeated = await http.post(PATH + '/answers', json={'turn_id': first, 'answer': '同一回答'})
+    assert repeated.status_code == 200
+    assert repeated.json() == next(r.json() for r in responses if r.status_code == 200)
+    assert evaluator.await_count == 1
     responses = await asyncio.gather(*[
         http.post(PATH + '/next', json={'turn_id': first}) for _ in range(2)
     ])
@@ -211,3 +218,79 @@ async def test_deleted_questions_preserve_interview_and_stats(client, database, 
     response = await http.post('/conversations/new/interview', json={'question_count': 20})
     assert response.status_code == 200, response.text
     assert [t['question'] for t in response.json()['data']['turns']] == ['Python 是什么？']
+
+
+@pytest.mark.asyncio
+async def test_slow_grading_releases_locks_and_rejects_duplicate_work(client, database):
+    http, _, evaluator = client
+    state = await start(http)
+    first = state['turns'][0]['id']
+    async with database() as session:
+        session.add(Conversation(id='parallel', knowledge_id='kb'))
+        await session.commit()
+    entered, release = asyncio.Event(), asyncio.Event()
+    evaluation = evaluator.return_value
+
+    async def delayed(*_args):
+        entered.set()
+        await release.wait()
+        return evaluation
+
+    evaluator.side_effect = delayed
+    payload = {'turn_id': first, 'answer': '同一回答'}
+    running = asyncio.create_task(http.post(PATH + '/answers', json=payload))
+    try:
+        await asyncio.wait_for(entered.wait(), 5)
+        pending = (await http.get(PATH)).json()['data']
+        assert pending['turns'][0]['grading'] is True
+        assert 'grading_token' not in str(pending)
+        assert (await http.post(PATH + '/answers', json=payload)).status_code == 409
+        assert evaluator.await_count == 1
+        # 相同知识库的其他对话及知识库写入不等待外部模型。
+        response = await asyncio.wait_for(http.post(
+            '/conversations/parallel/interview', json={'question_count': 1},
+        ), 3)
+        assert response.status_code == 200, response.text
+        async with database() as session:
+            await asyncio.wait_for(session.execute(update(Knowledge).where(
+                Knowledge.id == 'kb',
+            ).values(name='仍可修改')), 3)
+            await session.commit()
+    finally:
+        release.set()
+        response = await running
+    assert response.status_code == 200, response.text
+    assert response.json()['data']['turns'][0]['grading'] is False
+
+
+@pytest.mark.asyncio
+async def test_expired_grading_claim_can_be_retried(client, database):
+    http, _, evaluator = client
+    state = await start(http)
+    first = state['turns'][0]['id']
+    async with database() as session:
+        turn = await session.get(InterviewTurn, first)
+        turn.grading_token = 'abandoned-process'
+        turn.grading_expires_at = _utcnow() - timedelta(seconds=1)
+        await session.commit()
+    response = await http.post(PATH + '/answers', json={'turn_id': first, 'answer': '重试'})
+    assert response.status_code == 200, response.text
+    assert evaluator.await_count == 1
+    assert (await practice_service.get_practice_stats('owner', 'kb')).total == 1
+
+
+@pytest.mark.asyncio
+async def test_grading_timeout_releases_claim_and_preserves_progress(client, monkeypatch):
+    http, _, evaluator = client
+    state = await start(http)
+    payload = {'turn_id': state['turns'][0]['id'], 'answer': '用户回答'}
+    monkeypatch.setattr(interview_service, 'GRADING_TIMEOUT_SECONDS', 0.01)
+
+    async def hanging(*_args):
+        await asyncio.Event().wait()
+
+    evaluator.side_effect = hanging
+    assert (await http.post(PATH + '/answers', json=payload)).status_code == 503
+    assert (await http.get(PATH)).json()['data'] == state
+    evaluator.side_effect = None
+    assert (await http.post(PATH + '/answers', json=payload)).status_code == 200

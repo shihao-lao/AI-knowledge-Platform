@@ -34,6 +34,7 @@ class TurnResult(BaseModel):
     difficulty: str
     user_answer: str | None
     evaluation: dict | None
+    grading: bool = False
 
 
 class InterviewResult(BaseModel):

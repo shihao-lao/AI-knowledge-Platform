@@ -359,6 +359,8 @@ class InterviewTurn(Base):
     difficulty: Mapped[str] = mapped_column(String(20))
     user_answer: Mapped[str | None] = mapped_column(LongText, nullable=True)
     evaluation: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    grading_token: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    grading_expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
 
 class Resume(Base):

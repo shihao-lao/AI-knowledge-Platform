@@ -322,6 +322,7 @@ export interface ApiInterview {
     category: string;
     difficulty: string;
     userAnswer: string | null;
+    grading: boolean;
     evaluation: {
       score: number;
       feedback: string;

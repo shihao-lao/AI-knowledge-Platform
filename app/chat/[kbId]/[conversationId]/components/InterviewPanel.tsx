@@ -26,6 +26,7 @@ export default function InterviewPanel({ conversationId }: { conversationId: str
   const [difficulty, setDifficulty] = useState<string | undefined>();
   const [category, setCategory] = useState('');
   const [answer, setAnswer] = useState('');
+  const grading = interview?.turns[interview.currentPosition]?.grading ?? false;
 
   useEffect(() => {
     let cancelled = false;
@@ -44,6 +45,25 @@ export default function InterviewPanel({ conversationId }: { conversationId: str
       cancelled = true;
     };
   }, [conversationId]);
+
+  useEffect(() => {
+    if (!grading) return;
+    let cancelled = false;
+    const timer = setInterval(() => {
+      api
+        .getInterview(conversationId)
+        .then(({ data }) => {
+          if (!cancelled) setInterview(data);
+        })
+        .catch(() => {
+          /* 下次轮询继续恢复进度 */
+        });
+    }, 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [conversationId, grading]);
 
   const run = async (operation: () => Promise<{ data: ApiInterview }>) => {
     setBusy(true);
@@ -172,6 +192,7 @@ export default function InterviewPanel({ conversationId }: { conversationId: str
                     </>
                   ) : (
                     <Space direction="vertical" style={{ width: '100%' }}>
+                      {grading && <Alert type="info" showIcon message="正在评分，结果会自动更新" />}
                       <Input.TextArea
                         aria-label="面试回答"
                         value={answer}
@@ -179,13 +200,13 @@ export default function InterviewPanel({ conversationId }: { conversationId: str
                         autoSize={{ minRows: 6, maxRows: 15 }}
                         maxLength={20000}
                         showCount
-                        disabled={busy}
+                        disabled={busy || grading}
                         placeholder="写下你的回答，提交后查看评分和参考要点"
                       />
                       <Button
                         type="primary"
                         loading={busy}
-                        disabled={!answer.trim()}
+                        disabled={!answer.trim() || grading}
                         onClick={() => run(() => api.answerInterview(conversationId, turn.id, answer.trim()))}
                       >
                         提交并评分

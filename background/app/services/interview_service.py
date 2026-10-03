@@ -1,8 +1,11 @@
 """持久化面试流程：固定选题、逐题作答、共享评分、总结与恢复。"""
+import asyncio
 import json
+import uuid
 from datetime import timedelta
 
-from sqlalchemy import select
+from loguru import logger
+from sqlalchemy import select, update
 
 from app.infrastructure.database.models import (
     Conversation, InterviewSession, InterviewTurn, Knowledge, PracticeRecord, Question, _utcnow,
@@ -11,14 +14,19 @@ from app.infrastructure.database.session import get_session_context
 from app.models.interview import InterviewAnswer, InterviewResult, InterviewStart, TurnResult
 from app.services.practice_service import evaluate_response
 
+GRADING_TIMEOUT_SECONDS = 180
+GRADING_LEASE_SECONDS = GRADING_TIMEOUT_SECONDS + 30
+
 
 class InterviewConflict(Exception):
     """进度已变化，客户端需要刷新当前场次。"""
 
 
 async def _owned_conversation(session, conversation_id, user_id, *, lock=False):
-    query = select(Conversation).join(Knowledge).where(
-        Conversation.id == conversation_id, Knowledge.user_id == user_id,
+    # 归属使用非锁定子查询，FOR UPDATE 只锁本对话，不锁共享知识库行。
+    query = select(Conversation).where(
+        Conversation.id == conversation_id,
+        Conversation.knowledge_id.in_(select(Knowledge.id).where(Knowledge.user_id == user_id)),
     )
     if lock:
         query = query.with_for_update()
@@ -38,6 +46,10 @@ def _iso_datetime(value):
     return (value + timedelta(microseconds=500_000)).replace(microsecond=0).isoformat() if value else None
 
 
+def _grading_active(turn):
+    return bool(turn.grading_token and turn.grading_expires_at and turn.grading_expires_at > _utcnow())
+
+
 def _result(interview, turns):
     return InterviewResult(
         id=interview.id, conversation_id=interview.conversation_id,
@@ -45,6 +57,7 @@ def _result(interview, turns):
         turns=[TurnResult(
             id=t.id, position=t.position, question=t.question, category=t.category,
             difficulty=t.difficulty, user_answer=t.user_answer, evaluation=t.evaluation,
+            grading=_grading_active(t),
         ) for t in turns],
         summary=interview.summary, created_at=_iso_datetime(interview.created_at),
         completed_at=_iso_datetime(interview.completed_at),
@@ -119,21 +132,51 @@ async def answer_interview(conversation_id: str, user_id: str, request: Intervie
             raise InterviewConflict('请按当前面试进度作答')
         if turn.question_id is None:
             raise InterviewConflict('当前题目已被删除，请新建对话重新开始面试')
-        # 评分失败会回滚事务，保留当前题；不会写入空分数或推进进度。
-        evaluation = await evaluate_response(
-            turn.question, turn.reference_answer, request.answer, turn.keywords, user_id,
-        )
-        record = PracticeRecord(
-            question_id=turn.question_id, user_id=user_id, mode='mock',
-            user_answer=request.answer, score=evaluation.score, feedback=evaluation.feedback,
-        )
-        session.add(record)
-        await session.flush()
-        turn.user_answer = request.answer
-        turn.evaluation = {**evaluation.model_dump(), 'record_id': record.id}
-        interview.status = 'reviewing'
+        if _grading_active(turn):
+            raise InterviewConflict('此题正在评分，请稍后刷新或重试')
+        token = str(uuid.uuid4())
+        turn.grading_token = token
+        turn.grading_expires_at = _utcnow() + timedelta(seconds=GRADING_LEASE_SECONDS)
+        snapshot = (turn.question, turn.reference_answer, turn.keywords)
+        # 短事务占位后释放全部连接和行锁，外部模型调用不占数据库事务。
         await session.commit()
-        return _result(interview, turns)
+
+    try:
+        async with asyncio.timeout(GRADING_TIMEOUT_SECONDS):
+            evaluation = await evaluate_response(*snapshot[:2], request.answer, snapshot[2], user_id)
+        async with get_session_context() as session:
+            interview, turns = await _locked_interview(session, conversation_id, user_id)
+            turn = next(t for t in turns if t.id == request.turn_id)
+            if turn.grading_token != token:
+                raise InterviewConflict('评分请求已过期，请刷新当前进度')
+            record = PracticeRecord(
+                question_id=turn.question_id, user_id=user_id, mode='mock',
+                user_answer=request.answer, score=evaluation.score, feedback=evaluation.feedback,
+            )
+            session.add(record)
+            await session.flush()
+            turn.user_answer = request.answer
+            turn.evaluation = {**evaluation.model_dump(), 'record_id': record.id}
+            turn.grading_token = None
+            turn.grading_expires_at = None
+            interview.status = 'reviewing'
+            await session.commit()
+            return _result(interview, turns)
+    except (Exception, asyncio.CancelledError):
+        # 失败/超时立即释放占位；进程崩溃后租约到期也可重试。
+        try:
+            await asyncio.shield(_release_grading(request.turn_id, token))
+        except Exception as exc:
+            logger.warning('释放评分占位失败，将在租约到期后恢复: {}', type(exc).__name__)
+        raise
+
+
+async def _release_grading(turn_id, token):
+    async with get_session_context() as session:
+        await session.execute(update(InterviewTurn).where(
+            InterviewTurn.id == turn_id, InterviewTurn.grading_token == token,
+        ).values(grading_token=None, grading_expires_at=None))
+        await session.commit()
 
 
 async def next_question(conversation_id: str, user_id: str, turn_id: str):
