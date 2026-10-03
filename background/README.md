@@ -17,7 +17,57 @@ FastAPI 业务与 AI 服务。前端（Next.js）只负责页面，所有业务�
 | 大模型 | 任意 OpenAI 兼容服务（用户在页面上自行配置，服务端 `.env` 仅兜底）           |
 | 认证   | JWT（HS256）+ bcrypt                                                         |
 
-## 快速开始
+## 用 Docker 启动（推荐）
+
+一条命令拉起应用 + MySQL + Milvus（含 etcd / MinIO），本机不需要装 Python 环境：
+
+```bash
+cd background
+docker compose up -d --build      # 首次构建镜像约 10 分钟（torch ~196MB）
+docker compose logs -f app        # 看日志（迁移会在启动时自动执行）
+docker compose ps                 # 确认 5 个服务都是 healthy
+```
+
+启动后：接口文档 http://localhost:8000/docs
+
+| 服务   | 宿主机端口 | 说明                                          |
+| ------ | ---------- | --------------------------------------------- |
+| app    | 8000       | 后端，启动时自动 `alembic upgrade head`       |
+| mysql  | **3308**   | 3306 被宿主机 MySQL 占用、3307 被其它项目占用 |
+| milvus | 19530/9091 | 向量库                                        |
+| minio  | 9000/9001  | Milvus 的对象存储依赖                         |
+| etcd   | 不发布     | 仅容器间访问                                  |
+
+前端仍在宿主机跑（`pnpm run dev`，端口 3001），浏览器通过 `localhost:8000` 访问容器里的后端。
+
+常用操作：
+
+```bash
+docker compose down                                  # 停止（保留数据）
+docker compose down -v                               # 停止并删除数据卷（清空数据库，慎用）
+docker compose up -d --build                         # 代码改动后重建
+docker compose exec app python -m pytest tests -q    # 在容器里跑测试
+```
+
+**首次检索会下载向量与精排模型**（约 300 MB），缓存在 `hf_cache` 卷里，之后重建容器不必再下。
+
+### 两个容易踩的坑
+
+1. **`HF_HUB_DISABLE_XET=1` 不能去掉。** hf-mirror 不代理 HuggingFace 的 Xet 传输协议，
+   不关掉会在下载 `bge-small-zh-v1.5` 时卡在 1 MB 不动，表现为「发消息一直转圈」。已在 compose 里设好。
+2. **`NO_PROXY` 要包含 `mysql,milvus,etcd,minio`。** 容器读不到 Windows 注册表里的系统代理，
+   但显式声明可避免以后有人在容器内配了代理时，把内部服务名也转发出去。
+
+### 与宿主机部署的差异
+
+- 容器内数据库主机名是 `mysql`（不是 `localhost`）。compose 已在 `environment` 里覆盖
+  `DATABASE_URL` 与 `MILVUS_HOST`，`.env` 保持本机开发的写法即可。
+- 上传文件通过 `./uploads:/app/uploads` 挂载，在宿主机 `background/uploads/` 可直接查看。
+- 镜像默认**不装中文字体**，简历 PDF 会用 ReportLab 内置的 `STSong-Light`（CID 字体），中文能正常导出。
+  想要 TTF 嵌入效果可在构建时加 `--build-arg INSTALL_CJK_FONT=true`（会从 Debian 源装 Noto CJK，国内可能较慢）。
+- 容器以非 root 用户 `appuser`(uid 10001) 运行。
+
+## 本机直接启动（不用 Docker）
 
 ```bash
 cd background
