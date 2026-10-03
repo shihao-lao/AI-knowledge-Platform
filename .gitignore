@@ -106,11 +106,6 @@ torchinductor_*/
 # 一次性脚本输出（冒烟/集成测试日志，非源码）
 background/integration-resume-*.txt
 
-# 独立的静态原型（未接入 Next.js 应用，仅供演示，不进入版本库）
-/app.js
-/index.html
-/styles.css
-
 # 个人求职材料（简历优化稿与面试准备，不属于项目产物）
 docs/interview/
 docs/项目事实清单.md

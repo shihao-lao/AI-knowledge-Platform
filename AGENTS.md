@@ -46,6 +46,24 @@ python -m pytest tests      # 测试连 MySQL 测试库 ai_knowledge_platform_te
 > 同理务必确认用的是 `background/.venv` 里的解释器：系统 Python 会直接报
 > `ModuleNotFoundError: No module named 'aiomysql'`。
 
+### 用 Docker 跑后端（本机不装 Python 环境时的推荐方式）
+
+```bash
+cd background
+docker compose up -d --build                       # 应用 + MySQL + Milvus(含 etcd/MinIO)
+docker compose ps                                  # 5 个服务应全部 healthy
+docker compose logs -f app                         # 迁移在启动时自动执行
+docker compose exec app python -m pytest tests -q  # 在容器里跑测试
+docker compose down                                # 停止（保留数据卷）
+```
+
+- 容器内 `DATABASE_URL` 指向 `mysql:3306`、`MILVUS_HOST=milvus`，由 compose 的
+  `environment` 覆盖 `.env` 里的 localhost 写法；**不要为了容器去改 `.env`**。
+- MySQL 映射在宿主机 **3308**（3306 被本机 MySQL 服务占用，3307 被其它项目占用）。
+- **`HF_HUB_DISABLE_XET=1` 不可移除**：hf-mirror 不代理 Xet 协议，
+  不关掉会导致下载向量模型时卡在 1MB 不动，表现为「发消息一直转圈」。
+- 改完后端代码需 `docker compose up -d --build` 重建镜像才会生效。
+
 ### 换行符
 
 仓库通过 `.gitattributes` 强制 `eol=lf`。Windows 上若本地 `core.autocrlf=true`，

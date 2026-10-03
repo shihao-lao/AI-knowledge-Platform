@@ -93,6 +93,14 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 Windows 也可直接双击 `background/start.bat`。接口文档：http://localhost:8000/docs
 
+> **想省掉装环境的步骤？后端可以直接用 Docker 跑**（应用 + MySQL + Milvus 一条命令拉起）：
+>
+> ```bash
+> cd background && docker compose up -d --build
+> ```
+>
+> 详见 [background/README.md](./background/README.md#用-docker-启动推荐)。
+
 ### 前端
 
 ```bash
