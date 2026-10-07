@@ -28,11 +28,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.requests: Dict[str, list] = defaultdict(list)
     
     def _get_client_ip(self, request: Request) -> str:
-        """获取客户端 IP 地址。"""
-        # 优先从代理头获取真实 IP
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
+        """使用 ASGI 服务器验证过的地址，禁止自行信任客户端代理头。
+
+        部署代理时由 Uvicorn 的 FORWARDED_ALLOW_IPS 指定可信代理；
+        ProxyHeadersMiddleware 会在可信来源下更新 request.client。
+        """
         return request.client.host if request.client else "unknown"
     
     def _clean_old_requests(self, ip: str, current_time: float):
