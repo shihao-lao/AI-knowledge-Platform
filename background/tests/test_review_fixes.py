@@ -19,7 +19,7 @@ from app.services import practice_service
 @pytest_asyncio.fixture
 async def database(monkeypatch, vector_store):
     engine = create_async_engine(os.environ['DATABASE_URL'])
-    factory = async_sessionmaker(engine, expire_on_commit=False)
+    factory = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
     monkeypatch.setattr(db, 'async_session_factory', factory)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
@@ -414,4 +414,3 @@ def test_chat_request_drops_vestigial_llm_fields():
     legacy = ChatRequest(conversation_id='conv', question='question',
                          messages=[{'role': 'user', 'content': 'question'}])
     assert legacy.question == 'question'
-

@@ -102,11 +102,11 @@ async def import_questions(
 ) -> QuestionImportResponse:
     """导入题目。"""
     async with get_session_context() as session:
-        # 检查知识库是否存在且属于当前用户
+        # 同一知识库的导入在数据库层串行，避免跨进程检查后同时插入。
         kb_result = await session.execute(
             select(Knowledge).where(
                 and_(Knowledge.id == knowledge_id, Knowledge.user_id == user_id)
-            )
+            ).with_for_update()
         )
         knowledge = kb_result.scalar_one_or_none()
         if not knowledge:
@@ -115,22 +115,27 @@ async def import_questions(
         imported_count = 0
         skipped_count = 0
         errors = []
+        seen = set()
 
         for i, question_data in enumerate(import_data.questions):
             try:
+                if question_data.question in seen:
+                    skipped_count += 1
+                    continue
                 # 检查题目是否已存在（根据问题内容）
                 existing_result = await session.execute(
-                    select(Question).where(
+                    select(Question.id).where(
                         and_(
                             Question.knowledge_id == knowledge_id,
                             Question.question == question_data.question,
                             Question.deleted_at.is_(None),
                         )
-                    )
+                    ).limit(1)
                 )
                 existing = existing_result.scalar_one_or_none()
 
                 if existing:
+                    seen.add(question_data.question)
                     skipped_count += 1
                     continue
 
@@ -144,7 +149,11 @@ async def import_questions(
                     keywords=json.dumps(question_data.keywords or []),
                     source=question_data.source,
                 )
-                session.add(question)
+                # 保存点隔离单条失败；flush 使数据库的排序规则去重也可见。
+                async with session.begin_nested():
+                    session.add(question)
+                    await session.flush()
+                seen.add(question_data.question)
                 imported_count += 1
 
             except Exception as e:

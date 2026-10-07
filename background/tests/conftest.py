@@ -9,6 +9,7 @@ import os
 import sys
 
 import pytest
+import pytest_asyncio
 
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -39,6 +40,30 @@ def setup_test_environment():
     """确保每个测试都指向测试库。"""
     os.environ["DATABASE_URL"] = TEST_DATABASE_URL
     yield
+
+
+@pytest_asyncio.fixture
+async def backend_database(monkeypatch):
+    """Real isolated database with the same autoflush setting as production."""
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from app.infrastructure.database import session as db
+    from app.infrastructure.database.models import Base, Knowledge, User
+
+    engine = create_async_engine(TEST_DATABASE_URL)
+    factory = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
+    monkeypatch.setattr(db, 'async_session_factory', factory)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.drop_all)
+        await connection.run_sync(Base.metadata.create_all)
+    async with factory() as session:
+        session.add(User(id='owner', name='Owner', email='owner@test.com', password_hash='x'))
+        await session.flush()
+        session.add(Knowledge(id='kb', user_id='owner', name='KB'))
+        await session.commit()
+    try:
+        yield factory
+    finally:
+        await engine.dispose()
 
 
 @pytest.fixture(scope="session", autouse=True)
