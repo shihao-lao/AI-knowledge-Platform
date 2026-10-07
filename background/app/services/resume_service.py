@@ -259,7 +259,7 @@ async def reparse_resume_structure(
             except Exception as exc:
                 logger.warning('读取简历原文件失败，使用已存正文重新解析: {}', exc)
         try:
-            structured = await parse_resume_structure(content)
+            structured = await parse_resume_structure(content, user_id)
         except Exception as exc:
             logger.warning("重新结构化失败，回退启发式: {}", exc)
             structured = heuristic_or_empty(content)
