@@ -8,6 +8,7 @@ from typing import Any, List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from app.models.enums import MessageRole
+from app.core.passwords import encode_bcrypt_password
 
 
 class ChatRequest(BaseModel):
@@ -115,6 +116,7 @@ class UserCreate(BaseModel):
     @classmethod
     def validate_password(cls, v: str) -> str:
         """验证密码复杂度。"""
+        encode_bcrypt_password(v)
         if not any(c.isupper() for c in v):
             raise ValueError("密码必须包含至少一个大写字母")
         if not any(c.islower() for c in v):

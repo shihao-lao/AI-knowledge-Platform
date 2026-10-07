@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from datetime import datetime, timedelta
 from typing import Optional
@@ -15,15 +16,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.infrastructure.database.models import User
 from app.infrastructure.database.session import get_async_session, get_session_context
 from app.models.schemas import UserCreate, UserLogin, UserResponse
-
-# 密码哈希 - 使用 bcrypt 直接调用
-import bcrypt
+from app.core.passwords import encode_bcrypt_password
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """验证密码。"""
     try:
         return bcrypt.checkpw(
-            plain_password.encode('utf-8'),
+            encode_bcrypt_password(plain_password),
             hashed_password.encode('utf-8')
         )
     except Exception:
@@ -31,8 +30,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     """生成密码哈希。"""
+    encoded = encode_bcrypt_password(password)
     salt = bcrypt.gensalt(rounds=12)
-    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+    return bcrypt.hashpw(encoded, salt).decode('utf-8')
 
 # JWT 配置 - 从环境变量读取，如果没有则使用默认值
 def get_secret_key() -> str:
@@ -77,7 +77,7 @@ async def authenticate_user(email: str, password: str) -> Optional[User]:
         user = result.scalar_one_or_none()
         if not user:
             return None
-        if not verify_password(password, user.password_hash):
+        if not await asyncio.to_thread(verify_password, password, user.password_hash):
             return None
         return user
 
@@ -92,7 +92,7 @@ async def create_user(user_data: UserCreate) -> User:
             raise ValueError("该邮箱已注册")
 
         # 创建用户
-        hashed_password = get_password_hash(user_data.password)
+        hashed_password = await asyncio.to_thread(get_password_hash, user_data.password)
         user = User(
             name=user_data.name,
             email=user_data.email,
