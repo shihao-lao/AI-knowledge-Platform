@@ -111,21 +111,27 @@ class RetrievalService:
                 if await session.get(KnowledgeVectorIndex, collection) is None:
                     session.add(KnowledgeVectorIndex(collection_name=collection, knowledge_id=knowledge_id))
                 await session.commit()
-            # 和整库删除采用同一行锁，防止删除完成后在另一进程重新创建集合。
-            async with get_session_context() as session:
-                if not await session.scalar(select(Knowledge.id).where(
-                    Knowledge.id == knowledge_id,
-                ).with_for_update()):
-                    raise ValueError('知识库不存在')
-                await manager.ensure_connection()
-                for offset in range(0, len(changed), 32):
-                    ids = changed[offset:offset + 32]
-                    vectors = await self._embed([records[key].content for key in ids])
+            await manager.ensure_connection()
+            for offset in range(0, len(changed), 32):
+                ids = changed[offset:offset + 32]
+                # 模型加载与编码不占数据库锁；只将实际外部写入和删除串行。
+                vectors = await self._embed([records[key].content for key in ids])
+                async with get_session_context() as session:
+                    if not await session.scalar(select(Knowledge.id).where(
+                        Knowledge.id == knowledge_id,
+                    ).with_for_update()):
+                        raise ValueError('知识库不存在')
                     await manager.create_collection(collection, len(vectors[0]))
                     await manager.upsert(collection, vectors, [{'id': key} for key in ids])
-                if removed:
+                    await session.commit()
+            if removed:
+                async with get_session_context() as session:
+                    if not await session.scalar(select(Knowledge.id).where(
+                        Knowledge.id == knowledge_id,
+                    ).with_for_update()):
+                        raise ValueError('知识库不存在')
                     await manager.delete(collection, removed)
-                await session.commit()
+                    await session.commit()
         self._indexed[collection] = hashes
         self._record_index_status(records, 'indexed')
 

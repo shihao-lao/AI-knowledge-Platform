@@ -27,10 +27,24 @@ except ImportError:  # pragma: no cover
     utility = Any  # type: ignore[misc, assignment]
 
 
-def _run_sync(func, *args, **kwargs):
+async def _run_sync(func, *args, **kwargs):
     """在线程池中执行同步 Milvus SDK 调用，避免阻塞事件循环。"""
-    loop = asyncio.get_event_loop()
-    return loop.run_in_executor(None, lambda: func(*args, **kwargs))
+    loop = asyncio.get_running_loop()
+    future = loop.run_in_executor(None, lambda: func(*args, **kwargs))
+    try:
+        return await asyncio.shield(future)
+    except asyncio.CancelledError as cancelled:
+        # 取消协程不会停止 SDK 线程；等待实际写入结束再释放外层数据库行锁。
+        while not future.done():
+            try:
+                await asyncio.shield(future)
+            except asyncio.CancelledError:
+                continue
+            except Exception:
+                break
+        if not future.cancelled():
+            future.exception()
+        raise cancelled
 
 
 class MilvusManager:
@@ -47,6 +61,7 @@ class MilvusManager:
         self._port = port
         self._alias = alias
         self._conn_kwargs = conn_kwargs
+        self._timeout = float(conn_kwargs.get('timeout', 10))
         self._connected = False
 
     async def ensure_connection(self) -> None:
@@ -74,7 +89,7 @@ class MilvusManager:
         await self.ensure_connection()
 
         def _create() -> None:
-            if utility.has_collection(name, using=self._alias):
+            if utility.has_collection(name, using=self._alias, timeout=self._timeout):
                 logger.info("集合 [{}] 已存在，跳过创建", name)
                 return
             fields = [
@@ -90,9 +105,9 @@ class MilvusManager:
                 fields=fields,
                 description=f"向量集合 {name}",
             )
-            col = Collection(name, schema, using=self._alias, consistency_level='Strong')
+            col = Collection(name, schema, using=self._alias, consistency_level='Strong', timeout=self._timeout)
             idx = {"index_type": "IVF_FLAT", "metric_type": "L2", "params": {"nlist": 128}}
-            col.create_index(field_name="embedding", index_params=idx)
+            col.create_index(field_name="embedding", index_params=idx, timeout=self._timeout)
             logger.info("已创建集合 [{}] dim={}", name, dim)
 
         try:
@@ -120,9 +135,9 @@ class MilvusManager:
             ids.append(str(rid))
 
         def _insert() -> None:
-            col = Collection(collection, using=self._alias)
-            col.insert([ids, vectors])
-            col.flush()
+            col = Collection(collection, using=self._alias, timeout=self._timeout)
+            col.insert([ids, vectors], timeout=self._timeout)
+            col.flush(timeout=self._timeout)
 
         try:
             await _run_sync(_insert)
@@ -146,8 +161,8 @@ class MilvusManager:
         )
 
         def _search():
-            col = Collection(collection, using=self._alias)
-            col.load()
+            col = Collection(collection, using=self._alias, timeout=self._timeout)
+            col.load(timeout=self._timeout)
             res = col.search(
                 data=[query_vector],
                 anns_field="embedding",
@@ -156,6 +171,7 @@ class MilvusManager:
                 output_fields=["id"],
                 expr=('id in ' + json.dumps(search_params['ids'])) if search_params.get('ids') else None,
                 consistency_level='Strong',
+                timeout=self._timeout,
             )
             out: list[dict[str, Any]] = []
             for hits in res:
@@ -183,8 +199,8 @@ class MilvusManager:
         expr = 'id in ' + json.dumps(ids)
 
         def _delete() -> None:
-            col = Collection(collection, using=self._alias)
-            col.delete(expr)
+            col = Collection(collection, using=self._alias, timeout=self._timeout)
+            col.delete(expr, timeout=self._timeout)
 
         try:
             await _run_sync(_delete)
@@ -198,9 +214,9 @@ class MilvusManager:
             raise ValueError('vectors and metadata lengths differ')
         await self.ensure_connection()
         def write():
-            col = Collection(collection, using=self._alias)
-            col.upsert([[str(row['id']) for row in metadata], vectors])
-            col.flush()
+            col = Collection(collection, using=self._alias, timeout=self._timeout)
+            col.upsert([[str(row['id']) for row in metadata], vectors], timeout=self._timeout)
+            col.flush(timeout=self._timeout)
         await _run_sync(write)
 
     async def drop_collection(self, collection: str) -> None:
@@ -208,7 +224,7 @@ class MilvusManager:
         await self.ensure_connection()
 
         def drop():
-            if utility.has_collection(collection, using=self._alias, timeout=10):
-                utility.drop_collection(collection, using=self._alias, timeout=10)
+            if utility.has_collection(collection, using=self._alias, timeout=self._timeout):
+                utility.drop_collection(collection, using=self._alias, timeout=self._timeout)
 
         await _run_sync(drop)
