@@ -169,3 +169,14 @@ Milvus 未启动或 embedding 模型没下载成功。检查 `MILVUS_HOST` 与 `
 **数据库连不上**
 确认 MySQL 8 已启动、`.env` 的 `DATABASE_URL` 正确，并已执行
 `python scripts/init_db.py`。测试另需 `ai_knowledge_platform_test` 库。
+
+## 知识库资源清理
+
+升级代码后先用 `.venv/Scripts/python.exe -m alembic upgrade head` 更新数据库。
+整库删除会在同一事务中保存外部资源清理任务，随后删除上传文件、已登记的各模型
+向量集合及进程缓存。Milvus 或文件系统暂时不可用时，任务保存在
+`resource_cleanup_tasks`，启动时及运行期间每 30 秒检查到期任务，失败按退避间隔重试。
+多个 worker 用数据库行锁避免重复处理；已经清理的文件和集合不会重复报错。
+
+向量集合登记从本次升级开始生效。升级前曾切换模型、且没有登记记录的旧集合，
+无法从原有哈希集合名反推出知识库归属，需要单独盘点；当前模型集合仍会纳入清理。

@@ -3,14 +3,18 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import List, Optional
 
 from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.database.models import Knowledge, User, Document
+from app.infrastructure.database.models import Knowledge, User, Document, KnowledgeVectorIndex, ResourceCleanupTask
 from app.infrastructure.database.session import get_async_session, get_session_context
 from app.models.schemas import KnowledgeCreate, KnowledgeUpdate, KnowledgeResponse
+from app.services.retrieval_service import retrieval_service
+from app.services.resource_cleanup_service import run_cleanup_task
+from loguru import logger
 
 
 async def _document_counts(session: AsyncSession, kb_ids: list[str]) -> dict[str, int]:
@@ -139,19 +143,41 @@ async def update_knowledge_base(
 
 async def delete_knowledge_base(kb_id: str, user_id: str) -> bool:
     """删除知识库。"""
-    async with get_session_context() as session:
+    async with retrieval_service._locks[kb_id], get_session_context() as session:
         result = await session.execute(
             select(Knowledge).where(
                 and_(Knowledge.id == kb_id, Knowledge.user_id == user_id)
-            )
+            ).with_for_update()
         )
         knowledge = result.scalar_one_or_none()
         if not knowledge:
             return False
 
+        documents = list((await session.scalars(select(Document).where(Document.knowledge_id == kb_id))).all())
+        collections = set((await session.scalars(select(KnowledgeVectorIndex.collection_name).where(
+            KnowledgeVectorIndex.knowledge_id == kb_id,
+        ))).all())
+        collections.add(retrieval_service._collection(kb_id))
+        root = Path('uploads').resolve()
+        files = []
+        for document in documents:
+            if not document.filepath:
+                continue
+            path = Path(document.filepath).resolve()
+            if not path.is_relative_to(root):
+                raise ValueError('上传文件路径不在 uploads 目录内')
+            files.append(str(path))
+        task = ResourceCleanupTask(knowledge_id=kb_id, files=files, collections=sorted(collections))
+        session.add(task)
         await session.delete(knowledge)
         await session.commit()
-        return True
+        retrieval_service.forget_knowledge(kb_id, [document.id for document in documents], collections)
+    retrieval_service._locks.pop(kb_id, None)
+    try:
+        await run_cleanup_task(task.id)
+    except Exception as exc:
+        logger.warning('知识库已删除，清理任务 {} 留待后台重试: {}', task.id, type(exc).__name__)
+    return True
 
 
 async def search_knowledge_bases(user_id: str, query: str) -> List[KnowledgeResponse]:

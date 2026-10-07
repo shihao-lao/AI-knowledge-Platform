@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """FastAPI 应用入口：生命周期内初始化异步数据库引擎。"""
 
+import asyncio
 import os
+from contextlib import suppress
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -43,8 +45,17 @@ async def lifespan(app: FastAPI):
     engine = init_engine(settings.database_url)
     configure_session(engine)
     app.state.engine = engine
-    yield
-    await engine.dispose()
+    from app.services.resource_cleanup_service import cleanup_worker
+    stop = asyncio.Event()
+    worker = asyncio.create_task(cleanup_worker(stop))
+    try:
+        yield
+    finally:
+        stop.set()
+        worker.cancel()
+        with suppress(asyncio.CancelledError):
+            await worker
+        await engine.dispose()
     logger.info("关闭 {}", settings.app_name)
 
 

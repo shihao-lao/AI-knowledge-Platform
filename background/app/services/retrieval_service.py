@@ -14,7 +14,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.core.rag.reranker import reranker
 from app.core.rag.retriever import _BM25Index
-from app.infrastructure.database.models import Chunk, Document, Knowledge, Question
+from app.infrastructure.database.models import Chunk, Document, Knowledge, KnowledgeVectorIndex, Question
 from app.infrastructure.database.session import get_session_context
 from app.infrastructure.vectordb.milvus_client import MilvusManager
 from app.models.schemas import RetrievalResult
@@ -102,17 +102,39 @@ class RetrievalService:
         removed = list(previous.keys() - records.keys())
         manager = self._get_manager()
         if changed or removed:
-            # Check availability before potentially downloading/loading the embedding model.
-            await manager.ensure_connection()
-        for offset in range(0, len(changed), 32):
-            ids = changed[offset:offset + 32]
-            vectors = await self._embed([records[key].content for key in ids])
-            await manager.create_collection(collection, len(vectors[0]))
-            await manager.upsert(collection, vectors, [{'id': key} for key in ids])
-        if removed:
-            await manager.delete(collection, removed)
+            # 在外部写入前持久化集合名；即使写入失败，整库删除仍知道要清理它。
+            async with get_session_context() as session:
+                if not await session.scalar(select(Knowledge.id).where(
+                    Knowledge.id == knowledge_id,
+                ).with_for_update()):
+                    raise ValueError('知识库不存在')
+                if await session.get(KnowledgeVectorIndex, collection) is None:
+                    session.add(KnowledgeVectorIndex(collection_name=collection, knowledge_id=knowledge_id))
+                await session.commit()
+            # 和整库删除采用同一行锁，防止删除完成后在另一进程重新创建集合。
+            async with get_session_context() as session:
+                if not await session.scalar(select(Knowledge.id).where(
+                    Knowledge.id == knowledge_id,
+                ).with_for_update()):
+                    raise ValueError('知识库不存在')
+                await manager.ensure_connection()
+                for offset in range(0, len(changed), 32):
+                    ids = changed[offset:offset + 32]
+                    vectors = await self._embed([records[key].content for key in ids])
+                    await manager.create_collection(collection, len(vectors[0]))
+                    await manager.upsert(collection, vectors, [{'id': key} for key in ids])
+                if removed:
+                    await manager.delete(collection, removed)
+                await session.commit()
         self._indexed[collection] = hashes
         self._record_index_status(records, 'indexed')
+
+    def forget_knowledge(self, knowledge_id, document_ids=(), collections=()):
+        self._bm25_cache.pop(knowledge_id, None)
+        for collection in {*collections, self._collection(knowledge_id)}:
+            self._indexed.pop(collection, None)
+        for document_id in document_ids:
+            self._document_index_status.pop(document_id, None)
 
     async def sync_knowledge(self, knowledge_id, user_id):
         async with self._locks[knowledge_id]:

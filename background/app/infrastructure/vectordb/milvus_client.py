@@ -202,3 +202,13 @@ class MilvusManager:
             col.upsert([[str(row['id']) for row in metadata], vectors])
             col.flush()
         await _run_sync(write)
+
+    async def drop_collection(self, collection: str) -> None:
+        """不存在视为已清理，支持删除任务重复执行。"""
+        await self.ensure_connection()
+
+        def drop():
+            if utility.has_collection(collection, using=self._alias, timeout=10):
+                utility.drop_collection(collection, using=self._alias, timeout=10)
+
+        await _run_sync(drop)

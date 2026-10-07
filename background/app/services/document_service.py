@@ -36,7 +36,7 @@ async def upload_document(
         kb_result = await session.execute(
             select(Knowledge).where(
                 and_(Knowledge.id == knowledge_id, Knowledge.user_id == user_id)
-            )
+            ).with_for_update()
         )
         knowledge = kb_result.scalar_one_or_none()
         if not knowledge:
@@ -94,7 +94,11 @@ async def upload_document(
             )
             session.add(chunk)
 
-        await session.commit()
+        try:
+            await session.commit()
+        except Exception:
+            await asyncio.to_thread(dest.unlink, missing_ok=True)
+            raise
         indexed = await retrieval_service.sync_knowledge(knowledge_id, user_id)
 
         return DocumentUploadResponse(

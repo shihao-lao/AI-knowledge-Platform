@@ -131,6 +131,29 @@ class Knowledge(Base):
     )
 
 
+class KnowledgeVectorIndex(Base):
+    """记录各嵌入模型实际使用的集合，切换模型后仍可完整清理。"""
+
+    __tablename__ = 'knowledge_vector_indexes'
+    collection_name: Mapped[str] = mapped_column(String(64), primary_key=True)
+    knowledge_id: Mapped[str] = mapped_column(
+        String(50), ForeignKey('knowledge_bases.id', ondelete='CASCADE'), index=True,
+    )
+
+
+class ResourceCleanupTask(Base):
+    """与整库删除同事务保存；不挂外键，删除后仍能重试外部清理。"""
+
+    __tablename__ = 'resource_cleanup_tasks'
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    knowledge_id: Mapped[str] = mapped_column(String(50))
+    files: Mapped[list[str]] = mapped_column(JSON)
+    collections: Mapped[list[str]] = mapped_column(JSON)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    next_attempt_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_utcnow, index=True)
+    last_error: Mapped[str] = mapped_column(Text, default='')
+
+
 class Document(Base):
     """文档表：对应 Prisma 的 Document 模型。"""
 
