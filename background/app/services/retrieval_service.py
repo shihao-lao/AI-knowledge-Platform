@@ -6,7 +6,7 @@ Index failures retain real keyword retrieval; subsequent requests retry indexing
 import asyncio
 import hashlib
 import os
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 
 from loguru import logger
 from sqlalchemy import select
@@ -24,6 +24,7 @@ RECALL_MULTIPLIER = 4
 
 # RRF 平滑常数（Cormack 等 2009 年提出 RRF 时的经验取值）
 RRF_K = 60
+BM25_CACHE_SIZE = 32
 
 
 def _rerank_enabled() -> bool:
@@ -38,6 +39,7 @@ class RetrievalService:
         self._manager = None
         self._locks = defaultdict(asyncio.Lock)
         self._indexed = {}
+        self._bm25_cache = OrderedDict()
         # Only report availability confirmed by this process; after restart it is unknown.
         self._document_index_status = {}
         self.model_name = os.getenv('EMBEDDING_MODEL', 'BAAI/bge-small-zh-v1.5')
@@ -132,19 +134,16 @@ class RetrievalService:
         async with self._locks[knowledge_id]:
             records = await self._corpus(knowledge_id, user_id)
             if not records:
+                self._bm25_cache.pop(knowledge_id, None)
                 return []
 
             # 召回宁多勿漏：先取回更大的候选池，由精排挑出真正相关的 top_k
             candidates = max(top_k * RECALL_MULTIPLIER, top_k)
 
-            index = _BM25Index()
-            for key, row in records.items():
-                index.add_document(key, row.content)
-
             # 两路并发：BM25 是纯 CPU 计算放线程池，向量那一路主要是 IO 等待。
             # 串行时延迟是两者之和，并发后接近两者最大值。
             keyword_result, vector_result = await asyncio.gather(
-                asyncio.to_thread(lambda: [key for key, _ in index.search(query, candidates)]),
+                self._keyword_recall(query, knowledge_id, records, candidates),
                 self._vector_recall(query, knowledge_id, records, candidates),
                 return_exceptions=True,
             )
@@ -177,6 +176,29 @@ class RetrievalService:
             }) for key in fused]
 
             return await self._rerank(query, pool, top_k)
+
+    async def _keyword_recall(self, query, knowledge_id, records, limit):
+        cached = self._bm25_cache.get(knowledge_id)
+
+        def search():
+            fingerprint = tuple(sorted(
+                (key, hashlib.sha256(row.content.encode()).digest()) for key, row in records.items()
+            ))
+            if cached is not None and cached[0] == fingerprint:
+                index = cached[1]
+            else:
+                index = _BM25Index()
+                for key, row in records.items():
+                    index.add_document(key, row.content)
+            return fingerprint, index, [key for key, _ in index.search(query, limit)]
+
+        fingerprint, index, ranking = await asyncio.to_thread(search)
+        # 缓存操作留在事件循环；同库检索由 _locks 串行，线程不会并发修改索引。
+        self._bm25_cache[knowledge_id] = (fingerprint, index)
+        self._bm25_cache.move_to_end(knowledge_id)
+        while len(self._bm25_cache) > BM25_CACHE_SIZE:
+            self._bm25_cache.popitem(last=False)
+        return ranking
 
     async def _vector_recall(self, query, knowledge_id, records, limit):
         """向量召回；失败时记录降级状态并返回空列表，不向上抛异常。"""

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from typing import Any, Callable, Awaitable, List
 
@@ -43,9 +44,13 @@ class ETLPipeline:
     ) -> ETLResult:
         """对上传字节执行解析与分块；可选异步回调处理向量入库等。"""
         try:
-            parsed = self._parser.parse_bytes(data, filename, mime_type)
-            chunks = self._chunker.chunk(parsed.text, strategy=strategy)
-            result = ETLResult(chunks=chunks, parsed=parsed, meta={"chunk_count": len(chunks)})
+            def parse_and_chunk():
+                parsed = self._parser.parse_bytes(data, filename, mime_type)
+                chunks = self._chunker.chunk(parsed.text, strategy=strategy)
+                return ETLResult(chunks=chunks, parsed=parsed, meta={"chunk_count": len(chunks)})
+
+            result = await asyncio.to_thread(parse_and_chunk)
+            parsed, chunks = result.parsed, result.chunks
             if on_chunks is not None:
                 await on_chunks(chunks, parsed)
             logger.info(

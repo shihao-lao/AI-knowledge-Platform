@@ -39,6 +39,8 @@ class _BM25Index:
         self._df: defaultdict[str, int] = defaultdict(int)
         self._N: int = 0
         self._idf: dict[str, float] = {}
+        self._total_tokens = 0
+        self._dirty = False
 
     def clear(self) -> None:
         """清空索引。"""
@@ -50,6 +52,8 @@ class _BM25Index:
         self._df.clear()
         self._N = 0
         self._idf.clear()
+        self._total_tokens = 0
+        self._dirty = False
 
     def add_document(self, doc_id: str, text: str) -> None:
         """添加文档并更新统计量。"""
@@ -64,18 +68,21 @@ class _BM25Index:
         self._doc_freqs.append(dict(tf))
         self._doc_lens.append(len(tokens))
         self._N += 1
-        dl_sum = sum(self._doc_lens)
-        self._avgdl = dl_sum / self._N if self._N else 0.0
-        # 重新计算 IDF（对当前语料）
-        self._idf = {}
-        for term, df in self._df.items():
-            # 平滑 IDF，避免 df == N 时出现负值
-            self._idf[term] = math.log(1.0 + (self._N - df + 0.5) / (df + 0.5))
+        self._total_tokens += len(tokens)
+        self._avgdl = self._total_tokens / self._N
+        self._dirty = True
 
     def search(self, query: str, top_k: int) -> list[tuple[str, float]]:
         """返回 (doc_id, bm25_score) 降序。"""
         if self._N == 0:
             return []
+        # 一批文档全部加入后再计算 IDF，避免逐条重算整个词表。
+        if self._dirty:
+            self._idf = {
+                term: math.log(1.0 + (self._N - df + 0.5) / (df + 0.5))
+                for term, df in self._df.items()
+            }
+            self._dirty = False
         q_terms = _tokenize(query)
         if not q_terms:
             return []
