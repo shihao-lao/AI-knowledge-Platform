@@ -17,6 +17,7 @@ export interface ChatRequest {
   question: string;
   enableSearch?: boolean;
   mode?: 'question' | 'interview';
+  requestId?: string;
 }
 
 export interface ChatCallbacks {
@@ -38,6 +39,7 @@ export interface ChatCallbacks {
  * 发送聊天消息（SSE 流式）
  */
 export async function sendChatMessage(request: ChatRequest, callbacks: ChatCallbacks): Promise<void> {
+  const requestId = request.requestId ?? crypto.randomUUID();
   const token = getToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -56,6 +58,7 @@ export async function sendChatMessage(request: ChatRequest, callbacks: ChatCallb
         question: request.question,
         enable_search: request.enableSearch ?? true,
         mode: request.mode ?? 'question',
+        request_id: requestId,
       }),
     });
 

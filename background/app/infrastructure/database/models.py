@@ -250,6 +250,7 @@ class Message(Base):
     """消息表：对应 Prisma 的 Message 模型。"""
 
     __tablename__ = "messages"
+    __table_args__ = (UniqueConstraint('conversation_id', 'request_id', 'role', name='uq_message_request_role'),)
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_short_id)
     conversation_id: Mapped[str] = mapped_column(
@@ -260,6 +261,13 @@ class Message(Base):
     role: Mapped[str] = mapped_column(String(32))  # 'user' | 'assistant' | 'system'
     content: Mapped[str] = mapped_column(LongText)
     citations: Mapped[str] = mapped_column(LongText, default="[]")  # JSON array of citations
+    request_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    message_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    generation_status: Mapped[str] = mapped_column(String(16), default='completed', server_default='completed')
+    generation_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    generation_token: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    generation_expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    generation_options: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         UTCDateTime,
         default=_utcnow,

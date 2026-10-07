@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from app.api.routes.auth import get_current_user_dependency
 from app.api.routes.resume import router
 from app.infrastructure.database.models import Base, Resume, User
+from app.infrastructure.database import session as db
 from app.models.schemas import UserResponse
 from app.services import resume_service
 
@@ -33,6 +34,7 @@ async def test_upload_edit_reload_export_and_ownership(monkeypatch, tmp_path):
     monkeypatch.delenv('MIMO_API_KEY', raising=False)
     monkeypatch.delenv('OPENAI_API_KEY', raising=False)
     monkeypatch.setattr(resume_service, 'get_session_context', session_context)
+    monkeypatch.setattr(db, 'async_session_factory', sessions)
     monkeypatch.setattr(resume_service, 'analyze_resume', unavailable_analysis)
     app = FastAPI()
     app.include_router(router, prefix='/api/v1')

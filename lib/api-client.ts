@@ -146,6 +146,10 @@ export interface ApiMessage {
     confidenceScore: number;
   }>;
   createdAt: string;
+  requestId?: string;
+  generationStatus?: 'completed' | 'generating' | 'failed' | 'interrupted';
+  error?: string;
+  retryQuestion?: string;
 }
 
 /**

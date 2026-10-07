@@ -52,6 +52,7 @@ async def chat_endpoint(
             user_id=current_user.id,
             enable_search=request.enable_search,
             mode=request.mode,
+            request_id=str(request.request_id) if request.request_id else None,
         )
     except HTTPException:
         raise

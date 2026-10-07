@@ -101,3 +101,25 @@ test('multi-line events and comments are valid SSE', async () => {
     ['completed', 'hello', []],
   ]);
 });
+
+test('retry sends the original request ID so the server can reuse its messages', async () => {
+  const requestId = 'b3d0c9e5-07d1-40d6-a73d-f50617c9f7dd';
+  const bodies = [];
+  globalThis.fetch = async (_url, options) => {
+    bodies.push(JSON.parse(options.body));
+    return new Response('data: [DONE]\n\n');
+  };
+  const callbacks = {
+    onDelta() {},
+    onCompleted() {},
+    onError(error) {
+      throw new Error(error);
+    },
+  };
+  await sendChatMessage({ conversationId: 'conv', question: '问题', requestId }, callbacks);
+  await sendChatMessage({ conversationId: 'conv', question: '问题', requestId }, callbacks);
+  assert.deepEqual(
+    bodies.map((body) => body.request_id),
+    [requestId, requestId],
+  );
+});

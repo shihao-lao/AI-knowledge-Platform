@@ -188,8 +188,8 @@ def test_table_structure():
         'documents': 12,
         'chunks': 6,
         'conversations': 7,
-        'messages': 6,
-        'questions': 10,
+        'messages': 13,
+        'questions': 11,
         'practice_records': 8,
         'resumes': 9,
     }

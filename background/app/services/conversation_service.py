@@ -9,7 +9,7 @@ from typing import Any, List, Optional
 from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.database.models import Conversation, Message, Knowledge
+from app.infrastructure.database.models import Conversation, Message, Knowledge, _utcnow
 from app.infrastructure.database.session import get_async_session, get_session_context
 from app.models.enums import MessageRole
 from app.models.schemas import (
@@ -110,6 +110,7 @@ async def create_conversation(
                 "开始输入你的问题吧，我会尽量附上可验证的引用来源。"
             ),
             citations="[]",
+            message_index=1,
         ))
         conversation.message_count = 1
         await session.commit()
@@ -217,9 +218,15 @@ async def get_messages_by_conversation(
         result = await session.execute(
             select(Message)
             .where(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at.asc())
+            .order_by(Message.created_at, Message.message_index, Message.id)
         )
         messages = result.scalars().all()
+        questions = {m.request_id: m.content for m in messages if m.role == 'user' and m.request_id}
+
+        def display_status(msg):
+            if msg.generation_status == 'generating' and msg.generation_expires_at and msg.generation_expires_at <= _utcnow():
+                return 'interrupted'
+            return msg.generation_status
 
         return [
             MessageResponse(
@@ -228,6 +235,12 @@ async def get_messages_by_conversation(
                 content=msg.content,
                 citations=_load_citations(msg.citations),
                 created_at=msg.created_at.isoformat(),
+                request_id=msg.request_id,
+                generation_status=display_status(msg),
+                error=(msg.generation_error or '回答中断，可以重试此问题')
+                    if display_status(msg) in {'failed', 'interrupted'} else None,
+                retry_question=questions.get(msg.request_id)
+                    if msg.role == 'assistant' and display_status(msg) in {'failed', 'interrupted'} else None,
             )
             for msg in messages
         ]
@@ -261,6 +274,7 @@ async def add_message_to_conversation(
             role=MessageRole.USER,
             content=content,
             citations="[]",
+            message_index=conversation.message_count + 1,
         )
         session.add(message)
 

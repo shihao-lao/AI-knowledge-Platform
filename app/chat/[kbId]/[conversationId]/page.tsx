@@ -90,6 +90,11 @@ export default function ChatConversationPage() {
           content: m.content,
           citations: m.citations,
           createdAt: m.createdAt,
+          requestId: m.requestId,
+          generationStatus: m.generationStatus,
+          error: m.error,
+          retryQuestion: m.retryQuestion,
+          streaming: m.generationStatus === 'generating',
         })),
       );
     } catch (error) {
@@ -134,33 +139,43 @@ export default function ChatConversationPage() {
     }
   }, [conversationIdParam, conversations, activeKbId, kbConversations, router]);
 
-  const sendMessageToLLM = async (question: string) => {
+  const sendMessageToLLM = async (question: string, retry?: Message) => {
     if (!activeConversationId) return;
-
-    const userMessage: Message = {
-      id: `msg_${Date.now()}_user`,
-      role: 'user',
-      content: question,
-      createdAt: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
-
-    const assistantId = `msg_${Date.now()}_assistant`;
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: assistantId,
-        role: 'assistant',
-        content: '',
-        citations: [],
-        createdAt: new Date().toISOString(),
-        streaming: true,
-      },
-    ]);
+    const requestId = retry?.requestId ?? crypto.randomUUID();
+    const assistantId = retry?.id ?? `msg_${requestId}_assistant`;
+    if (retry) {
+      setMessages((prev) =>
+        prev.map((item) =>
+          item.id === assistantId
+            ? { ...item, content: '', citations: [], error: undefined, requestId, streaming: true }
+            : item,
+        ),
+      );
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg_${requestId}_user`,
+          role: 'user',
+          content: question,
+          requestId,
+          createdAt: new Date().toISOString(),
+        },
+        {
+          id: assistantId,
+          role: 'assistant',
+          content: '',
+          citations: [],
+          requestId,
+          createdAt: new Date().toISOString(),
+          streaming: true,
+        },
+      ]);
+    }
 
     // 服务端完成：RAG 检索、历史管理、引用校验、消息落库、标题生成
     await sendChatMessage(
-      { conversationId: activeConversationId, question, enableSearch: true, mode: 'question' },
+      { conversationId: activeConversationId, question, enableSearch: true, mode: 'question', requestId },
       {
         onDelta: (content) => {
           setMessages((prev) =>
@@ -173,12 +188,21 @@ export default function ChatConversationPage() {
           );
           // 服务端已更新标题/消息数，刷新会话列表
           fetchConversations(activeKbId);
+          fetchMessages(activeConversationId);
         },
         onError: (error) => {
           message.error(typeof error === 'string' ? error : '发生未知错误');
           setMessages((prev) =>
             prev.map((item) =>
-              item.id === assistantId ? { ...item, error, retryQuestion: question, streaming: false } : item,
+              item.id === assistantId
+                ? {
+                    ...item,
+                    content: item.content || retry?.content || '',
+                    error,
+                    retryQuestion: question,
+                    streaming: false,
+                  }
+                : item,
             ),
           );
         },
@@ -196,9 +220,9 @@ export default function ChatConversationPage() {
 
   const retryMessage = (failedMessage: Message) => {
     if (!failedMessage.retryQuestion || loading || sending) return;
-    // Send a new turn, keeping the interrupted attempt visible for comparison.
+    // 沿用原请求和消息，刷新后的中断记录也可以原位重试。
     setSending(true);
-    sendMessageToLLM(failedMessage.retryQuestion).finally(() => setSending(false));
+    sendMessageToLLM(failedMessage.retryQuestion, failedMessage).finally(() => setSending(false));
   };
 
   const createNewConversation = async () => {

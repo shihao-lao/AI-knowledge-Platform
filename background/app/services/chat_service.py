@@ -8,24 +8,26 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import os
+import time
 import uuid
-from typing import Any
 
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from loguru import logger
-from sqlalchemy import and_, select
 
 from app.services.retrieval_service import retrieval_service
-from app.infrastructure.database.models import Conversation, Knowledge, Message
-from app.infrastructure.database.session import get_session_context
+from app.infrastructure.database.models import Message
+from app.services.chat_generation_service import claim_generation, persist_generation
 from app.infrastructure.llm.config import (
     NOT_CONFIGURED_HINT,
     build_chat_model,
     resolve_llm_config,
+    describe_llm_error,
 )
 from app.models.schemas import RetrievalResult
 
@@ -58,7 +60,13 @@ def _get_chat_history(
     """从数据库消息构建 LangChain 消息列表（滑动窗口）。"""
     history = []
     # 系统指令只由服务端 Prompt 提供，旧客户端写入的 system 消息不能进入历史。
-    dialogue = [msg for msg in session_messages if msg.role in {"user", "assistant"}]
+    incomplete = {
+        msg.request_id for msg in session_messages
+        if getattr(msg, 'request_id', None) and msg.role == 'assistant'
+        and getattr(msg, 'generation_status', 'completed') != 'completed'
+    }
+    dialogue = [msg for msg in session_messages if msg.role in {"user", "assistant"}
+                and getattr(msg, 'request_id', None) not in incomplete]
     recent = dialogue[-max_turns * 2 :]
 
     for msg in recent:
@@ -94,109 +102,82 @@ class ChatService:
         user_id: str,
         enable_search: bool = True,
         mode: str = "question",
+        request_id: str | None = None,
     ) -> StreamingResponse:
         """处理聊天请求，返回 SSE 流式响应。"""
         if mode != "question":
             raise ValueError("模拟面试由 interview_service 管理，请使用面试接口")
 
         async def event_generator():
+            claim = None
+            full_answer = ''
+            contexts = []
+            timeout = max(1, int(os.getenv('CHAT_GENERATION_TIMEOUT', '180')))
             try:
-                # ── 1. 验证对话归属 ──
-                async with get_session_context() as session:
-                    conv_result = await session.execute(
-                        select(Conversation).where(Conversation.id == conversation_id)
-                    )
-                    conversation = conv_result.scalar_one_or_none()
-                    if not conversation:
-                        yield self._sse_error("对话不存在")
-                        return
-
-                    # 校验归属
-                    kb_result = await session.execute(
-                        select(Knowledge).where(
-                            and_(
-                                Knowledge.id == conversation.knowledge_id,
-                                Knowledge.user_id == user_id,
-                            )
-                        )
-                    )
-                    knowledge = kb_result.scalar_one_or_none()
-                    if not knowledge:
-                        yield self._sse_error("无权访问该对话")
-                        return
-
-                    # ── 2. 加载历史消息 ──
-                    msg_result = await session.execute(
-                        select(Message)
-                        .where(Message.conversation_id == conversation_id)
-                        .order_by(Message.created_at)
-                    )
-                    db_messages = list(msg_result.scalars().all())
-
-                # ── 3. 保存用户消息 ──
-                await self._save_message(conversation_id, "user", question)
-
-                # ── 4. RAG 检索 ──
-                contexts: list[RetrievalResult] = []
-                if enable_search:
-                    contexts = await self._retrieve(question, knowledge.id, user_id)
-                    logger.info(
-                        "检索完成: query='{}', 结果数={}",
-                        question[:50],
-                        len(contexts),
-                    )
-
-                # ── 5. 构建 LangChain Prompt ──
-                context_block = _build_context_block(contexts)
-                chat_history = _get_chat_history(db_messages)
-
-                prompt = ChatPromptTemplate.from_messages([
-                    ("system", QA_SYSTEM_PROMPT),
-                    MessagesPlaceholder(variable_name="chat_history"),
-                    ("human", "{question}"),
-                ])
-
-                # ── 6. LangChain Chain: prompt | llm | parser ──
-                llm_config = await resolve_llm_config(user_id)
-                if not llm_config.configured:
-                    yield self._sse_error(NOT_CONFIGURED_HINT)
+                claim = await claim_generation(conversation_id, user_id, question,
+                                               request_id or str(uuid.uuid4()), enable_search, timeout)
+                yield f"data: {json.dumps({'type': 'request', 'requestId': claim.request_id})}\n\n".encode()
+                if claim.token is None:
+                    yield self._sse_delta(claim.answer)
+                    if claim.citations:
+                        yield self._sse_citations(claim.citations)
+                    yield self._sse_done()
                     return
 
-                llm = build_chat_model(llm_config, streaming=True)
-                chain = prompt | llm | StrOutputParser()
-
-                # ── 7. 流式生成并推送 SSE ──
-                full_answer = ""
-                async for chunk in chain.astream(
-                    {
-                        "context": context_block,
-                        "chat_history": chat_history,
-                        "question": question,
-                    }
-                ):
-                    full_answer += chunk
-                    yield self._sse_delta(chunk)
-
-                # ── 8. 提取引用 ──
-                citations = self._extract_citations(full_answer, contexts)
-
-                # ── 9. 保存助手消息 ──
-                await self._save_message(
-                    conversation_id,
-                    "assistant",
-                    full_answer,
-                    citations=citations,
-                )
-
-                # ── 10. 推送引用信息 ──
+                async with asyncio.timeout(timeout):
+                    llm_config = await resolve_llm_config(user_id)
+                    if not llm_config.configured:
+                        raise RuntimeError(NOT_CONFIGURED_HINT)
+                    if enable_search:
+                        contexts = await self._retrieve(question, claim.knowledge_id, user_id)
+                    prompt = ChatPromptTemplate.from_messages([
+                        ('system', QA_SYSTEM_PROMPT),
+                        MessagesPlaceholder(variable_name='chat_history'),
+                        ('human', '{question}'),
+                    ])
+                    chain = prompt | build_chat_model(llm_config, streaming=True) | StrOutputParser()
+                    last_checkpoint = 0.0
+                    async for chunk in chain.astream({
+                        'context': _build_context_block(contexts),
+                        'chat_history': _get_chat_history(claim.history), 'question': question,
+                    }):
+                        if not chunk:
+                            continue
+                        full_answer += chunk
+                        if time.monotonic() - last_checkpoint >= 1:
+                            if not await persist_generation(claim, full_answer, self._extract_citations(full_answer, contexts)):
+                                raise RuntimeError('此回答已被重试或对话已删除，请刷新')
+                            last_checkpoint = time.monotonic()
+                        yield self._sse_delta(chunk)
+                    if not full_answer.strip():
+                        raise RuntimeError('模型返回了空回答，请重试')
+                    citations = self._extract_citations(full_answer, contexts)
+                    if not await persist_generation(claim, full_answer, citations, status='completed'):
+                        raise RuntimeError('此回答已被重试或对话已删除，请刷新')
                 if citations:
                     yield self._sse_citations(citations)
-
                 yield self._sse_done()
-
+            except (asyncio.CancelledError, GeneratorExit):
+                if claim and claim.token:
+                    await asyncio.shield(persist_generation(
+                        claim, full_answer or None,
+                        self._extract_citations(full_answer, contexts) if full_answer else None,
+                        status='interrupted', error='回答中断，可以重试此问题',
+                    ))
+                raise
             except Exception as e:
                 logger.exception("聊天处理失败: {}", e)
-                yield self._sse_error(f"聊天处理失败: {str(e)}")
+                error = '回答生成超时，请重试' if isinstance(e, TimeoutError) else describe_llm_error(e)
+                if claim and claim.token:
+                    try:
+                        await persist_generation(
+                            claim, full_answer or None,
+                            self._extract_citations(full_answer, contexts) if full_answer else None,
+                            status='failed', error=error,
+                        )
+                    except Exception as save_error:
+                        logger.warning('保存中断状态失败，租约到期后可重试: {}', type(save_error).__name__)
+                yield self._sse_error(error)
 
         return StreamingResponse(
             event_generator(),
@@ -242,36 +223,6 @@ class ChatService:
                 }
             )
         return citations
-
-    # ── 数据库操作 ──
-
-    async def _save_message(
-        self,
-        conversation_id: str,
-        role: str,
-        content: str,
-        citations: list[dict] | None = None,
-    ) -> None:
-        """保存消息到数据库。"""
-        async with get_session_context() as session:
-            msg = Message(
-                id=str(uuid.uuid4()),
-                conversation_id=conversation_id,
-                role=role,
-                content=content,
-                citations=json.dumps(citations or [], ensure_ascii=False),
-            )
-            session.add(msg)
-
-            # 更新对话消息计数
-            conv_result = await session.execute(
-                select(Conversation).where(Conversation.id == conversation_id)
-            )
-            conversation = conv_result.scalar_one_or_none()
-            if conversation:
-                conversation.message_count += 1
-
-            await session.commit()
 
     # ── SSE 事件格式 ──
 

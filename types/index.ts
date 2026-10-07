@@ -63,6 +63,8 @@ export interface Message {
   streaming?: boolean;
   error?: string;
   retryQuestion?: string;
+  requestId?: string;
+  generationStatus?: 'completed' | 'generating' | 'failed' | 'interrupted';
 }
 
 export interface Conversation {

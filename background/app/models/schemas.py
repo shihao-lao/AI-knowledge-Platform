@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from typing import Any, List, Literal, Optional
+from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -24,6 +25,7 @@ class ChatRequest(BaseModel):
     question: str | None = Field(default=None, description="用户问题")
     enable_search: bool = Field(default=True, description="是否启用检索")
     mode: str = Field(default="question", description="模式：question 或 interview")
+    request_id: UUID | None = Field(default=None, description='同一次提问和重试沿用同一个 UUID')
 
 
 class DocumentUploadResponse(BaseModel):
@@ -236,6 +238,10 @@ class MessageResponse(BaseModel):
     content: str
     citations: list[dict[str, Any]] = Field(default_factory=list)
     created_at: str
+    request_id: str | None = None
+    generation_status: str = 'completed'
+    error: str | None = None
+    retry_question: str | None = None
 
 
 class QuestionCreate(BaseModel):
